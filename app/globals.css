@@ -1,0 +1,53 @@
+@import "tailwindcss";
+@import "./theme.css";
+
+:root {
+    --dur-micro: 80ms;
+    --dur-fast: 120ms;
+    --dur-normal: 200ms;
+    --dur-slow: 300ms;
+    --dur-panel: 220ms;
+    --dur-sheet: 280ms;
+    --dur-vhs: 700ms;
+}
+
+/* Theme color transition — disabled for VHS and no-transition elements */
+*:not(.vhs-transition):not(.no-theme-transition):not(canvas) {
+    transition-property: background-color, border-color, color;
+    transition-duration: var(--dur-normal);
+    transition-timing-function: ease;
+}
+
+/* Containment utilities */
+.contain-panel {
+    contain: layout style;
+}
+
+.contain-card {
+    contain: layout;
+}
+
+.contain-strict {
+    contain: strict;
+}
+
+/* NodePanel transform origins */
+[data-panel-origin="top-left"] {
+    transform-origin: top left;
+}
+
+[data-panel-origin="top-right"] {
+    transform-origin: top right;
+}
+
+[data-panel-origin="bottom-left"] {
+    transform-origin: bottom left;
+}
+
+[data-panel-origin="bottom-right"] {
+    transform-origin: bottom right;
+}
+
+[data-panel-origin="center"] {
+    transform-origin: center;
+}

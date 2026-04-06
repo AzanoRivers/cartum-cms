@@ -1,0 +1,93 @@
+@theme {
+  /* ── Reset Tailwind defaults ────────────────────────────────────────────── */
+  --color-*: initial;
+
+  /* ── Color palette ──────────────────────────────────────────────────────── */
+  --color-bg:           #0a0a0f;
+  --color-surface:      #111118;
+  --color-surface-2:    #1a1a24;
+  --color-border:       #2a2a38;
+  --color-primary:      #6366f1;
+  --color-primary-glow: #6366f140;
+  --color-accent:       #22d3ee;
+  --color-text:         #e2e8f0;
+  --color-muted:        #64748b;
+  --color-danger:       #ef4444;
+  --color-success:      #22c55e;
+  --color-warning:      #f59e0b;
+
+  /* ── Typography ─────────────────────────────────────────────────────────── */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Border radius ──────────────────────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* ── Easing curves ──────────────────────────────────────────────────────── */
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-expo:  cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-fold:     cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* ── Animation utilities ────────────────────────────────────────────────── */
+  --animate-panel-unfurl: panel-unfurl 220ms var(--ease-spring) both;
+  --animate-panel-fold:   panel-fold 150ms var(--ease-in-expo) both;
+  --animate-sheet-up:     panel-slide-up 280ms var(--ease-fold) both;
+  --animate-vhs:          vhs-entry 700ms var(--ease-out-expo) both;
+  --animate-toast-in:     toast-vhs-in 400ms var(--ease-out-expo) both;
+
+  /* ── Keyframes ──────────────────────────────────────────────────────────── */
+  @keyframes panel-unfurl {
+    from { opacity: 0; transform: scaleY(0.92) translateY(-4px); }
+    to   { opacity: 1; transform: scaleY(1) translateY(0); }
+  }
+
+  @keyframes panel-fold {
+    from { opacity: 1; transform: scaleY(1) translateY(0); }
+    to   { opacity: 0; transform: scaleY(0.92) translateY(-4px); }
+  }
+
+  @keyframes panel-slide-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes vhs-entry {
+    0%   { opacity: 0; filter: blur(4px) contrast(1.4); transform: translateX(-3px); }
+    15%  { opacity: 0.6; filter: blur(2px) contrast(1.2); transform: translateX(3px); }
+    30%  { opacity: 0.8; filter: blur(1px) contrast(1.1); transform: translateX(-1px); }
+    50%  { opacity: 0.9; filter: blur(0.5px) contrast(1.05); transform: translateX(1px); }
+    70%  { opacity: 0.95; filter: blur(0px) contrast(1); transform: translateX(0); }
+    100% { opacity: 1; filter: none; transform: translateX(0); }
+  }
+
+  @keyframes toast-vhs-in {
+    0%   { opacity: 0; filter: blur(3px); transform: translateY(8px) translateX(-2px); }
+    40%  { opacity: 0.8; filter: blur(1px); transform: translateY(-1px) translateX(1px); }
+    100% { opacity: 1; filter: none; transform: translateY(0) translateX(0); }
+  }
+}
+
+/* ── Theme overrides ──────────────────────────────────────────────────────── */
+[data-theme="cyber-soft"] {
+  --color-bg:        #0d1117;
+  --color-surface:   #161b22;
+  --color-surface-2: #21262d;
+  --color-border:    #30363d;
+  --color-primary:   #58a6ff;
+  --color-accent:    #39d353;
+}
+
+[data-theme="light"] {
+  --color-bg:        #f8fafc;
+  --color-surface:   #ffffff;
+  --color-surface-2: #f1f5f9;
+  --color-border:    #e2e8f0;
+  --color-primary:   #6366f1;
+  --color-accent:    #0891b2;
+  --color-text:      #0f172a;
+  --color-muted:     #64748b;
+}
