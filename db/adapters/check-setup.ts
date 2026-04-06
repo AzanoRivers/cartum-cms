@@ -1,8 +1,15 @@
+import { db } from '@/db'
+import { users } from '@/db/schema'
+import { eq } from 'drizzle-orm'
+
 /**
- * Stub: replaced in Part 03 (Setup Wizard).
- * Returns true if setup has been completed (super_admin exists + project initialized).
+ * Returns true if a super admin exists — the canonical "setup complete" signal.
  */
 export async function checkSetupComplete(): Promise<boolean> {
-  // Implemented in Part 03
-  return false
+  const rows = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.isSuperAdmin, true))
+    .limit(1)
+  return rows.length > 0
 }

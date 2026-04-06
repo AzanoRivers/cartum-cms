@@ -226,15 +226,15 @@ Aesthetic: centered dark card on pure black background. Step dots glow in primar
 
 ## Acceptance Criteria
 
-- [ ] Fresh DB → accessing `/` redirects to `/setup`
-- [ ] Step 0 shows green checks for all valid env vars / DB connection
-- [ ] Step 0 with bad `DATABASE_URL` shows error, no Continue button
-- [ ] Step 1 muestra English pre-seleccionado; al pulsar Español el resto del wizard cambia de idioma
-- [ ] Step 1 persiste el idioma en `project_settings.default_locale` antes de avanzar
-- [ ] Step 2 rejects weak passwords (< 12 chars) with inline error
-- [ ] Step 2 rejects mismatched passwords
-- [ ] Step 3 saves project name to DB
-- [ ] Step 4 auto-runs and creates default roles (`admin`, `editor`, `viewer`)
-- [ ] Step 5 redirects to `/cms/board` on Click
-- [ ] After wizard completes, accessing `/setup` redirects to `/cms/board`
-- [ ] No step can be reached by direct URL if prior steps are incomplete
+- [x] Fresh DB → accessing `/` redirects to `/setup`
+- [x] Step 0 shows green checks for all valid env vars / DB connection
+- [x] Step 0 with bad `DATABASE_URL` shows error, no Continue button
+- [x] Step 1 muestra English pre-seleccionado; al pulsar Español el resto del wizard cambia de idioma
+- [x] Step 1 persiste el idioma en `project_settings.default_locale` antes de avanzar
+- [x] Step 2 rejects weak passwords (< 12 chars) with inline error
+- [x] Step 2 rejects mismatched passwords
+- [x] Step 3 saves project name to DB
+- [x] Step 4 auto-runs and creates default roles (`admin`, `editor`, `viewer`)
+- [x] Step 5 redirects to `/cms/board` on Click
+- [x] After wizard completes, accessing `/setup` redirects to `/cms/board`
+- [x] No step can be reached by direct URL if prior steps are incomplete

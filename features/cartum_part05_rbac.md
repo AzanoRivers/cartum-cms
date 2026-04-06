@@ -195,12 +195,26 @@ If a user has zero accessible nodes: Content Mode shows an empty state — "No c
 
 ## Acceptance Criteria
 
-- [ ] `requirePermission()` throws `FORBIDDEN` when user lacks access
-- [ ] Super admin bypasses all permission checks
-- [ ] `createRecord` Server Action returns 403-equivalent error for unauthorized user
-- [ ] API route handler returns `{ error: 'FORBIDDEN' }` with status 403 for unauthorized
-- [ ] `getAccessibleNodes()` returns only node IDs where the user has `can_read`
-- [ ] Content Mode shows empty state for users with no permissions assigned
-- [ ] `createRole()` succeeds and role shows in DB
-- [ ] `deleteRole()` fails if users are still assigned to that role (returns error, does not throw)
-- [ ] `setNodePermissions()` updates the `role_permissions` table correctly
+- [x] `requirePermission()` throws `FORBIDDEN` when user lacks access
+- [x] Super admin bypasses all permission checks
+- [x] `createRecord` Server Action returns 403-equivalent error for unauthorized user
+- [x] API route handler returns `{ error: 'FORBIDDEN' }` with status 403 for unauthorized
+- [x] `getAccessibleNodes()` returns only node IDs where the user has `can_read`
+- [x] Content Mode shows empty state for users with no permissions assigned
+- [x] `createRole()` succeeds and role shows in DB
+- [x] `deleteRole()` fails if users are still assigned to that role (returns error, does not throw)
+- [x] `setNodePermissions()` updates the `role_permissions` table correctly
+
+---
+
+## Post-Part-05 Wizard Robustness Additions
+
+These items were identified after Part 05 completion and hardened the setup wizard:
+
+- [x] Wizard locale stored in HTTP-only cookie `cartum-setup-locale` (not in-memory module variable) — survives server restarts and concurrent requests
+- [x] `/setup/credentials` Server Component guard: redirects to `/setup/locale` if cookie is missing
+- [x] `/setup/project` Server Component guard: queries DB for super admin, redirects to `/setup/credentials` if none exists
+- [x] `/setup/initializing` Server Component guard: queries DB for project, redirects to `/setup/project` if none exists
+- [x] `createSuperAdmin` service is idempotent — skips creation if a super admin already exists
+- [x] `createProject` service is idempotent — skips creation if a project already exists
+- [x] All wizard step pages are Server Components that enforce sequential completion before rendering their client

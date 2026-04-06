@@ -1,0 +1,97 @@
+import type { Dictionary } from './en'
+
+export const es: Dictionary = {
+  setup: {
+    stepLabels: ['Verificación', 'Idioma', 'Tu cuenta', 'Proyecto', 'Configurando', 'Listo'],
+    layout: {
+      back: 'Volver',
+    },
+    systemCheck: {
+      title:          'Revisando todo',
+      subtitle:       'Verificando que el entorno esté listo antes de empezar.',
+      db:             'Conexión a la base de datos',
+      env:            'Variables de entorno',
+      schema:         'Integridad del esquema',
+      storageLabel:   'Almacenamiento (R2)',
+      storageWarning: 'Sin configurar. Puedes hacerlo después desde Ajustes.',
+      allOk:          'Todo verde, podemos continuar.',
+      continue:       'Continuar',
+      fixFirst:       'Toca arreglar esto primero',
+    },
+    locale: {
+      title:    '¿En qué idioma trabajamos?',
+      subtitle: 'Elige el idioma de la interfaz. Lo puedes cambiar cuando quieras desde Ajustes.',
+      continue: 'Continuar',
+    },
+    credentials: {
+      title:    'Crea tu cuenta de admin',
+      subtitle: 'Esta cuenta manda. Úsala con sabiduría.',
+      email:    'Correo',
+      password: 'Contraseña',
+      confirm:  'Confirma la contraseña',
+      strength: { weak: 'Débil', fair: 'Va bien', strong: 'Excelente' },
+      continue: 'Continuar',
+      errors: {
+        email:    'Ingresa un correo válido.',
+        password: 'La contraseña necesita al menos 12 caracteres.',
+        confirm:  'Las contraseñas no coinciden.',
+      },
+    },
+    project: {
+      title:       'Ponle nombre a tu proyecto',
+      subtitle:    'Dale identidad a tu CMS. Puedes cambiarlo después cuando quieras.',
+      name:        'Nombre del proyecto',
+      description: 'Descripción (opcional)',
+      continue:    'Continuar',
+    },
+    initializing: {
+      title: 'Configurando todo...',
+      steps: [
+        'Creando la cuenta de admin',
+        'Configurando el proyecto',
+        'Inicializando el esquema',
+        'Generando los roles por defecto',
+      ],
+      done: 'Todo listo.',
+    },
+    ready: {
+      title:     'Sistema listo',
+      project:   'Proyecto',
+      admin:     'Admin',
+      status:    'Estado',
+      statusVal: 'Activo',
+      cta:       'Ir al dashboard',
+    },
+  },
+  auth: {
+    login: {
+      title:          'Bienvenido de nuevo',
+      email:          'Correo',
+      password:       'Contraseña',
+      show:           'ver',
+      hide:           'ocultar',
+      submit:         'Entrar',
+      submitting:     'Entrando...',
+      error:          'El correo o la contraseña no son correctos.',
+      forgotPassword: 'Olvidé mi contraseña',
+    },
+    forgotPassword: {
+      title:          'Recupera tu acceso',
+      subtitle:       'Escribe tu correo y te mandamos un enlace para restablecer tu contraseña.',
+      email:          'Correo',
+      submit:         'Enviar enlace',
+      submitting:     'Enviando...',
+      success:        'Si ese correo está registrado, ya tiene un enlace en camino.',
+      backToLogin:    'Volver al login',
+      noEmailWarning: 'El envío de correos no está configurado. Contacta al administrador.',
+    },
+    resetPassword: {
+      title:           'Nueva contraseña',
+      subtitle:        'Elige algo seguro, al menos 12 caracteres.',
+      newPassword:     'Nueva contraseña',
+      confirmPassword: 'Confirma la contraseña',
+      submit:          'Guardar contraseña',
+      submitting:      'Guardando...',
+    },
+  },
+}

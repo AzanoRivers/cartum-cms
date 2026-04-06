@@ -166,14 +166,14 @@ export function Button({ variant, size, loading, children, ...props }: ButtonPro
 
 ## Acceptance Criteria
 
-- [ ] `VHSTransition` with `duration="full"` plays all 4 animation layers on mount
-- [ ] `VHSTransition` re-fires when `trigger` prop value changes
-- [ ] No animation runs on subsequent renders if `trigger` has not changed
-- [ ] `vhs-transition` class is present during animation and removed on `animationend`
-- [ ] All atoms (Button, Input, Badge, Icon, Label, Tooltip, Spinner) render without errors
-- [ ] Button loading state shows Spinner and disables interaction
-- [ ] Input with `error` prop shows red border and error message below
-- [ ] Tooltip appears on hover and is accessible via keyboard focus (`role="tooltip"`, ARIA)
-- [ ] All atom prop types are exported from `/types/ui.ts`
-- [ ] Every atom uses `cva()` for all style variants — no conditional className string logic
-- [ ] Cero `style={{ color: '...' }}` o `bg-[#hex]` en los atoms — solo utility classes de tokens
+- [x] `VHSTransition` with `duration="full"` plays all 4 animation layers on mount
+- [x] `VHSTransition` re-fires when `trigger` prop value changes
+- [x] No animation runs on subsequent renders if `trigger` has not changed
+- [x] `vhs-transition` class is present during animation and removed on `animationend`
+- [x] All atoms (Button, Input, Badge, Icon, Label, Tooltip, Spinner) render without errors
+- [x] Button loading state shows Spinner and disables interaction
+- [x] Input with `error` prop shows red border and error message below
+- [x] Tooltip appears on hover and is accessible via keyboard focus (`role="tooltip"`, ARIA)
+- [x] All atom prop types are exported from `/types/ui.ts`
+- [x] Every atom uses `cva()` for all style variants — no conditional className string logic
+- [x] Cero `style={{ color: '...' }}` o `bg-[#hex]` en los atoms — solo utility classes de tokens

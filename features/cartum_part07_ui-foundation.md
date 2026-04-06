@@ -369,10 +369,10 @@ function SidebarLogo() {
 
 ## Acceptance Criteria
 
-- [ ] `app/theme.css` es la única fuente de verdad: nada de hex values en otros archivos
-- [ ] Todos los tokens del `@theme` generan utility classes correctas (`bg-primary`, `text-muted`, `rounded-lg`, `ease-spring`, etc.)
-- [ ] All CSS tokens in `theme.css` are accessible as Tailwind classes (`bg-surface`, `text-muted`, `border-border`, etc.)
-- [ ] `app/icon.svg` is recognized as favicon by Next.js App Router (served at `/favicon.svg`)
-- [ ] `public/images/brand/` folder contains the 4 logo variants (logo-dark.png, logo-light.png, logo-500.png, logo-1000.png)
-- [ ] `app/layout.tsx` exports correct `metadata` object with `icons` and `openGraph` configured
-- [ ] Cero `style={{ color: '...' }}` o `bg-[#hex]` en archivos de componentes — solo utility classes de los tokens
+- [x] `app/theme.css` es la única fuente de verdad: nada de hex values en otros archivos
+- [x] Todos los tokens del `@theme` generan utility classes correctas (`bg-primary`, `text-muted`, `rounded-lg`, `ease-spring`, etc.)
+- [x] All CSS tokens in `theme.css` are accessible as Tailwind classes (`bg-surface`, `text-muted`, `border-border`, etc.)
+- [x] `app/icon.svg` is recognized as favicon by Next.js App Router (served at `/favicon.svg`)
+- [x] `public/images/brand/` folder contains the 4 logo variants (logo-dark.png, logo-light.png, logo-500.png, logo-1000.png)
+- [x] `app/layout.tsx` exports correct `metadata` object with `icons` and `openGraph` configured
+- [x] Cero `style={{ color: '...' }}` o `bg-[#hex]` en archivos de componentes — solo utility classes de los tokens

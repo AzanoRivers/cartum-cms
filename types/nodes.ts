@@ -33,3 +33,35 @@ export interface NodeConnection {
   targetNodeId: string
   relationType: RelationType
 }
+
+// ── Input types ───────────────────────────────────────────────────────────────
+
+export interface CreateContainerInput {
+  name: string
+  parentId: string | null
+  positionX?: number
+  positionY?: number
+}
+
+export interface CreateFieldInput {
+  name: string
+  parentId: string
+  fieldType: FieldType
+  isRequired?: boolean
+  defaultValue?: string
+  relationTargetId?: string
+  positionX?: number
+  positionY?: number
+}
+
+// ── Read models ───────────────────────────────────────────────────────────────
+
+export interface BreadcrumbItem {
+  id: string
+  name: string
+}
+
+export interface NodeTree {
+  node: ContainerNode
+  children: (NodeTree | FieldNode)[]
+}

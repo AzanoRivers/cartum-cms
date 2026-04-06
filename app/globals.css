@@ -1,37 +1,75 @@
 @import "tailwindcss";
 @import "./theme.css";
 
+/* === DURATION SCALE (plain CSS vars — no Tailwind namespace) === */
 :root {
     --dur-micro: 80ms;
-    --dur-fast: 120ms;
-    --dur-normal: 200ms;
-    --dur-slow: 300ms;
-    --dur-panel: 220ms;
-    --dur-sheet: 280ms;
+    --dur-fast: 150ms;
+    --dur-normal: 220ms;
+    --dur-medium: 300ms;
+    --dur-slow: 500ms;
     --dur-vhs: 700ms;
 }
 
-/* Theme color transition — disabled for VHS and no-transition elements */
-*:not(.vhs-transition):not(.no-theme-transition):not(canvas) {
-    transition-property: background-color, border-color, color;
-    transition-duration: var(--dur-normal);
-    transition-timing-function: ease;
+/* === BASE STYLES === */
+body {
+    @apply bg-bg text-text font-sans;
 }
 
-/* Containment utilities */
+button, [role="button"] {
+    cursor: pointer;
+}
+
+/* === THEME COLOR TRANSITION (CSS-only — zero JS) ===
+   background-color y color son solo Paint — sin layout recalc. */
+*,
+*::before,
+*::after {
+    transition:
+        background-color var(--dur-medium) var(--ease-out-expo),
+        border-color var(--dur-medium) var(--ease-out-expo),
+        color var(--dur-medium) var(--ease-out-expo);
+}
+
+/* Excluir elementos con sus propias transiciones */
+.vhs-transition,
+canvas,
+.no-theme-transition {
+    transition: none !important;
+}
+
+/* === REDUCED MOTION ===
+   0.01ms preserva eventos animationend para cleanup hooks */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .vhs-transition {
+        animation: none !important;
+        filter: none !important;
+    }
+}
+
+/* === CSS CONTAINMENT UTILITIES === */
 .contain-panel {
-    contain: layout style;
+    contain: layout style paint;
 }
 
 .contain-card {
-    contain: layout;
+    contain: layout style;
 }
 
 .contain-strict {
     contain: strict;
 }
 
-/* NodePanel transform origins */
+/* === NODE PANEL TRANSFORM ORIGINS === */
 [data-panel-origin="top-left"] {
     transform-origin: top left;
 }
@@ -50,4 +88,50 @@
 
 [data-panel-origin="center"] {
     transform-origin: center;
+}
+
+/* === VHS ANIMATION LAYERS ===
+   .vhs-transition::before → scanlines sweep
+   .vhs-transition::after  → RGB shift glow
+   Both layers are driven by the vhs-entry duration on the parent. */
+.vhs-transition {
+    position: relative;
+    isolation: isolate;
+}
+
+.vhs-transition::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0, 0, 0, 0.08) 3px,
+        rgba(0, 0, 0, 0.08) 4px
+    );
+    animation: vhs-scanlines var(--dur-vhs, 700ms) var(--ease-out-expo, cubic-bezier(0.16,1,0.3,1)) forwards;
+}
+
+.vhs-transition::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    pointer-events: none;
+    animation: vhs-rgb-shift var(--dur-vhs, 700ms) var(--ease-out-expo, cubic-bezier(0.16,1,0.3,1)) forwards;
+}
+
+@keyframes vhs-scanlines {
+    0%   { opacity: 1; transform: translateY(-100%); }
+    60%  { opacity: 0.6; }
+    100% { opacity: 0; transform: translateY(0); }
+}
+
+@keyframes vhs-rgb-shift {
+    0%   { box-shadow: -3px 0 0 rgba(255, 0, 0, 0.25), 3px 0 0 rgba(0, 200, 255, 0.25); opacity: 1; }
+    40%  { box-shadow: -2px 0 0 rgba(255, 0, 0, 0.15), 2px 0 0 rgba(0, 200, 255, 0.15); }
+    100% { box-shadow: 0 0 0 transparent; opacity: 0; }
 }

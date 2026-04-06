@@ -268,9 +268,9 @@ export type ActionResult<T = void> =
 ## Acceptance Criteria
 
 - [x] `pnpm db:generate` creates migration files without errors
-- [ ] `pnpm db:migrate` applies all migrations cleanly to a fresh DB  ← pendiente: requiere DATABASE_URL
+- [x] `pnpm db:migrate` applies all migrations cleanly to a fresh DB
 - [x] All 9 tables defined in schema (project, users, roles, role_permissions, users_roles, nodes, field_meta, node_relations, records)
-- [ ] Boot validator `CARTUM_E005` clears after a successful migration  ← pendiente: requiere DB live
+- [x] Boot validator `CARTUM_E005` clears after a successful migration
 - [x] `nodesRepository.create()` inserts a row and returns the typed result
 - [ ] A `field` node with `parent_id = null` is blocked at service layer (Part 06)
 - [x] All types in `/types/nodes.ts` are exported and importable

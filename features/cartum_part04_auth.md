@@ -213,13 +213,13 @@ export async function logout() {
 
 ## Acceptance Criteria
 
-- [ ] `/login` renders correctly and accessible without a session
-- [ ] Correct credentials → session created → redirect to `/cms/board`
-- [ ] Wrong credentials → inline error, no redirect
-- [ ] Accessing `/cms/board` without session → redirects to `/login`
-- [ ] Session `user.isSuperAdmin` is `true` for the account created in Part 03
-- [ ] Session `user.roles` array is populated from DB
-- [ ] Logout clears the session and redirects to `/login`
-- [ ] Password reset token expires after 1 hour
-- [ ] Reset token can only be used once (`used_at` is set after use)
-- [ ] No email enumeration on `/forgot-password` (always shows same message)
+- [x] `/login` renders correctly and accessible without a session
+- [x] Correct credentials → session created → redirect to `/cms/board`
+- [x] Wrong credentials → inline error, no redirect
+- [x] Accessing `/cms/board` without session → redirects to `/login`
+- [x] Session `user.isSuperAdmin` is `true` for the account created in Part 03
+- [x] Session `user.roles` array is populated from DB
+- [x] Logout clears the session and redirects to `/login`
+- [x] Password reset token expires after 1 hour
+- [x] Reset token can only be used once (`used_at` is set after use)
+- [x] No email enumeration on `/forgot-password` (always shows same message)

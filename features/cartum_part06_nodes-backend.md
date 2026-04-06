@@ -200,15 +200,15 @@ export const CreateFieldSchema = z.object({
 
 ## Acceptance Criteria
 
-- [ ] `createContainerNode` with `parentId: null` succeeds and creates a root container
-- [ ] `createFieldNode` with `parentId: null` returns `FIELD_REQUIRES_PARENT` error
-- [ ] `createFieldNode` with `fieldType: 'relation'` and no `relationTargetId` returns error
-- [ ] `deleteNode` on a container with children returns child count warning (without `confirmed`)
-- [ ] `deleteNode` with `confirmed: true` deletes node and all descendants via cascade
-- [ ] `getBreadcrumb('someNestedId')` returns correct path array from root to target
-- [ ] `getBoard(null)` returns only root-level nodes
-- [ ] `getBoard(containerId)` returns only direct children of that container
-- [ ] Node names must be unique within the same parent — duplicate name returns error
-- [ ] `createConnection` between two containers of the same level succeeds
-- [ ] `createConnection` with a field node as source or target returns error
-- [ ] Duplicate connection (same source + target) returns error
+- [x] `createContainerNode` with `parentId: null` succeeds and creates a root container
+- [x] `createFieldNode` with `parentId: null` returns `FIELD_REQUIRES_PARENT` error
+- [x] `createFieldNode` with `fieldType: 'relation'` and no `relationTargetId` returns error
+- [x] `deleteNode` on a container with children returns child count warning (without `confirmed`)
+- [x] `deleteNode` with `confirmed: true` deletes node and all descendants via cascade
+- [x] `getBreadcrumb('someNestedId')` returns correct path array from root to target
+- [x] `getBoard(null)` returns only root-level nodes
+- [x] `getBoard(containerId)` returns only direct children of that container
+- [x] Node names must be unique within the same parent — duplicate name returns error
+- [x] `createConnection` between two containers of the same level succeeds
+- [x] `createConnection` with a field node as source or target returns error
+- [x] Duplicate connection (same source + target) returns error
