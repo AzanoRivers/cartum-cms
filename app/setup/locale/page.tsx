@@ -24,7 +24,7 @@ export default function LocalePage() {
   async function handleContinue() {
     setLoading(true)
     await setDefaultLocale({ locale: selected })
-    router.push('/setup/credentials')
+    router.push('/setup/system-check')
   }
 
   return (

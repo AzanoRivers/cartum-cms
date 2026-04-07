@@ -16,7 +16,7 @@ export default async function LoginPage() {
   const dict   = getDictionary(locale).auth.login
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[--color-bg]">
+    <main className="min-h-screen flex items-center justify-center bg-bg">
       <VHSTransition duration="full">
         <LoginForm dict={dict} />
       </VHSTransition>

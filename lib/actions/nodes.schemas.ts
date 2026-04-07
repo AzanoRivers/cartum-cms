@@ -43,3 +43,17 @@ export const CreateConnectionSchema = z.object({
 export const DeleteConnectionSchema = z.object({
   connectionId: z.string().uuid(),
 })
+
+export const UpdateConnectionSchema = z.object({
+  connectionId: z.string().uuid(),
+  relationType: z.enum(['1:1', '1:n', 'n:m']),
+})
+
+export const UpdateFieldMetaSchema = z.object({
+  nodeId:           z.string().uuid(),
+  name:             z.string().min(1).max(64).regex(/^[a-zA-Z0-9 _-]+$/, 'Name contains invalid characters.').optional(),
+  isRequired:       z.boolean().optional(),
+  fieldType:        z.enum(['text', 'number', 'boolean', 'image', 'video', 'relation']).optional(),
+  config:           z.record(z.unknown()).optional(),
+  relationTargetId: z.string().uuid().nullable().optional(),
+})

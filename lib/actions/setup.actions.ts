@@ -6,8 +6,12 @@ import {
   createProjectService,
   initializeSchemaService,
 } from '@/lib/services/setup.service'
+import { sendWelcomeEmail } from '@/lib/email/mailer'
+import { db } from '@/db'
+import { appSettings } from '@/db/schema'
 import type { ActionResult } from '@/types/actions'
 import type { SupportedLocale } from '@/types/project'
+import type { ThemeId } from '@/types/theme'
 import { z } from 'zod'
 
 const LOCALE_COOKIE = 'cartum-setup-locale'
@@ -59,6 +63,18 @@ export async function createSuperAdmin(
 
   try {
     await createSuperAdminService({ email: parsed.data.email, password: parsed.data.password })
+
+    // Send welcome email with credentials — non-blocking, failure does not abort setup
+    const jar     = await cookies()
+    const locale  = (jar.get(LOCALE_COOKIE)?.value ?? 'en') as SupportedLocale
+    const baseUrl = process.env.AUTH_URL ?? 'http://localhost:3000'
+    sendWelcomeEmail({
+      to:       parsed.data.email,
+      password: parsed.data.password,
+      cmsUrl:   `${baseUrl}/cms`,
+      locale,
+    }).catch(() => { /* intentionally swallowed — email is optional */ })
+
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error.' }
@@ -97,7 +113,32 @@ export async function createProject(
   }
 }
 
-// ── Step 4: Initialize schema ─────────────────────────────────────────────────
+// ── Step 4: Save theme ────────────────────────────────────────────────────────
+
+const VALID_THEMES: ThemeId[] = ['dark', 'cyber-soft', 'light']
+
+export async function saveSetupTheme(
+  input: { theme: ThemeId },
+): Promise<ActionResult> {
+  if (!VALID_THEMES.includes(input.theme)) {
+    return { success: false, error: 'Invalid theme.' }
+  }
+
+  try {
+    await db
+      .insert(appSettings)
+      .values({ key: 'theme', value: input.theme })
+      .onConflictDoUpdate({
+        target: appSettings.key,
+        set: { value: input.theme, updatedAt: new Date() },
+      })
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error.' }
+  }
+}
+
+// ── Step 5: Initialize schema ─────────────────────────────────────────────────
 
 export async function initializeSchema(): Promise<ActionResult> {
   try {

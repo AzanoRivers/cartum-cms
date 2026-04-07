@@ -163,13 +163,57 @@ Validation errors show inline below the relevant input (no full-page errors).
 
 ## Acceptance Criteria
 
-- [ ] Clicking a field NodeCard opens FieldEditPanel with current values pre-filled
-- [ ] All 6 field types render their type-specific config section correctly
-- [ ] Storage warning banner shows on image/video fields when R2 is not configured
-- [ ] Relation field shows target node dropdown with all valid containers
-- [ ] Changing field type is blocked with warning when records exist
-- [ ] Saving field updates reflect on the NodeCard immediately (optimistic update)
-- [ ] Required toggle + `*` indicator on NodeCard stay in sync
-- [ ] Number field blocks submission when min > max
-- [ ] Each field type icon and color is correct on the NodeCard
-- [ ] FieldTypePicker icons are visible and selectable in creation and edit flows
+- [x] Clicking a field NodeCard opens FieldEditPanel with current values pre-filled
+- [x] All 6 field types render their type-specific config section correctly
+- [x] Storage warning banner shows on image/video fields when R2 is not configured
+- [x] Relation field shows target node dropdown with all valid containers
+- [x] Changing field type is blocked with warning when records exist
+- [x] Saving field updates reflect on the NodeCard immediately (optimistic update)
+- [x] Required toggle + `*` indicator on NodeCard stay in sync
+- [x] Number field blocks submission when min > max
+- [x] Each field type icon and color is correct on the NodeCard
+- [x] FieldTypePicker icons are visible and selectable in creation and edit flows
+
+---
+
+## i18n — Zero Hardcoded Strings
+
+All board-level UI text is managed through the dictionary system (`locales/en.ts`, `locales/es.ts`).
+No component in `/app/(cms)` or `/components/ui/` may contain hardcoded user-visible text.
+
+### Architecture
+
+- `Dictionary['cms']` type added to `locales/en.ts` — covers all board UI text
+- `export type CmsDictionary = Dictionary['cms']` exported from `locales/en.ts`
+- `cmsDict: CmsDictionary | null` + `setCmsDict()` added to `uiStore`
+- `CmsDictionarySetter` (invisible client component, pattern identical to `BreadcrumbSetter`) seeds the store from `app/(cms)/layout.tsx`
+- All board client components read `const d = useUIStore((s) => s.cmsDict)` and use `d?.key ?? 'fallback'`
+
+### Dictionary sub-keys (`cms.*`)
+
+| Key | Component |
+|---|---|
+| `topBar` | `TopBar.tsx` — log out, aria-label |
+| `dock` | `DockBar.tsx` — settings, home, create tooltips |
+| `canvas` | `InfiniteCanvas.tsx` — aria-label, empty state |
+| `nodeCard` | `NodeCard.tsx` — field/record/connection badges, type labels, required marker |
+| `creation` | `NodeCreationPanel.tsx` — all titles, labels, errors |
+| `fieldTypePicker` | `FieldTypePicker.tsx`, `NodeCreationPanel.tsx` — type labels |
+| `fieldEdit` | `FieldEditPanel.tsx` — all panel text, errors, storage warnings |
+| `mobileList` | `MobileNodeList.tsx` — empty state, fields separator |
+
+### Acceptance Criteria (i18n)
+
+- [x] `locales/en.ts` — full `cms` section added with all board strings
+- [x] `locales/es.ts` — full Spanish translation of `cms` section
+- [x] `uiStore` — `cmsDict` state + `setCmsDict` action
+- [x] `CmsDictionarySetter` component created at `components/ui/molecules/`
+- [x] `app/(cms)/layout.tsx` — fetches locale from DB, seeds `cmsDict` via `CmsDictionarySetter`
+- [x] `TopBar.tsx` — no hardcoded strings
+- [x] `DockBar.tsx` — no hardcoded strings
+- [x] `NodeCreationPanel.tsx` — no hardcoded strings
+- [x] `NodeCard.tsx` — no hardcoded strings
+- [x] `InfiniteCanvas.tsx` — no hardcoded strings
+- [x] `FieldTypePicker.tsx` — no hardcoded strings
+- [x] `FieldEditPanel.tsx` — no hardcoded strings
+- [x] `MobileNodeList.tsx` — no hardcoded strings

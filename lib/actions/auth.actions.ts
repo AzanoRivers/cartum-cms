@@ -1,8 +1,12 @@
 'use server'
 
 import { z } from 'zod'
+import { db } from '@/db'
+import { project } from '@/db/schema'
 import type { ActionResult } from '@/types/actions'
+import type { SupportedLocale } from '@/types/project'
 import { requestPasswordReset, resetPassword } from '@/lib/services/auth.service'
+import { sendPasswordResetEmail } from '@/lib/email/mailer'
 
 const RequestSchema = z.object({
   email: z.string().email(),
@@ -25,7 +29,16 @@ export async function requestPasswordResetAction(
     return { success: false, error: 'Enter a valid email address.' }
   }
 
-  await requestPasswordReset(parsed.data.email)
+  const rawToken = await requestPasswordReset(parsed.data.email)
+
+  if (rawToken) {
+    const rows    = await db.select({ locale: project.defaultLocale }).from(project).limit(1)
+    const locale  = (rows[0]?.locale ?? 'en') as SupportedLocale
+    const baseUrl = process.env.AUTH_URL ?? 'http://localhost:3000'
+    const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`
+    await sendPasswordResetEmail({ to: parsed.data.email, resetUrl, locale })
+  }
+
   // Always succeed — never reveal whether email exists
   return { success: true }
 }

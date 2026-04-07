@@ -38,3 +38,12 @@ export function fatal(code: string, message: string, hint?: string): void {
   }
   process.stdout.write(`     ${C.gray}→ Reference: errores_info.md#${code.toLowerCase()}${C.reset}\n`)
 }
+
+export function devUrl(url: string): void {
+  const line = `  ➜  Local:  ${url}`
+  process.stdout.write(
+    `\n${C.cyan}${'─'.repeat(52)}${C.reset}\n` +
+    `${C.bold}${line}${C.reset}\n` +
+    `${C.cyan}${'─'.repeat(52)}${C.reset}\n`,
+  )
+}

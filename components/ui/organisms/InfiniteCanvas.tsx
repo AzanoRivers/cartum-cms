@@ -1,0 +1,639 @@
+'use client'
+
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
+import { throttle } from '@/lib/utils/throttle'
+import { NodeCard } from '@/components/ui/molecules/NodeCard'
+import { ConnectionLayer } from '@/components/ui/organisms/ConnectionLayer'
+import { FieldEditPanel } from '@/components/ui/organisms/FieldEditPanel'
+import { BoardContextMenu } from '@/components/ui/molecules/BoardContextMenu'
+import { CanvasContextMenu } from '@/components/ui/molecules/CanvasContextMenu'
+import type { ConnectionLayerHandle } from '@/components/ui/organisms/ConnectionLayer'
+import type { BoardContextMenuState } from '@/components/ui/molecules/BoardContextMenu'
+import type { CanvasContextMenuState, CanvasContextMenuDict } from '@/components/ui/molecules/CanvasContextMenu'
+import { useNodeBoardStore } from '@/lib/stores/nodeBoardStore'
+import { useUIStore } from '@/lib/stores/uiStore'
+import { useConnections } from '@/lib/hooks/useConnections'
+import { updateNodePosition, deleteNode, createContainerNode, createFieldNode, renameNode } from '@/lib/actions/nodes.actions'
+import { RenameNodeDialog } from '@/components/ui/molecules/RenameNodeDialog'
+import type { RenameNodeDialogDict } from '@/components/ui/molecules/RenameNodeDialog'
+import { checkNodeDeletionRisk } from '@/lib/actions/integrity.actions'
+import { useToast } from '@/lib/hooks/useToast'
+import { DeleteConfirmDialog } from '@/components/ui/molecules/DeleteConfirmDialog'
+import { FullscreenLoader } from '@/components/ui/atoms/FullscreenLoader'
+import type { DeleteDialogDict } from '@/components/ui/molecules/DeleteConfirmDialog'
+import type { DeletionRisk } from '@/types/integrity'
+import type { AnyNode, NodeConnection, PortSide } from '@/types/nodes'
+
+// ── Card geometry (must match ConnectionLayer constants) ─────────────────────
+const CARD_W = 208
+const CARD_H = 80
+
+const CTRL_OFFSET: Record<PortSide, { x: number; y: number }> = {
+  top:    { x: 0,    y: -80 },
+  right:  { x: 80,   y: 0 },
+  bottom: { x: 0,    y: 80 },
+  left:   { x: -80,  y: 0 },
+}
+
+function getPortPos(node: AnyNode, side: PortSide) {
+  const { positionX: x, positionY: y } = node
+  if (side === 'top')    return { x: x + CARD_W / 2, y }
+  if (side === 'right')  return { x: x + CARD_W,     y: y + CARD_H / 2 }
+  if (side === 'bottom') return { x: x + CARD_W / 2, y: y + CARD_H }
+  return                        { x,                  y: y + CARD_H / 2 }
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export type InfiniteCanvasProps = {
+  initialNodes: AnyNode[]
+  connections?: NodeConnection[]
+  isStorageConfigured?: boolean
+}
+
+export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfigured = false }: InfiniteCanvasProps) {
+  const outerRef  = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const connectionLayerRef = useRef<ConnectionLayerHandle>(null)
+
+  const isPanning     = useRef(false)
+  const lastPos       = useRef({ x: 0, y: 0 })
+  const dragOriginRef = useRef<{ side: PortSide } | null>(null)
+
+  // Card drag state (all via refs — zero React renders during drag)
+  const cardDragRef   = useRef<{
+    nodeId:       string
+    startMouseX:  number
+    startMouseY:  number
+    startNodeX:   number
+    startNodeY:   number
+    moved:        boolean
+    wrapperEl:    HTMLElement | null
+  } | null>(null)
+  // Stores the nodeId that was dragged so onClickCapture can suppress the click
+  const suppressClickRef = useRef<string | null>(null)
+
+  const setNodes       = useNodeBoardStore((s) => s.setNodes)
+  const nodes          = useNodeBoardStore((s) => s.nodes)
+  const addNode        = useNodeBoardStore((s) => s.addNode)
+  const removeNode     = useNodeBoardStore((s) => s.removeNode)
+  const selectedNodeId = useNodeBoardStore((s) => s.selectedNodeId)
+  const selectNode     = useNodeBoardStore((s) => s.selectNode)
+  const setOffset      = useNodeBoardStore((s) => s.setOffset)
+  const setScale       = useNodeBoardStore((s) => s.setScale)
+  const updateNodePositionOptimistic = useNodeBoardStore((s) => s.updateNodePositionOptimistic)
+
+  const [contextMenu,      setContextMenu]      = useState<BoardContextMenuState | null>(null)
+  const [canvasMenu,       setCanvasMenu]       = useState<CanvasContextMenuState | null>(null)
+  const [renameNodeId,     setRenameNodeId]     = useState<string | null>(null)
+  const [deleteRisk,       setDeleteRisk]       = useState<DeletionRisk | null>(null)
+  const [deleteIsPending,  setDeleteIsPending]  = useState(false)
+  const [isCheckingDelete, setIsCheckingDelete] = useState(false)
+
+  // Long-press timer for mobile context menu
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Touch pan state
+  const touchPanRef = useRef<{ x: number; y: number; moved: boolean } | null>(null)
+
+  const editingFieldId = useUIStore((s) => s.editingFieldId)
+  const openFieldEdit  = useUIStore((s) => s.openFieldEdit)
+  const d              = useUIStore((s) => s.cmsDict)
+
+  const {
+    connections: liveConnections,
+    drag,
+    dragRef,
+    startDrag,
+    cancelDrag,
+    completeDrag,
+    removeConnection,
+    changeConnectionType,
+  } = useConnections(connections)
+
+  // Seed store — then fit all nodes into view on next frame so the board always
+  // shows content centred, whether coming from a fresh load or navigating back.
+  useEffect(() => {
+    setNodes(initialNodes)
+
+    const frame = requestAnimationFrame(() => {
+      if (!initialNodes.length) {
+        setOffset(0, 0)
+        setScale(1)
+        return
+      }
+      const rect = outerRef.current?.getBoundingClientRect()
+      if (!rect) { setOffset(0, 0); setScale(1); return }
+      const minX = Math.min(...initialNodes.map((n) => n.positionX))
+      const minY = Math.min(...initialNodes.map((n) => n.positionY))
+      const maxX = Math.max(...initialNodes.map((n) => n.positionX + CARD_W))
+      const maxY = Math.max(...initialNodes.map((n) => n.positionY + CARD_H))
+      const PADDING = 64
+      const scaleX  = (rect.width  - PADDING * 2) / (maxX - minX || 1)
+      const scaleY  = (rect.height - PADDING * 2) / (maxY - minY || 1)
+      const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1)
+      const contentW = (maxX - minX) * newScale
+      const contentH = (maxY - minY) * newScale
+      setOffset(
+        (rect.width  - contentW) / 2 - minX * newScale,
+        (rect.height - contentH) / 2 - minY * newScale,
+      )
+      setScale(newScale)
+    })
+
+    return () => cancelAnimationFrame(frame)
+  }, [initialNodes, setNodes, setOffset, setScale])
+
+  // Subscribe to offset/scale → direct DOM (zero React re-renders on pan)
+  useEffect(() => {
+    return useNodeBoardStore.subscribe(
+      (state) => [state.offsetX, state.offsetY, state.scale] as [number, number, number],
+      ([x, y, scale]) => {
+        if (canvasRef.current) {
+          canvasRef.current.style.transform = `translate(${x}px, ${y}px) scale(${scale})`
+        }
+      },
+    )
+  }, [])
+
+  // ── Canvas-space coordinate conversion ──────────────────────────────────────
+  function clientToCanvas(clientX: number, clientY: number) {
+    const rect = outerRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    const { offsetX, offsetY, scale } = useNodeBoardStore.getState()
+    return {
+      x: (clientX - rect.left - offsetX) / scale,
+      y: (clientY - rect.top  - offsetY) / scale,
+    }
+  }
+
+  // ── Port drag start ──────────────────────────────────────────────────────────
+  const handlePortDragStart = useCallback(
+    (nodeId: string, side: PortSide) => {
+      const node = useNodeBoardStore.getState().nodes.find((n) => n.id === nodeId)
+      if (!node) return
+      const from = getPortPos(node, side)
+      dragOriginRef.current = { side }
+      startDrag(nodeId, side)
+      connectionLayerRef.current?.showDragLine(from, side)
+    },
+    [startDrag],
+  )
+
+  // ── Mouse handlers ───────────────────────────────────────────────────────────
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    // Ignore port drag starts (handled by ConnectorPort)
+    if ((e.target as HTMLElement).closest('[data-port]')) return
+
+    const nodeEl = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
+
+    if (nodeEl) {
+      // Start card drag
+      const nodeId = nodeEl.dataset.nodeid!
+      const node   = useNodeBoardStore.getState().nodes.find((n) => n.id === nodeId)
+      if (node) {
+        cardDragRef.current = {
+          nodeId,
+          startMouseX:  e.clientX,
+          startMouseY:  e.clientY,
+          startNodeX:   node.positionX,
+          startNodeY:   node.positionY,
+          moved:        false,
+          wrapperEl:    nodeEl,
+        }
+      }
+      return
+    }
+
+    // Canvas pan
+    isPanning.current = true
+    lastPos.current = { x: e.clientX, y: e.clientY }
+    e.currentTarget.setAttribute('data-panning', '1')
+  }, [])
+
+  const onMouseMoveRaw = useCallback(
+    (e: React.MouseEvent) => {
+      // Card drag — update position via direct DOM (zero React renders)
+      if (cardDragRef.current) {
+        const { startMouseX, startMouseY, startNodeX, startNodeY, wrapperEl } = cardDragRef.current
+        const dx = e.clientX - startMouseX
+        const dy = e.clientY - startMouseY
+
+        if (!cardDragRef.current.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+          cardDragRef.current.moved = true
+        }
+
+        if (cardDragRef.current.moved && wrapperEl) {
+          const { scale } = useNodeBoardStore.getState()
+          wrapperEl.style.left = `${startNodeX + dx / scale}px`
+          wrapperEl.style.top  = `${startNodeY + dy / scale}px`
+        }
+        return
+      }
+
+      // Connection drag — update rope line via ref (zero React state changes)
+      if (dragRef.current.isDragging) {
+        const canvasPos = clientToCanvas(e.clientX, e.clientY)
+        connectionLayerRef.current?.moveDragLine(canvasPos)
+        return
+      }
+
+      // Pan
+      if (!isPanning.current) return
+      const dx = e.clientX - lastPos.current.x
+      const dy = e.clientY - lastPos.current.y
+      lastPos.current = { x: e.clientX, y: e.clientY }
+      const { offsetX, offsetY } = useNodeBoardStore.getState()
+      setOffset(offsetX + dx, offsetY + dy)
+    },
+    [dragRef, setOffset],
+  )
+
+  // Throttle to ~60fps so synthetic mouse events don't saturate the main thread
+  const onMouseMove = useMemo(() => throttle(onMouseMoveRaw, 16), [onMouseMoveRaw])
+
+  const onMouseUp = useCallback(
+    (e: React.MouseEvent) => {
+      // Card drag end
+      if (cardDragRef.current) {
+        const { nodeId, startMouseX, startMouseY, startNodeX, startNodeY, moved } = cardDragRef.current
+        cardDragRef.current = null
+
+        if (moved) {
+          const { scale } = useNodeBoardStore.getState()
+          const finalX = startNodeX + (e.clientX - startMouseX) / scale
+          const finalY = startNodeY + (e.clientY - startMouseY) / scale
+
+          // Sync Zustand store (triggers React re-render once, settling positions)
+          updateNodePositionOptimistic(nodeId, finalX, finalY)
+
+          // Persist to DB (fire-and-forget — optimistic already applied)
+          updateNodePosition({ id: nodeId, x: finalX, y: finalY })
+
+          // Mark for click suppression (click fires after mouseup)
+          suppressClickRef.current = nodeId
+        }
+        e.currentTarget.removeAttribute('data-panning')
+        return
+      }
+
+      if (dragRef.current.isDragging) {
+        connectionLayerRef.current?.hideDragLine()
+        dragOriginRef.current = null
+        const targetEl = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
+        const targetType = targetEl?.dataset.nodetype
+        const targetId   = targetEl?.dataset.nodeid
+        if (targetId && targetType === 'container') {
+          completeDrag(targetId)
+        } else {
+          cancelDrag()
+        }
+        return
+      }
+
+      isPanning.current = false
+      e.currentTarget.removeAttribute('data-panning')
+    },
+    [dragRef, cancelDrag, completeDrag, updateNodePositionOptimistic],
+  )
+
+  // Suppress click event fired right after a drag ends
+  const onClickCapture = useCallback((e: React.MouseEvent) => {
+    if (!suppressClickRef.current) return
+    const nodeEl = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
+    if (nodeEl?.dataset.nodeid === suppressClickRef.current) {
+      e.stopPropagation()
+      suppressClickRef.current = null
+    }
+  }, [])
+
+  // ── Wheel + touchmove (non-passive, must be imperative) ─────────────────────
+  useEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+    const wheelHandler = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? -0.08 : 0.08
+      const { scale } = useNodeBoardStore.getState()
+      setScale(scale + delta)
+    }
+    // touchmove must be non-passive too so e.preventDefault() can suppress scroll
+    const touchMoveHandler = (e: TouchEvent) => {
+      if (touchPanRef.current?.moved) e.preventDefault()
+    }
+    el.addEventListener('wheel', wheelHandler, { passive: false })
+    el.addEventListener('touchmove', touchMoveHandler, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', wheelHandler)
+      el.removeEventListener('touchmove', touchMoveHandler)
+    }
+  }, [setScale])
+
+  // ── Context menu (right-click) ───────────────────────────────────────────────
+  const handleFitAll = useCallback(() => {
+    const { nodes: currentNodes } = useNodeBoardStore.getState()
+    if (!currentNodes.length || !outerRef.current) return
+    const rect = outerRef.current.getBoundingClientRect()
+    const minX = Math.min(...currentNodes.map((n) => n.positionX))
+    const minY = Math.min(...currentNodes.map((n) => n.positionY))
+    const maxX = Math.max(...currentNodes.map((n) => n.positionX + CARD_W))
+    const maxY = Math.max(...currentNodes.map((n) => n.positionY + CARD_H))
+    const PADDING = 64
+    const scaleX  = (rect.width  - PADDING * 2) / (maxX - minX || 1)
+    const scaleY  = (rect.height - PADDING * 2) / (maxY - minY || 1)
+    // Never zoom IN beyond 1:1 — only zoom out if nodes exceed the viewport
+    const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1)
+    const contentW = (maxX - minX) * newScale
+    const contentH = (maxY - minY) * newScale
+    const offsetX  = (rect.width  - contentW) / 2 - minX * newScale
+    const offsetY  = (rect.height - contentH) / 2 - minY * newScale
+    setOffset(offsetX, offsetY)
+    setScale(newScale)
+  }, [setOffset, setScale])
+
+  const onContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const nodeEl = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
+    if (!nodeEl) {
+      setCanvasMenu({ x: e.clientX, y: e.clientY })
+      return
+    }
+    const nodeId   = nodeEl.dataset.nodeid!
+    const nodeType = (nodeEl.dataset.nodetype ?? 'container') as 'container' | 'field'
+    setContextMenu({ x: e.clientX, y: e.clientY, nodeId, nodeType })
+  }, [])
+
+  // ── Touch handlers (pan + long-press context menu) ───────────────────────────
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return
+    const touch = e.touches[0]
+    touchPanRef.current = { x: touch.clientX, y: touch.clientY, moved: false }
+
+    // Start long-press timer for context menu
+    const nodeEl = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
+    if (nodeEl) {
+      const nodeId   = nodeEl.dataset.nodeid!
+      const nodeType = (nodeEl.dataset.nodetype ?? 'container') as 'container' | 'field'
+      longPressTimerRef.current = setTimeout(() => {
+        if (touchPanRef.current && !touchPanRef.current.moved) {
+          setContextMenu({ x: touch.clientX, y: touch.clientY, nodeId, nodeType })
+        }
+        longPressTimerRef.current = null
+      }, 500)
+    }
+  }, [])
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 1 || !touchPanRef.current) return
+    const touch = e.touches[0]
+    const dx = touch.clientX - touchPanRef.current.x
+    const dy = touch.clientY - touchPanRef.current.y
+
+    if (!touchPanRef.current.moved && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+      touchPanRef.current.moved = true
+      // Cancel long-press if user moved
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current)
+        longPressTimerRef.current = null
+      }
+    }
+
+    if (touchPanRef.current.moved) {
+      const { offsetX, offsetY } = useNodeBoardStore.getState()
+      setOffset(offsetX + dx, offsetY + dy)
+      touchPanRef.current.x = touch.clientX
+      touchPanRef.current.y = touch.clientY
+    }
+  }, [setOffset])
+
+  const onTouchEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+    touchPanRef.current = null
+  }, [])
+
+  // ── Context menu actions ─────────────────────────────────────────────────────
+  const toast = useToast()
+
+  const handleDuplicate = useCallback(async (nodeId: string) => {
+    const node = useNodeBoardStore.getState().nodes.find((n) => n.id === nodeId)
+    if (!node) return
+    const t = d?.board.toast
+    const offset = 40
+    if (node.type === 'container') {
+      const result = await createContainerNode({
+        name:      `${node.name}_copy`,
+        parentId:  node.parentId,
+        positionX: node.positionX + offset,
+        positionY: node.positionY + offset,
+      })
+      if (result.success) { addNode(result.data); toast.success(t?.duplicateSuccess ?? 'Node duplicated successfully.') }
+      else toast.error(result.error ?? (t?.duplicateError ?? 'Could not duplicate node.'))
+    } else {
+      const result = await createFieldNode({
+        name:             `${node.name}_copy`,
+        parentId:         node.parentId ?? '',
+        fieldType:        node.fieldType,
+        positionX:        node.positionX + offset,
+        positionY:        node.positionY + offset,
+      })
+      if (result.success) { addNode(result.data); toast.success(t?.duplicateSuccess ?? 'Node duplicated successfully.') }
+      else toast.error(result.error ?? (t?.duplicateError ?? 'Could not duplicate node.'))
+    }
+  }, [addNode, toast, d])
+
+  const handleRename = useCallback(async (nodeId: string, newName: string) => {
+    const t = d?.board.toast
+    const node = useNodeBoardStore.getState().nodes.find((n) => n.id === nodeId)
+    if (!node) return
+    // Optimistic update
+    setNodes(useNodeBoardStore.getState().nodes.map((n) =>
+      n.id === nodeId ? { ...n, name: newName } : n
+    ))
+    const result = await renameNode({ id: nodeId, name: newName })
+    if (result.success) {
+      toast.success(t?.renameSuccess ?? 'Node renamed.')
+    } else {
+      // Revert optimistic update
+      setNodes(useNodeBoardStore.getState().nodes.map((n) =>
+        n.id === nodeId ? { ...n, name: node.name } : n
+      ))
+      toast.error(result.error ?? (t?.renameError ?? 'Could not rename node.'))
+    }
+    setRenameNodeId(null)
+  }, [setNodes, toast, d])
+
+  const handleDeleteNode = useCallback(async (nodeId: string) => {
+    setIsCheckingDelete(true)
+    const t = d?.board.toast
+    try {
+      const result = await checkNodeDeletionRisk({ id: nodeId })
+      if (!result.success) {
+        toast.error(t?.checkRiskError ?? 'Could not check node dependencies. Please try again.')
+        return
+      }
+
+      if (result.data.level === 'safe') {
+        removeNode(nodeId)
+        const del = await deleteNode({ id: nodeId, confirmed: true })
+        if (del.success) toast.success(t?.deleteSuccess ?? 'Node deleted.')
+        else toast.error(t?.deleteError ?? 'Could not delete node.')
+      } else {
+        setDeleteRisk(result.data)
+      }
+    } finally {
+      setIsCheckingDelete(false)
+    }
+  }, [removeNode, toast, d])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteRisk) return
+    const t = d?.board.toast
+    setDeleteIsPending(true)
+    try {
+      removeNode(deleteRisk.entityId)
+      const del = await deleteNode({ id: deleteRisk.entityId, confirmed: true })
+      if (del.success) toast.success(t?.deleteSuccess ?? 'Node deleted.')
+      else toast.error(t?.deleteError ?? 'Could not delete node.')
+    } catch {
+      toast.error(t?.deleteError ?? 'Could not delete node.')
+    } finally {
+      setDeleteIsPending(false)
+      setDeleteRisk(null)
+    }
+  }, [deleteRisk, removeNode, toast, d])
+
+  // Connection count per container node (from live connections)
+  const connCountMap = liveConnections.reduce<Record<string, number>>((acc, c) => {
+    acc[c.sourceNodeId] = (acc[c.sourceNodeId] ?? 0) + 1
+    acc[c.targetNodeId] = (acc[c.targetNodeId] ?? 0) + 1
+    return acc
+  }, {})
+
+  const isEmpty = nodes.length === 0
+
+  return (
+    <div
+      ref={outerRef}
+      role="region"
+      aria-label={d?.canvas.ariaLabel ?? 'Node canvas'}
+      className="relative flex-1 overflow-hidden bg-bg cursor-grab data-panning:cursor-grabbing"
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseUp}
+      onContextMenu={onContextMenu}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onClickCapture={onClickCapture}
+    >
+      {/* Dot-grid background */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage: 'radial-gradient(circle, var(--color-border) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+        }}
+      />
+
+      {/* Scaled + translated canvas */}
+      <div
+        ref={canvasRef}
+        className="absolute inset-0 origin-center canvas-layer"
+        style={{ transform: 'translate(0px, 0px) scale(1)' }}
+      >
+        {nodes.map((node) => (
+          <div
+            key={node.id}
+            data-nodeid={node.id}
+            data-nodetype={node.type}
+            className="absolute cursor-move"
+            style={{ left: node.positionX, top: node.positionY }}
+          >
+            <NodeCard
+              node={node}
+              selected={selectedNodeId === node.id}
+              isValidTarget={drag.isDragging && node.type === 'container' && node.id !== drag.originNodeId}
+              connectionCount={connCountMap[node.id] ?? 0}
+              onSelect={selectNode}
+              onPortDragStart={node.type === 'container' ? handlePortDragStart : undefined}
+              onEditField={node.type === 'field' ? openFieldEdit : undefined}
+            />
+          </div>
+        ))}
+
+        {/* SVG connection overlay — inside canvas so it transforms with nodes */}
+        <ConnectionLayer
+          ref={connectionLayerRef}
+          nodes={nodes}
+          connections={liveConnections}
+          containerRef={outerRef}
+          onDeleteConnection={removeConnection}
+          onChangeConnectionType={changeConnectionType}
+        />
+      </div>
+
+      {isEmpty && (
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <span className="font-mono text-base text-text/70">{d?.canvas.empty ?? 'No nodes yet.'}</span>
+          <span className="font-mono text-sm text-muted">{d?.canvas.emptyHint ?? 'Use + to create your first container.'}</span>
+        </div>
+      )}
+
+      {editingFieldId && (
+        <FieldEditPanel isStorageConfigured={isStorageConfigured} />
+      )}
+
+      {canvasMenu && (
+        <CanvasContextMenu
+          menu={canvasMenu}
+          onFitAll={handleFitAll}
+          onClose={() => setCanvasMenu(null)}
+          d={d?.board.canvasMenu as CanvasContextMenuDict | undefined}
+        />
+      )}
+
+      {contextMenu && (
+        <BoardContextMenu
+          menu={contextMenu}
+          onRename={(nodeId) => setRenameNodeId(nodeId)}
+          onDuplicate={handleDuplicate}
+          onDelete={handleDeleteNode}
+          onClose={() => setContextMenu(null)}
+          d={d?.board.contextMenu}
+        />
+      )}
+
+      {renameNodeId && (() => {
+        const node = nodes.find((n) => n.id === renameNodeId)
+        if (!node) return null
+        return (
+          <RenameNodeDialog
+            currentName={node.name}
+            onConfirm={(newName) => handleRename(renameNodeId, newName)}
+            onCancel={() => setRenameNodeId(null)}
+            d={d?.board.renameDialog as RenameNodeDialogDict | undefined}
+          />
+        )
+      })()}
+
+      {deleteRisk && (
+        <DeleteConfirmDialog
+          risk={deleteRisk}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteRisk(null)}
+          isPending={deleteIsPending}
+          d={d?.board.deleteDialog as DeleteDialogDict | undefined}
+        />
+      )}
+
+      {isCheckingDelete && <FullscreenLoader />}
+
+      {deleteIsPending && <FullscreenLoader />}
+    </div>
+  )
+}
+

@@ -39,4 +39,17 @@ export const connectionsService = {
     return connectionsRepository.findBySourceOrTarget(nodeId)
   },
 
+  async getForBoard(parentId: string | null): Promise<NodeConnection[]> {
+    const boardNodes = await nodesRepository.findByParentId(parentId)
+    if (boardNodes.length < 2) return []
+    const ids = boardNodes.map((n) => n.id)
+    return connectionsRepository.findBetweenNodes(ids)
+  },
+
+  async updateType(connectionId: string, relationType: RelationType): Promise<NodeConnection> {
+    const conn = await connectionsRepository.findById(connectionId)
+    if (!conn) throw new Error('CONNECTION_NOT_FOUND')
+    return connectionsRepository.updateRelationType(connectionId, relationType)
+  },
+
 }

@@ -3,19 +3,23 @@
 import Image from 'next/image'
 import type { SetupStep } from '@/types/project'
 import { useRouter } from 'next/navigation'
+import { BrandFooter } from '@/components/ui/atoms/BrandFooter'
 
 const STEP_IDS: SetupStep[] = [
-  'system-check',
   'locale',
+  'system-check',
   'credentials',
+  'theme',
   'project',
   'initializing',
   'ready',
 ]
 
 const STEP_BACK_ROUTES: Partial<Record<SetupStep, string>> = {
-  credentials: '/setup/locale',
-  project:     '/setup/credentials',
+  'system-check': '/setup/locale',
+  credentials:    '/setup/system-check',
+  'theme':        '/setup/credentials',
+  project:        '/setup/theme',
 }
 
 type SetupLayoutDict = {
@@ -41,9 +45,9 @@ export function SetupLayout({ children, currentStep, layoutDict }: SetupLayoutPr
       <div className="flex items-center gap-3 mb-14">
         <div className="relative h-8 w-8 shrink-0">
           {/* glow halo */}
-          <div className="absolute inset-0 rounded-full bg-primary opacity-30 blur-md" />
+          <div className="absolute inset-1 rounded-full bg-primary/40 blur-md" />
           <Image
-            src="/images/brand/logo-dark.png"
+            src="/images/brand/icon.svg"
             alt="Cartum"
             width={32}
             height={32}
@@ -56,11 +60,11 @@ export function SetupLayout({ children, currentStep, layoutDict }: SetupLayoutPr
         <div className="relative select-none">
           <span
             aria-hidden="true"
-            className="absolute inset-0 font-mono text-sm tracking-[0.3em] uppercase text-accent blur-[5px] opacity-50"
+            className="absolute inset-0 font-mono text-sm tracking-[0.3em] uppercase text-accent blur-[10px] opacity-20"
           >
             CARTUM
           </span>
-          <span className="relative font-mono text-sm tracking-[0.3em] uppercase text-muted">
+          <span className="relative font-mono text-sm tracking-[0.3em] uppercase text-text">
             CARTUM
           </span>
         </div>
@@ -105,6 +109,7 @@ export function SetupLayout({ children, currentStep, layoutDict }: SetupLayoutPr
           ← {layoutDict.back}
         </button>
       )}
+      <BrandFooter />
     </div>
   )
 }

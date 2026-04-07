@@ -1,4 +1,4 @@
-import { boolean, check, pgTable, real, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, jsonb, pgTable, real, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import type { PgColumn } from 'drizzle-orm/pg-core'
 
@@ -10,6 +10,7 @@ export const nodes = pgTable(
     id:        uuid('id').primaryKey().defaultRandom(),
     name:      text('name').notNull(),
     type:      text('type').notNull(),
+    slug:      text('slug').unique(),
     parentId:  uuid('parent_id').references((): PgColumn => nodes.id, { onDelete: 'cascade' }),
     positionX: real('position_x').notNull().default(0),
     positionY: real('position_y').notNull().default(0),
@@ -30,6 +31,7 @@ export const fieldMeta = pgTable(
     isRequired:       boolean('is_required').notNull().default(false),
     defaultValue:     text('default_value'),
     relationTargetId: uuid('relation_target_id').references(() => nodes.id),
+    config:           jsonb('config'),
   },
   (t) => [
     check('field_meta_type_check', sql`${t.fieldType} IN ('text', 'number', 'boolean', 'image', 'video', 'relation')`),

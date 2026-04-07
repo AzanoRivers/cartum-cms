@@ -11,6 +11,7 @@ export type SetupStep =
   | 'locale'
   | 'credentials'
   | 'project'
+  | 'theme'
   | 'initializing'
   | 'ready'
 

@@ -162,12 +162,20 @@ Centered card on pure black background. Same aesthetic as the setup wizard.
 
 > **Note:** If `RESEND_API_KEY` is not set (`CARTUM_E009` warning), recovery emails will not send. The reset form still exists but the page shows a visible warning banner: "Email delivery is not configured. Contact your administrator."
 
+> **Email sender constraint:** The `from` address for all password recovery emails **must** use the `@azanorivers.com` domain (e.g. `labs@azanorivers.com`). This is because the Resend account is on the free tier with only the `azanorivers.com` domain verified. Sending from any other domain will be rejected by Resend. This address is hardcoded in the mailer — it is **not** configurable via Settings UI.
+
+> **i18n email templates:** Both email templates (`reset-password` and `welcome`) are fully localized. Templates receive a typed `strings` object — they never resolve locale themselves. Locale is resolved upstream:
+> - **Password reset email**: uses `project.defaultLocale` from DB (queried in `auth.actions.ts`)
+> - **Welcome email** (sent on super-admin creation): uses the `cartum-setup-locale` cookie set during the setup wizard
+>
+> All localizable strings live under `Dictionary['email']` in `/locales/en.ts` and `/locales/es.ts`. Keys: `email.poweredBy`, `email.reset.*`, `email.welcome.*`. The `{project}` placeholder in subject/title strings is interpolated with `.replace('{project}', projectName)` in the mailer before passing to the template.
+
 ### `/lib/services/auth.service.ts`
 ```ts
 hashPassword(plain: string): Promise<string>        // bcrypt, 12 rounds
 verifyPassword(plain: string, hash: string): Promise<boolean>
 generateResetToken(): string                         // crypto.randomBytes(32).toString('hex')
-requestPasswordReset(email: string): Promise<void>
+requestPasswordReset(email: string): Promise<string | null>  // returns raw token or null if email not found
 resetPassword(token: string, newPassword: string): Promise<ActionResult>
 ```
 

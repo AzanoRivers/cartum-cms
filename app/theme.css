@@ -30,7 +30,7 @@
   --color-primary-glow: #6366f140; /* glow con opacidad */
   --color-accent:       #22d3ee;   /* nodos activos, highlights */
   --color-text:         #e2e8f0;   /* texto principal */
-  --color-muted:        #64748b;   /* texto secundario */
+  --color-muted:        #94a3b8;   /* texto secundario — slate-400, AA-compliant */
   --color-danger:       #ef4444;
   --color-success:      #22c55e;
   --color-warning:      #f59e0b;
@@ -140,7 +140,7 @@
   --color-primary-glow: #818cf820;
   --color-accent:       #38bdf8;
   --color-text:         #c9d1d9;
-  --color-muted:        #58677b;
+  --color-muted:        #8b99ae;
   --color-danger:       #f87171;
   --color-success:      #4ade80;
   --color-warning:      #fbbf24;

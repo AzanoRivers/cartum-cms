@@ -35,6 +35,14 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL('/cms/board', req.url))
   }
 
+  // Root redirect — send to dashboard or login depending on session
+  if (setupComplete && pathname === '/') {
+    const session = await auth()
+    return NextResponse.redirect(
+      new URL(session ? '/cms/board' : '/login', req.url)
+    )
+  }
+
   // Session guard — only after setup is complete
   if (setupComplete && (isCMSRoute)) {
     const session = await auth()

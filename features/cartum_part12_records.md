@@ -102,20 +102,22 @@ Client Component. Auto-generates form from the node's field schema.
 ### `/components/ui/molecules/ImageUploadField.tsx`
 Client Component.
 
+> **Note:** Full implementation in Part 14. The field exposes **two entry points** — see Part 14 for the complete dual-mode interface.
+
 1. Shows current image (if editing) or placeholder
-2. Click / drag-drop → file picker opens (accepts: `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`)
-3. Client-side optimization runs (Part 14) before upload
-4. Upload to R2 via `getUploadUrl()` Server Action (returns presigned URL)
-5. Browser PUTs file directly to R2 url
-6. On success: stores R2 public URL in record field value
-7. Shows progress bar during upload
-8. Storage unconfigured: shows inline warning, disables upload
+2. Two action buttons: **"Choose from library"** and **"Upload new"**
+3. "Upload new": file picker → client-side optimization (Part 14) → upload to R2
+4. "Choose from library": opens `<MediaLibraryPicker>` filtered to images (Part 14)
+5. On success: stores R2 public URL in record field value
+6. Shows progress bar during upload
+7. Storage unconfigured: shows inline warning, disables both buttons
 
 ### `/components/ui/molecules/VideoUploadField.tsx`
-Same as ImageUploadField but:
+Same dual-mode interface as ImageUploadField but:
 - Accepts: `.mp4`, `.mov`, `.webm`
+- Library picker filtered to videos only
 - Client-side ffmpeg.wasm optimization runs before upload (Part 14 — can be slow, shows progress)
-- Shows video player preview after upload
+- Shows video player preview after selection/upload
 
 ### `/components/ui/molecules/RelationSelectField.tsx`
 Client Component. Loads related records from the target node and renders a searchable select:
@@ -187,15 +189,53 @@ When in Content Mode, the DockBar shows a "Back to Builder" icon (only for users
 
 ## Acceptance Criteria
 
-- [ ] Content Mode index shows only nodes the user's role can read
-- [ ] Super admin sees all nodes in Content Mode index
-- [ ] User with no role permissions sees empty state message
-- [ ] Record list shows columns based on the node's actual field schema
-- [ ] New record form shows all fields in creation order
-- [ ] Required field validation fires on submit — not on blur
-- [ ] ImageUploadField shows progress bar during upload
-- [ ] ImageUploadField shows warning when storage not configured
-- [ ] RelationSelectField loads target node records as dropdown options
-- [ ] Saving a new record redirects to the record list with success toast
-- [ ] Edit and Delete buttons are hidden for roles without those permissions
-- [ ] Deleting a record requires inline confirmation before firing action
+- [x] Content Mode index shows only nodes the user's role can read
+- [x] Super admin sees all nodes in Content Mode index
+- [x] User with no role permissions sees empty state message
+- [x] Record list shows columns based on the node's actual field schema
+- [x] New record form shows all fields in creation order
+- [x] Required field validation fires on submit — not on blur
+- [ ] ImageUploadField shows progress bar during upload — **Part 14 (upload logic pending)**
+- [x] ImageUploadField shows warning when storage not configured
+- [x] RelationSelectField loads target node records as dropdown options
+- [ ] Saving a new record redirects to the record list with success toast — redirect ✅, toast pending (no toast system yet)
+- [x] Edit and Delete buttons are hidden for roles without those permissions
+- [x] Deleting a record requires inline confirmation before firing action
+
+---
+
+## Addendum — Custom CAPTCHA on Login
+
+> Implemented after Part 12 acceptance, shipped as part of the auth hardening.
+
+A canvas-based CAPTCHA challenge added to the login form to block basic automated attacks.
+
+### Files
+
+| File | Role |
+|---|---|
+| `components/ui/molecules/CaptchaChallenge.tsx` | Molecule — two `<canvas>` elements drawing digits |
+| `components/ui/organisms/LoginForm.tsx` | Updated to integrate captcha state + validation |
+| `locales/en.ts` / `locales/es.ts` | Added `captchaLabel`, `captchaPlaceholder`, `captchaError` strings |
+
+### Behavior
+
+1. Two `<canvas>` boxes (52×64 px each) draw a random digit 0–9 on mount and on every refresh.
+2. The user must type the sum of both digits in a number input.
+3. **Wrong answer** → error message shown, new digit pair generated immediately, input cleared.
+4. **Correct answer but `signIn` fails** → pair also regenerates (prevents replaying a known-correct sum).
+5. All strings come from `dict` (no hardcoded text).
+
+### Canvas aesthetic
+- Background: `#1a1a24` (surface-2), border: `#6366f1` (primary)
+- Digit: `#22d3ee` (accent cyan), `bold 36px Courier New`, slight random X jitter per draw
+- Scanline overlay: `rgba(255,255,255,0.03)` every 4 px
+- Drop shadow glow: `rgba(99,102,241,0.5)` for depth
+
+### Acceptance Criteria
+
+- [x] Canvas draws correct digit on mount and after refresh
+- [x] Wrong sum shows error message and regenerates pair
+- [x] Correct sum + failed `signIn` also regenerates pair
+- [x] All label/error strings sourced from locale dictionary
+- [x] No TypeScript errors (`tsc --noEmit` exits 0)

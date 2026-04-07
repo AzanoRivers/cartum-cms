@@ -294,17 +294,17 @@ This prevents iPad users from getting a canvas that's hard to use, and desktop u
 
 ## Acceptance Criteria
 
-- [ ] iPhone UA → `MobileLayout` renders (no flash of desktop layout)
-- [ ] Desktop UA → `DesktopLayout` renders
-- [ ] `BottomTabBar` shows 4 tabs with correct active highlight
-- [ ] `/cms/board` on mobile shows `MobileNodeList` (card list, not canvas)
-- [ ] Tapping a container node navigates to `/cms/board/[nodeId]`
-- [ ] Mobile breadcrumb shows back arrow + current node name
-- [ ] Record list on mobile renders as stacked cards
-- [ ] Record create/edit forms are full-width and usable on 375px screens
-- [ ] Field edit opens as a bottom sheet on mobile
-- [ ] Settings opens as a full-height bottom sheet on mobile
-- [ ] Long-press (500ms) on a node card shows context actions
-- [ ] `height: 100dvh` prevents layout jumps when mobile browser chrome shows/hides
-- [ ] Safe-area padding is applied at bottom of content and bottom tab bar
-- [ ] `maximum-scale: 1` prevents iOS zooming on input focus
+- [x] iPhone UA → `MobileLayout` renders (no flash of desktop layout)
+- [x] Desktop UA → `DesktopLayout` renders
+- [x] `BottomTabBar` shows 4 tabs with correct active highlight
+- [x] `/cms/board` on mobile shows `MobileNodeList` (card list, not canvas)
+- [x] Tapping a container node navigates to `/cms/board/[nodeId]`
+- [x] Mobile breadcrumb shows back arrow + current node name
+- [x] Record list on mobile renders as stacked cards
+- [x] Record create/edit forms are full-width and usable on 375px screens
+- [x] Field edit opens as a bottom sheet on mobile
+- [x] Settings opens as a full-height bottom sheet on mobile
+- [x] Long-press (500ms) on a node card shows context actions
+- [x] `height: 100dvh` prevents layout jumps when mobile browser chrome shows/hides
+- [x] Safe-area padding is applied at bottom of content and bottom tab bar
+- [x] `maximum-scale: 1` prevents iOS zooming on input focus

@@ -1,0 +1,17 @@
+import { integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { users } from './users.schema'
+import { nodes } from './nodes.schema'
+import { records } from './records.schema'
+
+export const media = pgTable('media', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  key:         text('key').notNull().unique(),
+  publicUrl:   text('public_url').notNull(),
+  mimeType:    text('mime_type').notNull(),
+  sizeBytes:   integer('size_bytes'),
+  // nullable — informational only (node where asset was first uploaded from)
+  nodeId:      uuid('node_id').references(() => nodes.id, { onDelete: 'set null' }),
+  recordId:    uuid('record_id').references(() => records.id, { onDelete: 'set null' }),
+  uploadedBy:  uuid('uploaded_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt:   timestamp('created_at').defaultNow().notNull(),
+})

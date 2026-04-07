@@ -1,4 +1,4 @@
-import { header, ok, warn, info, fatal } from '@/lib/boot/logger'
+import { header, ok, warn, info, fatal, devUrl } from '@/lib/boot/logger'
 
 const VALID_PROVIDERS = ['neon', 'supabase'] as const
 type DbProvider = (typeof VALID_PROVIDERS)[number]
@@ -80,14 +80,22 @@ export async function runBootValidation(): Promise<void> {
   }
 
   // ── 7–9. Optional warnings ────────────────────────────────────────────────
-  if (!process.env.R2_BUCKET_URL) {
-    warn('CARTUM_E007', 'R2_BUCKET_URL not set. Storage features disabled.')
+  if (!process.env.R2_ENDPOINT) {
+    warn('CARTUM_E007', 'R2_ENDPOINT not set. Storage features disabled.')
   }
   if (!process.env.R2_PUBLIC_URL) {
     warn('CARTUM_E008', 'R2_PUBLIC_URL not set. Storage features disabled.')
   }
-  if (!process.env.RESEND_API_KEY) {
-    warn('CARTUM_E009', 'RESEND_API_KEY not set. Email features disabled.')
+  try {
+    const { getSetting } = await import('@/lib/settings/get-setting')
+    const resendKey = await getSetting('resend_api_key', process.env.RESEND_API_KEY)
+    if (!resendKey) {
+      warn('CARTUM_E009', 'resend_api_key not configured (env + DB). Email features disabled.')
+    }
+  } catch {
+    if (!process.env.RESEND_API_KEY) {
+      warn('CARTUM_E009', 'RESEND_API_KEY not set. Email features disabled.')
+    }
   }
 
   // ── 10. Setup state ───────────────────────────────────────────────────────
@@ -104,4 +112,9 @@ export async function runBootValidation(): Promise<void> {
   }
 
   process.stdout.write('\n')
+
+  if (process.env.NODE_ENV === 'development') {
+    const port = process.env.PORT ?? '3000'
+    devUrl(`http://localhost:${port}`)
+  }
 }

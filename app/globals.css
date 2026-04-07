@@ -1,6 +1,92 @@
 @import "tailwindcss";
 @import "./theme.css";
 
+/* === SAFE AREA INSET UTILITIES (iPhone notch / home indicator) === */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.h-dvh   { height: 100dvh; }
+
+/* === SCROLL UTILITIES === */
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* === CUSTOM SCROLLBAR — Cartum dark style ===
+   Firefox: scrollbar-color API (track + thumb).
+   WebKit:  ::-webkit-scrollbar-* pseudo-elements.
+   Both follow the design token palette: surface / border / primary. */
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+}
+
+/* WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width:  5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background:    transparent;
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+    background:    color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+    border-radius: 999px;
+    transition:    background 200ms ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background:    color-mix(in srgb, var(--color-primary) 60%, var(--color-border));
+}
+
+::-webkit-scrollbar-thumb:active {
+    background:    var(--color-primary);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* === ACCESSIBILITY === */
+/* Focus visible — replaces browser default outline with system-consistent style */
+*:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Inputs and textareas: focus is shown on the parent wrapper via focus-within,
+   so the native outline is suppressed to avoid double rings. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: none;
+}
+
+/* Skip-to-content link — visually hidden until focused */
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 1rem;
+    z-index: 9999;
+    padding: 0.5rem 1rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 8px);
+    font-family: var(--font-mono, monospace);
+    font-size: 0.75rem;
+    color: var(--color-text);
+}
+.skip-link:focus {
+    left: 1rem;
+}
+
 /* === DURATION SCALE (plain CSS vars — no Tailwind namespace) === */
 :root {
     --dur-micro: 80ms;
@@ -53,6 +139,11 @@ canvas,
     .vhs-transition {
         animation: none !important;
         filter: none !important;
+    }
+
+    /* Sonner toasts — override VHS entry */
+    [data-sonner-toast] {
+        animation: none !important;
     }
 }
 
@@ -134,4 +225,107 @@ canvas,
     0%   { box-shadow: -3px 0 0 rgba(255, 0, 0, 0.25), 3px 0 0 rgba(0, 200, 255, 0.25); opacity: 1; }
     40%  { box-shadow: -2px 0 0 rgba(255, 0, 0, 0.15), 2px 0 0 rgba(0, 200, 255, 0.15); }
     100% { box-shadow: 0 0 0 transparent; opacity: 0; }
+}
+
+/* === BRAND FOOTER GLOW === */
+.brand-glow {
+    opacity: 1;
+    text-shadow: none;
+    transition: opacity 300ms ease, text-shadow 300ms ease;
+}
+.brand-link:hover .brand-glow {
+    opacity: 1;
+    text-shadow: 0 0 8px var(--color-accent), 0 0 20px var(--color-accent);
+}
+
+.brand-glow-primary {
+    opacity: 1;
+    text-shadow: none;
+    transition: opacity 300ms ease, text-shadow 300ms ease;
+}
+.brand-link:hover .brand-glow-primary {
+    opacity: 1;
+    text-shadow: 0 0 8px var(--color-primary), 0 0 20px var(--color-primary);
+}
+
+/* === SONNER TOAST VARIABLES === */
+/* Maps Sonner's internal CSS vars to Cartum's design tokens */
+:root {
+    --normal-bg:      var(--color-surface);
+    --normal-border:  var(--color-border);
+    --normal-text:    var(--color-text);
+    --success-bg:     var(--color-surface);
+    --success-border: color-mix(in srgb, var(--color-success) 30%, transparent);
+    --success-text:   var(--color-success);
+    --error-bg:       var(--color-surface);
+    --error-border:   color-mix(in srgb, var(--color-danger) 30%, transparent);
+    --error-text:     var(--color-danger);
+    --warning-bg:     var(--color-surface);
+    --warning-border: color-mix(in srgb, #eab308 30%, transparent);
+    --warning-text:   #eab308;
+    --gray1:          var(--color-surface-2);
+    --gray4:          var(--color-border);
+    --gray12:         var(--color-text);
+}
+
+/* === CARTUM CMS RAINBOW NEON === */
+@keyframes cartum-rainbow {
+  0%   { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+.cartum-neon-rainbow {
+  background: linear-gradient(
+    90deg,
+    #6366f1,
+    #22d3ee,
+    #a855f7,
+    #22c55e,
+    #eab308,
+    #f97316,
+    #ec4899,
+    #6366f1
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: cartum-rainbow 8s linear infinite;
+  filter: drop-shadow(0 0 5px rgba(99, 102, 241, 0.45));
+}
+
+/* === BOTTOM SHEET ANIMATIONS === */
+@keyframes slide-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+}
+
+@keyframes slide-down {
+    from { transform: translateY(0); }
+    to   { transform: translateY(100%); }
+}
+
+/* === BOARD CANVAS PERFORMANCE ===
+   InfiniteCanvas composition hints.
+   Note: content-visibility is NOT applied to NodeCards — cards are absolutely
+   positioned inside a CSS-transformed div; the browser's visual-viewport
+   intersection check would incorrectly mark visible cards as off-screen. */
+
+/* Canvas pan layer — always composited on GPU since it is continuously
+   transformed during pan/zoom (will-change here is defensible, not idle). */
+.canvas-layer {
+    will-change: transform;
+}
+
+/* Connection SVG overlay — pointer-events disabled so hit-testing on every
+   mousemove call is skipped. Click handling is done via NodeCard and port
+   elements directly. */
+.connection-layer {
+    pointer-events: none;
+}
+
+/* Node card during drag (set via JS on drag start, removed on dragend) */
+.node-card-dragging {
+    will-change: transform;
+    z-index: 50;
 }

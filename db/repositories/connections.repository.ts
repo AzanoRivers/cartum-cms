@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, count, eq, inArray, or } from 'drizzle-orm'
 import { db } from '@/db'
 import { nodeRelations } from '@/db/schema'
 import type { NodeConnection, RelationType } from '@/types/nodes'
@@ -68,14 +68,56 @@ async function findDuplicate(
   return row ? mapRow(row) : null
 }
 
+async function countByNodeId(nodeId: string): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(nodeRelations)
+    .where(
+      or(
+        eq(nodeRelations.sourceNodeId, nodeId),
+        eq(nodeRelations.targetNodeId, nodeId),
+      ),
+    )
+  return row?.total ?? 0
+}
+
 async function deleteConnection(id: string): Promise<void> {
   await db.delete(nodeRelations).where(eq(nodeRelations.id, id))
+}
+
+async function updateRelationType(
+  id: string,
+  relationType: RelationType,
+): Promise<NodeConnection> {
+  const [row] = await db
+    .update(nodeRelations)
+    .set({ relationType })
+    .where(eq(nodeRelations.id, id))
+    .returning()
+  return mapRow(row)
+}
+
+async function findBetweenNodes(nodeIds: string[]): Promise<NodeConnection[]> {
+  if (nodeIds.length === 0) return []
+  const rows = await db
+    .select()
+    .from(nodeRelations)
+    .where(
+      and(
+        inArray(nodeRelations.sourceNodeId, nodeIds),
+        inArray(nodeRelations.targetNodeId, nodeIds),
+      ),
+    )
+  return rows.map(mapRow)
 }
 
 export const connectionsRepository = {
   create,
   findById,
   findBySourceOrTarget,
+  findBetweenNodes,
   findDuplicate,
+  countByNodeId,
+  updateRelationType,
   delete: deleteConnection,
 }

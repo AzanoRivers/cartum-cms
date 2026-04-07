@@ -1,6 +1,39 @@
 export type NodeCategory = 'container' | 'field'
 export type FieldType = 'text' | 'number' | 'boolean' | 'image' | 'video' | 'relation'
 export type RelationType = '1:1' | '1:n' | 'n:m'
+export type PortSide = 'top' | 'right' | 'bottom' | 'left'
+export type Position = { x: number; y: number }
+
+// ── Field config types ────────────────────────────────────────────────────────
+
+export interface TextFieldConfig {
+  multiline?: boolean
+  maxLength?: number
+}
+
+export interface NumberFieldConfig {
+  subtype: 'integer' | 'float'
+  min?: number
+  max?: number
+}
+
+export interface BooleanFieldConfig {
+  defaultValue?: boolean
+  trueLabel?: string
+  falseLabel?: string
+}
+
+export interface RelationFieldConfig {
+  relationTargetId: string
+  relationType: RelationType
+}
+
+export type FieldConfig =
+  | TextFieldConfig
+  | NumberFieldConfig
+  | BooleanFieldConfig
+  | RelationFieldConfig
+  | Record<string, never>
 
 export interface BaseNode {
   id: string
@@ -23,6 +56,7 @@ export interface FieldNode extends BaseNode {
   isRequired: boolean
   defaultValue: string | null
   relationTargetId: string | null
+  config: FieldConfig | null
 }
 
 export type AnyNode = ContainerNode | FieldNode
@@ -52,6 +86,14 @@ export interface CreateFieldInput {
   relationTargetId?: string
   positionX?: number
   positionY?: number
+}
+
+export interface UpdateFieldMetaInput {
+  name?: string
+  isRequired?: boolean
+  fieldType?: FieldType
+  config?: FieldConfig
+  relationTargetId?: string | null
 }
 
 // ── Read models ───────────────────────────────────────────────────────────────

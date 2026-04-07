@@ -1,7 +1,8 @@
 import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { nodes, fieldMeta } from '@/db/schema'
-import type { AnyNode, BreadcrumbItem, ContainerNode, FieldNode, FieldType } from '@/types/nodes'
+import { nodeNameToSlug } from '@/nodes/api-generator'
+import type { AnyNode, BreadcrumbItem, ContainerNode, FieldConfig, FieldNode, FieldType } from '@/types/nodes'
 
 type NewContainerNode = {
   name: string
@@ -61,6 +62,7 @@ async function findById(id: string): Promise<AnyNode | null> {
       isRequired: m.isRequired,
       defaultValue: m.defaultValue ?? null,
       relationTargetId: m.relationTargetId ?? null,
+      config: (m.config as FieldConfig) ?? null,
     } satisfies FieldNode
   }
 
@@ -107,10 +109,32 @@ async function create(input: NewContainerNode): Promise<ContainerNode> {
       parentId:  input.parentId ?? null,
       positionX: input.positionX ?? 0,
       positionY: input.positionY ?? 0,
+      // Auto-generate slug only for root containers (no parentId)
+      slug: input.parentId ? null : nodeNameToSlug(input.name),
     })
     .returning()
 
   return mapRow(row)
+}
+
+async function findBySlug(slug: string): Promise<ContainerNode | null> {
+  // First: check the stored slug column (nodes created after Part 13)
+  const bySlug = await db
+    .select()
+    .from(nodes)
+    .where(and(eq(nodes.slug, slug), isNull(nodes.parentId), eq(nodes.type, 'container')))
+    .limit(1)
+
+  if (bySlug[0]) return mapRow(bySlug[0])
+
+  // Fallback: derive slug from name for existing nodes without a slug value
+  const roots = await db
+    .select()
+    .from(nodes)
+    .where(and(isNull(nodes.parentId), eq(nodes.type, 'container')))
+
+  const match = roots.find((r) => nodeNameToSlug(r.name) === slug)
+  return match ? mapRow(match) : null
 }
 
 async function updatePosition(
@@ -191,6 +215,7 @@ async function createField(input: {
     isRequired:       metaRow.isRequired,
     defaultValue:     metaRow.defaultValue ?? null,
     relationTargetId: metaRow.relationTargetId ?? null,
+    config:           null,
   }
 }
 
@@ -214,6 +239,7 @@ async function findChildren(parentId: string): Promise<AnyNode[]> {
         isRequired: m.isRequired,
         defaultValue: m.defaultValue ?? null,
         relationTargetId: m.relationTargetId ?? null,
+        config: (m.config as FieldConfig) ?? null,
       } satisfies FieldNode
     }
     return mapRow(row.nodes)
@@ -225,6 +251,15 @@ async function countChildren(parentId: string): Promise<number> {
     .select({ total: count() })
     .from(nodes)
     .where(eq(nodes.parentId, parentId))
+  return row?.total ?? 0
+}
+
+/** Count field nodes that reference this container as a relation target */
+async function countRelationReferences(nodeId: string): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(fieldMeta)
+    .where(eq(fieldMeta.relationTargetId, nodeId))
   return row?.total ?? 0
 }
 
@@ -304,24 +339,65 @@ async function findAll(): Promise<AnyNode[]> {
         isRequired: m.isRequired,
         defaultValue: m.defaultValue ?? null,
         relationTargetId: m.relationTargetId ?? null,
+        config: (m.config as FieldConfig) ?? null,
       } satisfies FieldNode
     }
     return mapRow(row.nodes)
   })
 }
 
+async function updateFieldMeta(nodeId: string, patch: {
+  name?: string
+  fieldType?: FieldType
+  isRequired?: boolean
+  defaultValue?: string | null
+  relationTargetId?: string | null
+  config?: FieldConfig | null
+}): Promise<FieldNode> {
+  if (patch.name !== undefined) {
+    await db
+      .update(nodes)
+      .set({ name: patch.name, updatedAt: new Date() })
+      .where(eq(nodes.id, nodeId))
+  }
+
+  const metaPatch: Partial<{
+    fieldType: string
+    isRequired: boolean
+    defaultValue: string | null
+    relationTargetId: string | null
+    config: unknown
+  }> = {}
+  if (patch.fieldType !== undefined)     metaPatch.fieldType = patch.fieldType
+  if (patch.isRequired !== undefined)    metaPatch.isRequired = patch.isRequired
+  if ('defaultValue' in patch)           metaPatch.defaultValue = patch.defaultValue ?? null
+  if ('relationTargetId' in patch)       metaPatch.relationTargetId = patch.relationTargetId ?? null
+  if ('config' in patch)                 metaPatch.config = patch.config
+
+  if (Object.keys(metaPatch).length > 0) {
+    await db.update(fieldMeta).set(metaPatch).where(eq(fieldMeta.nodeId, nodeId))
+  }
+
+  const updated = await findById(nodeId)
+  if (!updated || updated.type !== 'field') throw new Error('NODE_NOT_FOUND')
+  return updated
+}
+
 export const nodesRepository = {
   findById,
   findByIds,
   findByParentId,
+  findBySlug,
   findChildren,
   findSiblingByName,
   findAncestors,
   findAll,
   findFullTree,
   countChildren,
+  countRelationReferences,
   create,
   createField,
+  updateFieldMeta,
   updatePosition,
   updateName,
   delete: deleteNode,

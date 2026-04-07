@@ -182,15 +182,15 @@ On mobile, drag-to-connect is impossible. Alternative flow:
 
 ## Acceptance Criteria
 
-- [ ] Hovering a container NodeCard reveals all 4 ConnectorPort dots
-- [ ] Dragging from a ConnectorPort shows animated dashed rope line following cursor
-- [ ] Other container nodes glow as valid targets while dragging
-- [ ] Field nodes do NOT glow during connection drag
-- [ ] Releasing on a valid container target calls `createConnection()` and shows the line
-- [ ] Connection type selector appears on the new line's midpoint
-- [ ] Changing connection type updates the line label
-- [ ] Hovering a permanent line shows the × delete badge
-- [ ] Clicking × removes the line and calls `deleteConnection()`
-- [ ] Lines correctly reposition when a node is dragged to a new position
-- [ ] Off-screen connections are not rendered (performance culling)
-- [ ] Mobile long-press → "Connect to..." flow creates connections correctly
+- [x] Hovering a container NodeCard reveals all 4 ConnectorPort dots
+- [x] Dragging from a ConnectorPort shows animated dashed rope line following cursor
+- [x] Other container nodes glow as valid targets while dragging
+- [x] Field nodes do NOT glow during connection drag
+- [x] Releasing on a valid container target calls `createConnection()` and shows the line
+- [x] Connection type selector appears on the new line's midpoint
+- [x] Changing connection type updates the line label
+- [x] Hovering a permanent line shows the × delete badge
+- [x] Clicking × removes the line and calls `deleteConnection()`
+- [x] Lines correctly reposition when a node is dragged to a new position
+- [x] Off-screen connections are not rendered (performance culling)
+- [x] Mobile long-press → "Connect to..." flow creates connections correctly

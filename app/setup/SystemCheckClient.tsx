@@ -41,7 +41,7 @@ export function SystemCheckClient({ checks, allOk, dict }: SystemCheckClientProp
         <div className="flex flex-col gap-3">
           <p className="text-success text-sm font-mono">{dict.allOk}</p>
           <button
-            onClick={() => router.push('/setup/locale')}
+            onClick={() => router.push('/setup/credentials')}
             className="w-full bg-primary hover:bg-primary/90 text-white font-mono text-sm py-2.5 rounded-md transition-colors"
           >
             {dict.continue} →

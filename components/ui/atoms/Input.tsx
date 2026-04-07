@@ -7,8 +7,8 @@ import type { ReactNode } from 'react'
 const inputWrapperVariants = cva('relative flex items-center rounded-md border bg-surface-2 transition-colors', {
   variants: {
     variant: {
-      default: 'border-border focus-within:border-primary',
-      error:   'border-danger focus-within:border-danger',
+      default: 'border-border focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30',
+      error:   'border-danger focus-within:border-danger focus-within:ring-1 focus-within:ring-danger/30',
     } satisfies Record<InputVariant, string>,
     size: {
       sm: 'h-8 text-xs',

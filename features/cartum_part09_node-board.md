@@ -309,15 +309,15 @@ export const useUIStore = create<UIState>()((set) => ({
 
 ## Acceptance Criteria
 
-- [ ] Root board renders empty InfiniteCanvas with hint text when no nodes exist
-- [ ] 3 dock icons visible on empty board: Settings, Home, + Node
-- [ ] Clicking + Node opens NodeCreationPanel with VHS animation
-- [ ] Creating a container node renders a NodeCard on the canvas
-- [ ] Clicking a container NodeCard navigates to its nested board with correct breadcrumb
-- [ ] BreadcrumbBar shows correct path and segment links are functional
-- [ ] Clicking Home in BreadcrumbBar or DockBar returns to root board
-- [ ] Canvas pans on mouse drag and zooms on scroll
-- [ ] Desktop renders InfiniteCanvas; mobile renders card list for the same route
-- [ ] NodeCreationPanel at root level shows only Container option
-- [ ] NodeCreationPanel inside a container shows Container + all Field type options
-- [ ] TopBar shows project name and avatar on all board routes
+- [x] Root board renders empty InfiniteCanvas with hint text when no nodes exist
+- [x] 3 dock icons visible on empty board: Settings, Home, + Node
+- [x] Clicking + Node opens NodeCreationPanel with VHS animation
+- [x] Creating a container node renders a NodeCard on the canvas
+- [x] Clicking a container NodeCard navigates to its nested board with correct breadcrumb
+- [x] BreadcrumbBar shows correct path and segment links are functional
+- [x] Clicking Home in BreadcrumbBar or DockBar returns to root board
+- [x] Canvas pans on mouse drag and zooms on scroll
+- [x] Desktop renders InfiniteCanvas; mobile renders card list for the same route
+- [x] NodeCreationPanel at root level shows only Container option
+- [x] NodeCreationPanel inside a container shows Container + all Field type options
+- [x] TopBar shows project name and avatar on all board routes

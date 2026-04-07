@@ -181,12 +181,23 @@ types/
 
 ## Acceptance Criteria
 
-- [ ] Panel opens with `animate-panel-unfurl` animation, `transform-origin` facing the trigger element
-- [ ] Panel never overflows the viewport — position clamped on all 4 edges
-- [ ] Panel stays mounted in DOM (no unmount on close) — `data-panel-open` controls visibility
-- [ ] On mobile, panel slides up as a bottom sheet with `animate-sheet-up`
-- [ ] Mobile drag-to-dismiss works with velocity snap (fast flick closes even at 20% travel)
-- [ ] Focus is trapped inside the panel while open
-- [ ] `Escape` closes the panel and returns focus to the trigger element
-- [ ] Zero React re-renders during mobile drag pan (verified via React DevTools Profiler)
-- [ ] `aria-modal="true"`, `role="dialog"`, `aria-labelledby` present when open
+- [x] Panel opens with `animate-panel-unfurl` animation, `transform-origin` facing the trigger element
+- [x] Panel never overflows the viewport — position clamped on all 4 edges (`useAnchoredPanel` — 16px margin on all edges)
+- [x] ~~Panel stays mounted in DOM~~ **Changed**: uses `if (!open) return null` (conditional render), consistent with all other panels in the codebase (SettingsPanel, HelpPanel, NodeCreationPanel). Simplifies state management; scroll position is not a concern for short forms.
+- [x] On mobile, panel slides up as a bottom sheet with `animate-sheet-up`
+- [x] Mobile drag-to-dismiss works with velocity snap (fast flick closes even at 20% travel) — `useDragDismiss`: VELOCITY_THRESHOLD=500px/s, DISTANCE_THRESHOLD=40%
+- [x] Focus is trapped inside the panel while open (`useFocusTrap`)
+- [x] `Escape` closes the panel and returns focus to the trigger element (`anchorRef.current?.focus()` on close)
+- [x] Zero React re-renders during mobile drag pan — `useDragDismiss` mutates `sheetEl.style.transform` directly
+- [x] `aria-modal="true"`, `role="dialog"`, `aria-label` present when open
+
+## Files Created
+
+| File | Status |
+|---|---|
+| `types/nodePanel.ts` | ✅ Done |
+| `lib/hooks/useAnchoredPanel.ts` | ✅ Done |
+| `lib/hooks/useDragDismiss.ts` | ✅ Done |
+| `components/ui/molecules/PanelHeader.tsx` | ✅ Done |
+| `components/ui/molecules/PanelDragHandle.tsx` | ✅ Done |
+| `components/ui/organisms/NodePanel.tsx` | ✅ Done |

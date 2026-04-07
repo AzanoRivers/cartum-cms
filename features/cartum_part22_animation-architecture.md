@@ -197,10 +197,24 @@ lib/utils/
 
 ## Acceptance Criteria
 
-- [ ] NodePanel unfurl: 220ms, no frame drops > 16ms on reference mobile device
-- [ ] All animations use only `transform`, `opacity`, or `clip-path` — no `width/height` transitions anywhere in the codebase
-- [ ] `will-change` is never present on idle elements (verified via CSS audit in DevTools)
-- [ ] `prefers-reduced-motion` reduces all animations to opacity cross-fades or instant transitions
-- [ ] Off-screen NodeCards have `content-visibility: auto` and do not appear in Paint coverage report
-- [ ] Board FPS stays above 55fps during NodePanel open with 50+ nodes rendered
-- [ ] `animateWithWillChange.ts` removes `will-change` on `animationend` — never leaks to idle state
+- [x] NodePanel unfurl: 220ms (`--animate-panel-unfurl: panel-unfurl 220ms var(--ease-spring)` in `theme.css`)
+- [x] All animations use only `transform`, `opacity`, `clip-path`, or `filter` in keyframes — no `width/height` transitions anywhere (`theme.css` and `globals.css` audited)
+- [x] `will-change` is never present on idle elements:
+  - `animateWithWillChange.ts` removes it on `animationend`
+  - Canvas layer (`canvas-layer` CSS class) keeps `will-change: transform` because it is continuously transformed during pan/zoom — not idle
+  - No other idle `will-change` in codebase
+- [x] `prefers-reduced-motion` reduces all animations to instant transitions — `globals.css`: collapse to 0.01ms, VHS forced to `animation: none`, Sonner toasts `animation: none`
+- [x] `contain-card` applied to all NodeCard `<article>` elements — `contain: layout style` prevents card layout from propagating to the board
+- [x] `animateWithWillChange.ts` removes `will-change` on `animationend`, never leaks to idle state
+- [~] Off-screen NodeCards with `content-visibility: auto` — **NOT IMPLEMENTED**: cards are `position:absolute` inside a CSS-transformed div; the browser would use the visual viewport for intersection, incorrectly culling visible cards. Deferred as future optimization.
+- [~] Board FPS 55fps with 50+ nodes — **NOT MEASURABLE WITHOUT PRODUCTION DATA**: `contain-card` reduces per-card render cost; aggressive optimization deferred until performance profiling shows a real bottleneck
+- [~] `useNodeVisibility.ts` IntersectionObserver hook — **NOT BUILT**: same reason as `content-visibility`; premature until board scale justifies it
+
+## Files Created / Modified
+
+| File | Change |
+|---|---|
+| `lib/utils/animateWithWillChange.ts` | ✅ Created — scoped `will-change` with `animationend` cleanup |
+| `components/ui/molecules/NodeCard.tsx` | ✅ `contain-card` added to `baseClasses` |
+| `components/ui/organisms/InfiniteCanvas.tsx` | ✅ `will-change-transform` → `canvas-layer` (documented intent) |
+| `app/globals.css` | ✅ Board performance CSS block added (`.canvas-layer`, `.connection-layer`, `.node-card-dragging`) |

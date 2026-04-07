@@ -1,15 +1,23 @@
 import { db } from '@/db'
-import { users } from '@/db/schema'
+import { users, project } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 
 /**
- * Returns true if a super admin exists — the canonical "setup complete" signal.
+ * Returns true if both a super admin AND a project row exist.
+ * After the credentials step, a super admin exists but no project yet —
+ * so setup is NOT considered complete until the project step also runs.
  */
 export async function checkSetupComplete(): Promise<boolean> {
-  const rows = await db
+  const [adminRow] = await db
     .select({ id: users.id })
     .from(users)
     .where(eq(users.isSuperAdmin, true))
     .limit(1)
-  return rows.length > 0
+  if (!adminRow) return false
+
+  const [projectRow] = await db
+    .select({ id: project.id })
+    .from(project)
+    .limit(1)
+  return projectRow != null
 }

@@ -1,12 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
+import { CaptchaChallenge } from '@/components/ui/molecules/CaptchaChallenge'
 import type { Dictionary } from '@/locales/en'
 
 type LoginFormProps = { dict: Dictionary['auth']['login'] }
+
+function randomDigit() {
+  return Math.floor(Math.random() * 10)
+}
 
 export function LoginForm({ dict }: LoginFormProps) {
   const router = useRouter()
@@ -16,9 +21,31 @@ export function LoginForm({ dict }: LoginFormProps) {
   const [error, setError]       = useState<string | null>(null)
   const [loading, setLoading]   = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  // Captcha state
+  const [captchaA, setCaptchaA]         = useState(randomDigit)
+  const [captchaB, setCaptchaB]         = useState(randomDigit)
+  const [captchaValue, setCaptchaValue] = useState('')
+  const [captchaError, setCaptchaError] = useState(false)
+
+  const refreshCaptcha = useCallback(() => {
+    setCaptchaA(randomDigit())
+    setCaptchaB(randomDigit())
+    setCaptchaValue('')
+    setCaptchaError(false)
+  }, [])
+
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
+    setCaptchaError(false)
+
+    // Validate captcha first
+    if (parseInt(captchaValue, 10) !== captchaA + captchaB) {
+      setCaptchaError(true)
+      refreshCaptcha()
+      return
+    }
+
     setLoading(true)
 
     const result = await signIn('credentials', {
@@ -31,6 +58,7 @@ export function LoginForm({ dict }: LoginFormProps) {
 
     if (!result || result.error) {
       setError(dict.error)
+      refreshCaptcha()
       return
     }
 
@@ -40,22 +68,26 @@ export function LoginForm({ dict }: LoginFormProps) {
   return (
     <div className="w-full max-w-sm">
       {/* Logo */}
-      <div className="mb-8 text-center">
-        <span className="font-mono text-xs tracking-[0.3em] text-[--color-text-muted] uppercase">◈ Cartum</span>
+      <div className="mb-8 flex flex-col items-center gap-2">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/brand/icon.svg" alt="Cartum" width={28} height={28} className="h-7 w-7 object-contain" />
+        </div>
+        <span className="font-mono text-[10px] tracking-[0.3em] text-muted uppercase">Cartum CMS</span>
       </div>
 
-      <div className="bg-[--color-surface] border border-[--color-border] rounded-lg p-8">
-        <h1 className="text-lg font-semibold text-[--color-text] mb-6">{dict.title}</h1>
+      <div className="rounded-lg border border-border bg-surface p-8">
+        <h1 className="mb-6 text-lg font-semibold text-text">{dict.title}</h1>
 
         {error && (
-          <div className="mb-4 px-3 py-2 rounded bg-[--color-danger]/10 border border-[--color-danger]/30 text-[--color-danger] text-sm">
+          <div className="mb-4 rounded border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label htmlFor="email" className="block text-xs font-mono text-[--color-text-muted] uppercase tracking-wider">
+            <label htmlFor="email" className="block font-mono text-xs uppercase tracking-wider text-muted">
               {dict.email}
             </label>
             <input
@@ -65,13 +97,13 @@ export function LoginForm({ dict }: LoginFormProps) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-[--color-surface-2] border border-[--color-border] rounded px-3 py-2 text-sm text-[--color-text] placeholder:text-[--color-text-muted] outline-none focus:border-[--color-accent] transition-colors"
+              className="w-full rounded border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-muted outline-none transition-colors focus:border-accent"
               placeholder="admin@example.com"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="password" className="block text-xs font-mono text-[--color-text-muted] uppercase tracking-wider">
+            <label htmlFor="password" className="block font-mono text-xs uppercase tracking-wider text-muted">
               {dict.password}
             </label>
             <div className="relative">
@@ -82,13 +114,13 @@ export function LoginForm({ dict }: LoginFormProps) {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[--color-surface-2] border border-[--color-border] rounded px-3 py-2 pr-10 text-sm text-[--color-text] placeholder:text-[--color-text-muted] outline-none focus:border-[--color-accent] transition-colors"
+                className="w-full rounded border border-border bg-surface-2 px-3 py-2 pr-10 text-sm text-text placeholder:text-muted outline-none transition-colors focus:border-accent"
                 placeholder="••••••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPwd((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[--color-text-muted] hover:text-[--color-text] transition-colors text-xs"
+                className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-muted transition-colors hover:text-text"
                 aria-label={showPwd ? dict.hide : dict.show}
               >
                 {showPwd ? dict.hide : dict.show}
@@ -96,10 +128,29 @@ export function LoginForm({ dict }: LoginFormProps) {
             </div>
           </div>
 
+          {/* Captcha */}
+          <div className="pt-1">
+            <CaptchaChallenge
+              a={captchaA}
+              b={captchaB}
+              value={captchaValue}
+              onChange={(v) => { setCaptchaValue(v); setCaptchaError(false) }}
+              onRefresh={refreshCaptcha}
+              label={dict.captchaLabel}
+              placeholder={dict.captchaPlaceholder}
+              isError={captchaError}
+            />
+            {captchaError && (
+              <p className="mt-1.5 font-mono text-xs text-danger">
+                {dict.captchaError}
+              </p>
+            )}
+          </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 bg-[--color-primary] hover:bg-[--color-primary]/90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded px-4 py-2.5 transition-colors"
+            className="mt-2 w-full rounded bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? dict.submitting : dict.submit}
           </button>
@@ -108,7 +159,7 @@ export function LoginForm({ dict }: LoginFormProps) {
         <div className="mt-5 text-center">
           <Link
             href="/forgot-password"
-            className="text-xs text-[--color-text-muted] hover:text-[--color-text] transition-colors"
+            className="font-mono text-xs text-muted transition-colors hover:text-text"
           >
             {dict.forgotPassword}
           </Link>

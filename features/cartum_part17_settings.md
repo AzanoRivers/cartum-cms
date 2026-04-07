@@ -270,17 +270,22 @@ export interface CreateApiTokenInput {
 
 ## Acceptance Criteria
 
-- [ ] Settings panel opens as a floating overlay (not a page navigation)
-- [ ] VHSTransition runs on the panel card when it opens
-- [ ] Clicking backdrop or pressing `Esc` closes the panel
-- [ ] Project section saves and shows `alert.success` on success
-- [ ] Storage test returns latency on success, `alert.error` on fail
-- [ ] Email section shows notice if `RESEND_API_KEY` is not configured
-- [ ] API token create shows raw token once in a modal with copy gate
-- [ ] Revoked tokens disappear from the list immediately
-- [ ] Users section lists all users with their roles
-- [ ] Role assignment dropdown updates immediately on change
-- [ ] Role permission matrix saves per-node + wildcard permissions
-- [ ] Deleting a role with active users shows affected user list before confirming
-- [ ] Sections restricted by role are hidden from the tab list
-- [ ] All form inputs use translation keys (no hardcoded English labels)
+- [x] Settings panel opens as a floating overlay (not a page navigation)
+- [x] VHSTransition runs on the panel card when it opens
+- [x] Clicking backdrop or pressing `Esc` closes the panel
+- [x] Project section saves and shows `alert.success` on success
+- [x] Storage test returns latency on success, `alert.error` on fail
+- [x] Email section shows notice if `RESEND_API_KEY` is not configured
+- [x] API token create shows raw token once in a modal with copy gate
+- [x] Revoked tokens disappear from the list immediately
+- [x] Users section lists all users with their roles
+- [x] Role assignment dropdown updates immediately on change
+- [x] Role permission matrix saves per-node + wildcard permissions
+- [x] Deleting a role with active users shows affected user list before confirming
+- [x] Sections restricted by role are hidden from the tab list
+- [x] All form inputs use translation keys (no hardcoded English labels)
+- [x] Storage section shows `r2_bucket_name`, `r2_public_url`, `media_vps_url`, `media_vps_key` *(from Part 14)*
+- [x] VPS key field is masked; has show/hide toggle *(from Part 14)*
+- [x] VPS section shows an "API Docs ↗" link to `https://optimus.azanolabs.com/guide` (opens in new tab) *(from Part 14)*
+- [x] Saving empty value removes DB row (env fallback resumes) *(from Part 14)*
+- [x] Only `super_admin` can modify storage settings *(from Part 14)*

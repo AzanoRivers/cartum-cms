@@ -215,13 +215,13 @@ The UI for managing tokens is in Part 17 (Settings → API).
 
 ## Acceptance Criteria
 
-- [ ] `GET /api/v1/blog-posts` with valid token returns paginated records
-- [ ] `GET /api/v1/unknown` returns 404
-- [ ] Request with no Authorization header returns 401
-- [ ] Request with revoked token returns 401
-- [ ] Request with valid token but restricted role returns 403
-- [ ] `?include=author` expands the relation field inline
-- [ ] `?limit=200` is capped to 100
-- [ ] `POST /api/v1/blog-posts` with valid token + body creates a record
-- [ ] Response format matches documented structure (data + meta for lists)
-- [ ] `createApiToken()` returns raw token once, stores only hash
+- [x] `GET /api/v1/blog-posts` with valid token returns paginated records
+- [x] `GET /api/v1/unknown` returns 404
+- [x] Request with no Authorization header returns 401
+- [x] Request with revoked token returns 401
+- [x] Request with valid token but restricted role returns 403
+- [x] `?include=author` expands the relation field inline
+- [x] `?limit=200` is capped to 100
+- [x] `POST /api/v1/blog-posts` with valid token + body creates a record
+- [x] Response format matches documented structure (data + meta for lists)
+- [x] `createApiToken()` returns raw token once, stores only hash

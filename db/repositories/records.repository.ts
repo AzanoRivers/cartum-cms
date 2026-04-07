@@ -1,4 +1,4 @@
-import { count, eq } from 'drizzle-orm'
+import { asc, count, desc, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { records } from '@/db/schema'
 
@@ -51,8 +51,29 @@ async function countByNodeId(nodeId: string): Promise<number> {
   return result?.value ?? 0
 }
 
+async function findByNodeIdPaginated(
+  nodeId: string,
+  opts: { page: number; limit: number; sort: string; order: 'asc' | 'desc' },
+): Promise<{ rows: RecordRow[]; total: number }> {
+  const offset   = (opts.page - 1) * opts.limit
+  const orderFn  = opts.order === 'asc' ? asc : desc
+  const orderCol = opts.sort === 'updated_at' ? records.updatedAt : records.createdAt
+
+  const [rows, countResult] = await Promise.all([
+    db.select().from(records)
+      .where(eq(records.nodeId, nodeId))
+      .orderBy(orderFn(orderCol))
+      .limit(opts.limit)
+      .offset(offset),
+    db.select({ value: count() }).from(records).where(eq(records.nodeId, nodeId)),
+  ])
+
+  return { rows, total: countResult[0]?.value ?? 0 }
+}
+
 export const recordsRepository = {
   findByNodeId,
+  findByNodeIdPaginated,
   findById,
   create,
   update,

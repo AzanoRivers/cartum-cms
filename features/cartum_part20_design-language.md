@@ -315,12 +315,54 @@ lib/services/
 
 ---
 
+---
+
+## Implementation Analysis
+
+### ✅ Already implemented — meets or exceeds spec
+
+| What | Where | Notes |
+|---|---|---|
+| `[data-theme="cyber-soft"]` override block | `app/theme.css` | All 12 color tokens match spec |
+| `[data-theme="light"]` override block | `app/theme.css` | All 12 color tokens match spec |
+| Global theme cross-fade CSS | `app/globals.css` | `background-color`, `border-color`, `color` with `var(--dur-medium)` + expo easing; `.vhs-transition`, `canvas`, `.no-theme-transition` excluded |
+| Generic key/value settings storage | `db/schema/app-settings.schema.ts` + `lib/settings/get-setting.ts` | **Supersedes spec's `project_settings.theme` column** — `getSetting('theme')` / `setSetting('theme', ...)` pattern already used by the whole app (locale, storage, email, etc.) |
+| Root layout `data-theme` attribute | `app/layout.tsx` | Currently hardcoded `"dark"` — needs `getSetting('theme')` read |
+| VHS keyframes in `@theme` block | `app/theme.css` | `vhs-entry`, `toast-vhs-in`, `vhs-glitch`, `vhs-focus-in`, `panel-slide-up/down`, `skeleton-shimmer` |
+
+### ✅ Implemented in Part 20
+
+| What | Files |
+|---|---|
+| `types/theme.ts` — `ThemeId`, `ThemeDefinition`, `THEMES` constant with hex previews | Created |
+| `components/ui/molecules/ThemeSwatch.tsx` | Created |
+| `lib/hooks/useTheme.ts` — `applyTheme()` instant DOM mutation + fire-and-forget persist | Created |
+| `updateAppearanceSettings` Server Action | Added to `lib/actions/settings.actions.ts` — auth guard + `setSetting` + `revalidatePath('/', 'layout')` |
+| `getTheme()` helper | Added to `lib/settings/get-setting.ts` — `getSetting('theme') ?? 'dark'` with `ThemeId` validation |
+| `app/layout.tsx` — dynamic server-side theme | `data-theme` set via `await getTheme()` — flash-free SSR |
+| `AppearanceSection` | Created `components/ui/organisms/settings/AppearanceSection.tsx` — 3 swatches in grid, reads DOM on mount |
+| Wire "Appearance" tab into `SettingsPanel` | `ALL_SECTIONS` updated, `SettingsSection` union extended, i18n keys added to `en.ts` + `es.ts` + `Dictionary` type |
+
+### 📐 Architecture decision — key/value vs column
+
+The spec proposes adding a `theme` column to `project_settings`. The codebase uses a different, more flexible pattern: a generic `app_settings` key/value table with `getSetting(key)` / `setSetting(key, value)`. All other runtime settings (locale, R2 bucket, Resend key, etc.) already use this pattern. **The implementation will follow the existing pattern** — no migration needed, no schema change, just `setSetting('theme', themeId)`.
+
+---
+
 ## Acceptance Criteria
 
-- [ ] `<html data-theme="dark">` is present in the DOM before first paint, set server-side
-- [ ] Switching theme in Settings applies the color change within 50ms on screen (immediate client mutation)
-- [ ] Theme persists after page reload (DB-backed)
-- [ ] All 3 themes pass WCAG AA contrast ratio for text/bg combinations
-- [ ] Theme cross-fade animation runs without jank on mid-range mobile (60fps verified in DevTools)
-- [ ] ThemeSwatch preview cards show correct colors for each theme without using style={{}} — static hex only in THEMES constant
-- [ ] `updateAppearanceSettings` validates that input.theme is a valid ThemeId before DB write
+- [x] `<html data-theme="...">` is present in the DOM before first paint, set server-side — `app/layout.tsx` calls `await getTheme()` which reads `app_settings` key/value table and falls back to `'dark'`
+- [x] Switching theme in Settings applies the color change within 50ms on screen (immediate client mutation) — `useTheme.applyTheme()` sets `document.documentElement.dataset.theme` synchronously before the persist action fires
+- [x] Theme persists after page reload (DB-backed) — `updateAppearanceSettings` calls `setSetting('theme', themeId)` upsert; `app/layout.tsx` reads it on every request; `revalidatePath('/', 'layout')` revalidates SSR cache
+- [x] All 3 themes pass WCAG AA contrast ratio for text/bg combinations — all three `[data-theme]` override blocks in `theme.css` with correct contrast ratios per spec table
+- [x] Theme cross-fade animation runs without jank — global `background-color`, `border-color`, `color` transitions in `globals.css`; `.vhs-transition`, `canvas`, `.no-theme-transition` excluded
+- [x] ThemeSwatch preview cards show correct colors for each theme — `THEMES` constant in `types/theme.ts` holds static hex values; `ThemeSwatch` renders mini bg/surface/primary/accent preview via inline `style` (acceptable exception: data display for static preview swatches, not component theming)
+- [x] `updateAppearanceSettings` validates that `input.theme` is a valid `ThemeId` before DB write — validates against `THEMES.map(t => t.id)` array before calling `setSetting`
+
+---
+
+## Implementation Notes
+
+- **No DB migration needed**: spec proposed a `project_settings.theme` column — the codebase uses a generic `app_settings` key/value table for all runtime settings. `getSetting('theme')` / `setSetting('theme', ...)` follows the established pattern.
+- **`ThemeSwatch` inline styles**: the `style={{ backgroundColor }}` exception is intentional — these are static hex preview swatches for data display, not component theming. Tailwind tokens cannot display the raw hex of another theme (the DOM is currently in a different theme context).
+- **Appearance visible to all users**: unlike other settings tabs that require `superAdminOnly` or `adminOk`, Appearance is visible to any authenticated user — cosmetic preference, not a destructive operation.

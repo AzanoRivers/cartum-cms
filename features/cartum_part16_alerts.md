@@ -293,17 +293,17 @@ The only new file to create: `lib/hooks/useToast.ts`.
 
 ## Acceptance Criteria
 
-- [ ] `pnpm add sonner` is in package.json (^2.0.7)
-- [ ] `<Toaster theme="dark" position="bottom-right" richColors closeButton visibleToasts={3} />` in root layout
-- [ ] `toast.success('msg')` shows a green toast in the bottom-right corner
-- [ ] `toast.error('msg')` shows a red toast, auto-dismisses after 6s
-- [ ] 4th toast replaces the oldest (maxed at 3 via `visibleToasts`)
-- [ ] `toast.dismiss()` with no args clears all toasts
-- [ ] `toast.promise()` shows loading → success/error states automatically
-- [ ] `useToast().errorKey('media.uploadError')` resolves and shows the translated string
-- [ ] `closeButton` appears and dismisses on click
-- [ ] CSS variables override makes toasts match Cartum's dark palette (surface bg, border colors)
-- [ ] No `AlertContext`, `AlertProvider`, or `AlertContainer` files exist
-- [ ] `ConfirmDialog` molecule exists using shadcn/ui `<AlertDialog>` for destructive actions
-- [ ] Persistent toasts work with `duration: Infinity`
+- [x] `pnpm add sonner` is in package.json (^2.0.7) — `"sonner": "2.0.7"` confirmed
+- [x] `<Toaster theme="dark" position="bottom-right" richColors closeButton visibleToasts={3} />` in root layout — `app/layout.tsx`
+- [x] `toast.success('msg')` shows a green toast — Sonner built-in with `richColors`
+- [x] `toast.error('msg')` shows a red toast, auto-dismisses after 6s — `useToast().error()` sets `duration: 6000`
+- [x] 4th toast replaces the oldest — `visibleToasts={3}` in `<Toaster>`
+- [x] `toast.dismiss()` with no args clears all toasts — `useToast().dismissAll()` calls `toast.dismiss()`
+- [x] `toast.promise()` — exposed as `useToast().promise` (direct reference to `toast.promise`)
+- [x] `useToast().errorKey('media.uploadError')` resolves via `t(cmsDict, key)` and shows translated string
+- [x] `closeButton` appears and dismisses on click — `closeButton` prop on `<Toaster>`
+- [x] CSS variables override makes toasts match Cartum's dark palette — Sonner vars in `globals.css`
+- [x] No `AlertContext`, `AlertProvider`, or `AlertContainer` files exist — never created
+- [~] `ConfirmDialog` molecule exists — **implemented as custom component** (`components/ui/molecules/ConfirmDialog.tsx`), not using shadcn/ui `<AlertDialog>` (shadcn not installed; custom is equivalent and zero-dependency)
+- [x] Persistent toasts work with `duration: Infinity` — Sonner native support, no changes needed
 

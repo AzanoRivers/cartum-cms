@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '@/db'
 import { rolePermissions, usersRoles } from '@/db/schema'
 import { rolesRepository } from '@/db/repositories/roles.repository'
@@ -94,6 +94,32 @@ async function canPerform(
   return map[operation]
 }
 
+/**
+ * Checks a single operation using a role ID directly (for API token auth).
+ */
+async function canPerformByRole(
+  roleId:    string,
+  nodeId:    string,
+  operation: PermissionOperation,
+): Promise<boolean> {
+  const perms = await db
+    .select()
+    .from(rolePermissions)
+    .where(and(eq(rolePermissions.roleId, roleId), eq(rolePermissions.nodeId, nodeId)))
+    .limit(1)
+
+  if (perms.length === 0) return false
+
+  const p   = perms[0]
+  const map: Record<PermissionOperation, boolean> = {
+    read:   p.canRead,
+    create: p.canCreate,
+    update: p.canUpdate,
+    delete: p.canDelete,
+  }
+  return map[operation]
+}
+
 async function createRole(input: CreateRoleInput) {
   return rolesRepository.create(input)
 }
@@ -159,6 +185,7 @@ export const rolesService = {
   resolvePermissions,
   getAccessibleNodes,
   canPerform,
+  canPerformByRole,
   createRole,
   deleteRole,
   setPermissions,
