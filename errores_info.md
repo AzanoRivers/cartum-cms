@@ -15,13 +15,13 @@ When you see a `[CARTUM_EXXX]` message in your terminal, find the matching secti
 ```
 ✖ [CARTUM_E001] DATABASE_URL environment variable is not defined.
   → What this means: Cartum cannot connect to any database without this variable.
-  → How to fix: Add DATABASE_URL to your .env.local file.
+  → How to fix: Add DATABASE_URL to your .env file.
   → Reference: errores_info.md#cartum_e001
 ```
 
 **What to do:**
 
-1. Open your `.env.local` file (create it at the project root if it does not exist).
+1. Open your `.env` file (create it at the project root if it does not exist).
 2. Add the connection string for your database provider:
 
    **Neon:**
@@ -37,7 +37,7 @@ When you see a `[CARTUM_EXXX]` message in your terminal, find the matching secti
 3. Save the file and restart the dev server.
 
 **Notes:**
-- Never commit `.env.local` to version control.
+- Never commit `.env` to version control.
 - If using Vercel, add `DATABASE_URL` in the project's Environment Variables dashboard.
 
 ---
@@ -74,7 +74,7 @@ When you see a `[CARTUM_EXXX]` message in your terminal, find the matching secti
 ```
 ✖ [CARTUM_E003] AUTH_SECRET environment variable is not defined.
   → What this means: Authentication sessions cannot be encrypted without this secret.
-  → How to fix: Generate a secure random secret and add it to your .env.local.
+  → How to fix: Generate a secure random secret and add it to your .env.
   → Reference: errores_info.md#cartum_e003
 ```
 
@@ -90,7 +90,7 @@ When you see a `[CARTUM_EXXX]` message in your terminal, find the matching secti
    node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
    ```
 
-2. Add the result to `.env.local`:
+2. Add the result to `.env`:
    ```
    AUTH_SECRET=your-generated-secret-here
    ```
@@ -110,13 +110,13 @@ When you see a `[CARTUM_EXXX]` message in your terminal, find the matching secti
 ```
 ✖ [CARTUM_E004] DB_PROVIDER has an unrecognized value.
   → What this means: Cartum only supports 'neon' or 'supabase' as DB_PROVIDER values.
-  → How to fix: Set DB_PROVIDER to either 'neon' or 'supabase' in your .env.local.
+  → How to fix: Set DB_PROVIDER to either 'neon' or 'supabase' in your .env.
   → Reference: errores_info.md#cartum_e004
 ```
 
 **What to do:**
 
-1. Open `.env.local` and check the `DB_PROVIDER` value:
+1. Open `.env` and check the `DB_PROVIDER` value:
    ```
    DB_PROVIDER=neon     ← valid
    DB_PROVIDER=supabase ← valid
@@ -169,13 +169,13 @@ When you see a `[CARTUM_EXXX]` message in your terminal, find the matching secti
 ```
 ✖ [CARTUM_E006] NODE_ENV environment variable is not defined.
   → What this means: Cartum cannot determine the runtime environment (development vs production).
-  → How to fix: Add NODE_ENV to your .env.local file.
+  → How to fix: Add NODE_ENV to your .env file.
   → Reference: errores_info.md#cartum_e006
 ```
 
 **What to do:**
 
-1. Add to `.env.local`:
+1. Add to `.env`:
    ```
    NODE_ENV=development
    ```
@@ -195,14 +195,14 @@ When you see a `[CARTUM_EXXX]` message in your terminal, find the matching secti
 ```
 ⚠ [CARTUM_E007] R2_BUCKET_URL is not configured. Storage features are disabled.
   → What this means: Image and video field nodes exist in the schema but uploads will fail.
-  → How to fix: Add R2_BUCKET_URL to your .env.local to enable media uploads.
+  → How to fix: Add R2_BUCKET_URL to your .env to enable media uploads.
   → Reference: errores_info.md#cartum_e007
 ```
 
 **What to do:**
 
 1. In your Cloudflare R2 dashboard, locate the bucket you want to use and copy its endpoint URL.
-2. Add to `.env.local`:
+2. Add to `.env`:
    ```
    R2_BUCKET_URL=https://[bucket-name].[account-id].r2.cloudflarestorage.com
    ```
@@ -223,7 +223,7 @@ When you see a `[CARTUM_EXXX]` message in your terminal, find the matching secti
 ```
 ⚠ [CARTUM_E008] R2_PUBLIC_URL is not configured. Uploaded files may not be publicly accessible.
   → What this means: Cartum cannot construct public URLs for serving uploaded media.
-  → How to fix: Add R2_PUBLIC_URL to your .env.local.
+  → How to fix: Add R2_PUBLIC_URL to your .env.
   → Reference: errores_info.md#cartum_e008
 ```
 
@@ -255,14 +255,14 @@ When you see a `[CARTUM_EXXX]` message in your terminal, find the matching secti
 ```
 ⚠ [CARTUM_E009] RESEND_API_KEY is not configured. Password recovery emails are disabled.
   → What this means: Users who forget their password cannot receive a recovery email.
-  → How to fix: Add RESEND_API_KEY to your .env.local, or accept this limitation.
+  → How to fix: Add RESEND_API_KEY to your .env, or accept this limitation.
   → Reference: errores_info.md#cartum_e009
 ```
 
 **What to do:**
 
 1. Create a free account at [resend.com](https://resend.com) and generate an API key.
-2. Add to `.env.local`:
+2. Add to `.env`:
    ```
    RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx
    ```
@@ -310,9 +310,9 @@ When you see a `[CARTUM_EXXX]` message in your terminal, find the matching secti
 
 ### "I have all env vars set but still get errors"
 
-- Make sure your `.env.local` file is at the **project root** (same level as `package.json`), not inside `/app` or `/src`.
+- Make sure your `.env` file is at the **project root** (same level as `package.json`), not inside `/app` or `/src`.
 - Variable names are **case-sensitive**: `DATABASE_URL` ≠ `database_url`.
-- After editing `.env.local`, always **restart** the dev server — Next.js does not hot-reload env changes.
+- After editing `.env`, always **restart** the dev server — Next.js does not hot-reload env changes.
 - When deploying, verify the env vars are set in your platform's dashboard (Vercel → Settings → Environment Variables), not only in local files.
 
 ### "I see an error code not listed here"

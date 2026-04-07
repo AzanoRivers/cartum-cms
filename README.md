@@ -17,6 +17,21 @@
 
 ## Español
 
+- [¿Qué es Cartum?](#qué-es-cartum)
+- [¿Qué problemas resuelve?](#qué-problemas-resuelve)
+- [La analogía del tablero](#la-analogía-del-tablero)
+- [Pila tecnológica](#pila-tecnológica)
+- [Requisitos](#requisitos)
+- [Variables de entorno](#variables-de-entorno)
+- [Instalación y arranque local](#instalación-y-arranque-local)
+- [Despliegue en Vercel](#despliegue-en-vercel)
+- [Despliegue en Cloudflare Pages](#despliegue-en-cloudflare-pages)
+- [API REST](#api-rest)
+- [Scripts disponibles](#scripts-disponibles)
+- [Manejo de errores](#manejo-de-errores)
+
+---
+
 ### ¿Qué es Cartum?
 
 Cartum es un **CMS headless serverless-first con modelado visual de datos**. Está diseñado para equipos pequeños y desarrolladores que necesitan un backend de contenido flexible, liviano y desplegable en entornos serverless (Vercel, Cloudflare Workers, Netlify), sin la complejidad ni el peso de soluciones como Strapi o Directus.
@@ -203,7 +218,37 @@ pnpm db:studio     # Drizzle Studio (explorador visual de DB)
 
 ---
 
+### Manejo de errores
+
+Al instalar y ejecutar Cartum por primera vez, el sistema corre una secuencia de arranque (**boot sequence**) que verifica que todas las variables de entorno necesarias estén presentes y correctamente configuradas. Si algo falla, el servidor no inicia y emite un mensaje con el siguiente formato:
+
+```
+✖ [CARTUM_EXXX] Descripción del problema.
+  → What this means: ...
+  → How to fix: ...
+  → Reference: errores_info.md#cartum_exxx
+```
+
+Los códigos van de errores fatales (el servidor no arranca) a advertencias (el servidor arranca pero con funcionalidad reducida). Consulta la referencia completa en [errores_info.md](errores_info.md).
+
+---
+
 ## English
+
+- [What is Cartum?](#what-is-cartum)
+- [What problems does it solve?](#what-problems-does-it-solve)
+- [The board analogy](#the-board-analogy)
+- [Tech Stack](#tech-stack)
+- [Requirements](#requirements)
+- [Environment Variables](#environment-variables)
+- [Local Setup](#local-setup)
+- [Deploy to Vercel](#deploy-to-vercel)
+- [Deploy to Cloudflare Pages](#deploy-to-cloudflare-pages)
+- [REST API](#rest-api)
+- [Available Scripts](#available-scripts)
+- [Error Handling](#error-handling)
+
+---
 
 ### What is Cartum?
 
@@ -362,6 +407,21 @@ pnpm db:generate   # Generate Drizzle migrations
 pnpm db:migrate    # Apply migrations
 pnpm db:studio     # Drizzle Studio (visual DB explorer)
 ```
+
+---
+
+### Error Handling
+
+On first install and startup, Cartum runs a **boot sequence** that validates all required environment variables are present and correctly configured. If anything fails, the server won't start and emits a message in the following format:
+
+```
+✖ [CARTUM_EXXX] Description of the problem.
+  → What this means: ...
+  → How to fix: ...
+  → Reference: errores_info.md#cartum_exxx
+```
+
+Codes range from fatal errors (server won't start) to warnings (server starts with reduced functionality). See the full reference at [errores_info.md](errores_info.md).
 
 ---
 
