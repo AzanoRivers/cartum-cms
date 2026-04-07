@@ -19,7 +19,7 @@
 
 ### ¿Qué es Cartum?
 
-Cartum es un **CMS headless serverless-first con modelado visual de datos**. Está diseñado para equipos pequeños y desarrolladores que necesitan un backend de contenido flexible, liviano y desplegable en entornos serverless (Vercel, Cloudflare Workers, Netlify) — sin la complejidad ni el peso de soluciones como Strapi o Directus.
+Cartum es un **CMS headless serverless-first con modelado visual de datos**. Está diseñado para equipos pequeños y desarrolladores que necesitan un backend de contenido flexible, liviano y desplegable en entornos serverless (Vercel, Cloudflare Workers, Netlify), sin la complejidad ni el peso de soluciones como Strapi o Directus.
 
 La interfaz principal es un **tablero de nodos infinito**, donde modelar la base de datos es tan intuitivo como sentarse a una mesa de póker: el tablero es la mesa, los nodos contenedor son los mazos, y cada carta dentro de un mazo es un campo de datos (texto, número, imagen, video, relación...). Defines la estructura visualmente y Cartum genera la API REST automáticamente.
 
@@ -30,8 +30,8 @@ La interfaz principal es un **tablero de nodos infinito**, donde modelar la base
 | Modelar datos sin escribir SQL | Tablero visual de nodos con conexiones drag & drop |
 | API REST sin código extra | Se genera automáticamente desde el schema visual |
 | CMS sin DB propia | Un URL de PostgreSQL es suficiente (Neon, Supabase) |
-| Despliegue sin servidor propio | 100% serverless-first — funciona en Vercel / Cloudflare |
-| Equipo técnico + editores de contenido | Builder Mode (admin) vs Content Mode (editor) — misma app |
+| Despliegue sin servidor propio | 100% serverless-first, funciona en Vercel / Cloudflare |
+| Equipo técnico + editores de contenido | Builder Mode (admin) vs Content Mode (editor), misma app |
 | Subir imágenes/video | Integración con Cloudflare R2 (opcional) |
 | Emails transaccionales | Resend integrado para reset y bienvenida (opcional) |
 
@@ -52,7 +52,7 @@ La interfaz principal es un **tablero de nodos infinito**, donde modelar la base
 | Framework | Next.js 16+ (App Router, Server Components, Server Actions) |
 | Lenguaje | TypeScript 6 (strict) |
 | Estilos | TailwindCSS v4 + shadcn/ui |
-| Base de datos | PostgreSQL — Neon o Supabase |
+| Base de datos | PostgreSQL: Neon o Supabase |
 | ORM | Drizzle ORM |
 | Auth | Auth.js v5 (NextAuth) |
 | Storage | Cloudflare R2 (opcional) |
@@ -139,7 +139,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000) — el wizard de configuración inicial te guía el resto del proceso.
+Abre [http://localhost:3000](http://localhost:3000), el wizard de configuración inicial te guía el resto del proceso.
 
 ---
 
@@ -147,8 +147,8 @@ Abre [http://localhost:3000](http://localhost:3000) — el wizard de configuraci
 
 1. Importa el repositorio en [vercel.com](https://vercel.com)
 2. En **Settings → Environment Variables**, agrega al menos `DATABASE_URL`, `DB_PROVIDER`, `AUTH_SECRET` y `AUTH_URL` (con tu dominio de producción)
-3. Para la base de datos puedes usar el **integration de Neon de Vercel** — desde el dashboard de Vercel → Storage → Create → Neon. La variable `DATABASE_URL` se inyecta automáticamente
-4. Deploy — Vercel detecta Next.js automáticamente
+3. Para la base de datos puedes usar el **integration de Neon de Vercel**, desde el dashboard de Vercel → Storage → Create → Neon. La variable `DATABASE_URL` se inyecta automáticamente
+4. Deploy. Vercel detecta Next.js automáticamente
 
 > No se necesita configuración adicional de build. El `pnpm db:migrate` puede correrse desde la CLI de Vercel o ejecutarse como parte del build command: `pnpm db:migrate && next build`
 
@@ -159,10 +159,10 @@ Abre [http://localhost:3000](http://localhost:3000) — el wizard de configuraci
 1. Conecta tu repositorio en [pages.cloudflare.com](https://pages.cloudflare.com)
 2. Framework preset: **Next.js**
 3. Build command: `pnpm db:migrate && next build`
-4. Variables de entorno: igual que en Vercel — agrega `DATABASE_URL`, `DB_PROVIDER`, `AUTH_SECRET`, `AUTH_URL`
+4. Variables de entorno: igual que en Vercel, agrega `DATABASE_URL`, `DB_PROVIDER`, `AUTH_SECRET`, `AUTH_URL`
 5. Para la base de datos usa **Neon** (funciona con Cloudflare sin cambios) o **Supabase** con `DB_PROVIDER=supabase`
 
-> R2 nativo de Cloudflare es compatible — usa el mismo bucket tanto para el hosting como para el storage del CMS.
+> R2 nativo de Cloudflare es compatible, puedes usar el mismo bucket tanto para el hosting como para el storage del CMS.
 
 ---
 
@@ -181,7 +181,7 @@ DELETE /api/v1/[nodeName]/[id]     → eliminar registro
 
 `[nodeName]` es el slug del nodo contenedor raíz (ej: "Blog Posts" → `/api/v1/blog-posts`).
 
-La autenticación es por **API token** — se genera desde Settings → API Tokens en el CMS.
+La autenticación es por **API token**, se genera desde Settings → API Tokens en el CMS.
 
 ```bash
 curl https://tu-dominio.com/api/v1/posts \
@@ -207,7 +207,7 @@ pnpm db:studio     # Drizzle Studio (explorador visual de DB)
 
 ### What is Cartum?
 
-Cartum is a **serverless-first headless CMS with visual data modeling**. Built for small teams and developers who need a flexible, lightweight content backend deployable on serverless platforms (Vercel, Cloudflare, Netlify) — without the complexity and weight of solutions like Strapi or Directus.
+Cartum is a **serverless-first headless CMS with visual data modeling**. Built for small teams and developers who need a flexible, lightweight content backend deployable on serverless platforms (Vercel, Cloudflare, Netlify), without the complexity and weight of solutions like Strapi or Directus.
 
 The main interface is an **infinite node board**, where modeling your database is as intuitive as sitting at a poker table: the board is the table, container nodes are the decks, and each card inside a deck is a data field (text, number, image, video, relation...). You define the structure visually and Cartum auto-generates the REST API.
 
@@ -218,8 +218,8 @@ The main interface is an **infinite node board**, where modeling your database i
 | Model data without writing SQL | Visual node board with drag & drop connections |
 | REST API without extra code | Auto-generated from the visual schema |
 | CMS without managing your own DB | A single PostgreSQL URL is enough (Neon, Supabase) |
-| Deploy without a dedicated server | 100% serverless-first — works on Vercel / Cloudflare |
-| Technical team + content editors | Builder Mode (admin) vs Content Mode (editor) — same app |
+| Deploy without a dedicated server | 100% serverless-first, works on Vercel / Cloudflare |
+| Technical team + content editors | Builder Mode (admin) vs Content Mode (editor), same app |
 | Image/video uploads | Cloudflare R2 integration (optional) |
 | Transactional emails | Resend integration for resets and welcome emails (optional) |
 
@@ -240,7 +240,7 @@ The main interface is an **infinite node board**, where modeling your database i
 | Framework | Next.js 16+ (App Router, Server Components, Server Actions) |
 | Language | TypeScript 6 (strict) |
 | Styles | TailwindCSS v4 + shadcn/ui |
-| Database | PostgreSQL — Neon or Supabase |
+| Database | PostgreSQL: Neon or Supabase |
 | ORM | Drizzle ORM |
 | Auth | Auth.js v5 (NextAuth) |
 | Storage | Cloudflare R2 (optional) |
@@ -276,18 +276,18 @@ AUTH_URL=https://your-domain.com
 #### Optional
 
 ```env
-# Cloudflare R2 — without these, media uploads are disabled
+# Cloudflare R2: without these, media uploads are disabled
 R2_ENDPOINT=
 R2_PUBLIC_URL=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
 
-# Resend — without these, emails are skipped (flows still work)
+# Resend: without these, emails are skipped (flows still work)
 RESEND_API_KEY=
 RESEND_FROM_EMAIL=
 
-# VPS media optimizer — extra compression pass before R2 upload
+# VPS media optimizer: extra compression pass before R2 upload
 MEDIA_VPS_URL=
 MEDIA_VPS_KEY=
 ```
@@ -305,7 +305,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — the setup wizard will guide you through the rest.
+Open [http://localhost:3000](http://localhost:3000), the setup wizard will guide you through the rest.
 
 ---
 
@@ -313,8 +313,8 @@ Open [http://localhost:3000](http://localhost:3000) — the setup wizard will gu
 
 1. Import the repository at [vercel.com](https://vercel.com)
 2. Add environment variables: `DATABASE_URL`, `DB_PROVIDER`, `AUTH_SECRET`, `AUTH_URL`
-3. Optionally use **Vercel's Neon integration** (Storage → Create → Neon) — injects `DATABASE_URL` automatically
-4. Deploy — Vercel auto-detects Next.js
+3. Optionally use **Vercel's Neon integration** (Storage → Create → Neon), injects `DATABASE_URL` automatically
+4. Deploy. Vercel auto-detects Next.js
 
 > Optional build command to auto-migrate: `pnpm db:migrate && next build`
 
@@ -326,7 +326,7 @@ Open [http://localhost:3000](http://localhost:3000) — the setup wizard will gu
 2. Framework preset: **Next.js**
 3. Build command: `pnpm db:migrate && next build`
 4. Add the same environment variables as above
-5. Use **Neon** or **Supabase** as the database — both work without changes
+5. Use **Neon** or **Supabase** as the database, both work without changes
 
 ---
 
