@@ -35,7 +35,7 @@ export async function requestPasswordResetAction(
     const rows    = await db.select({ locale: project.defaultLocale }).from(project).limit(1)
     const locale  = (rows[0]?.locale ?? 'en') as SupportedLocale
     const baseUrl = process.env.AUTH_URL ?? 'http://localhost:3000'
-    const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`
+    const resetUrl = `${baseUrl}/reset-password/${rawToken}`
     await sendPasswordResetEmail({ to: parsed.data.email, resetUrl, locale })
   }
 

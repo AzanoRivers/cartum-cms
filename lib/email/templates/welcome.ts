@@ -37,10 +37,23 @@ export function welcomeHtml({ email, password, cmsUrl, strings, projectName }: W
 
           <!-- Logo / Brand header -->
           <tr>
-            <td align="center" style="padding-bottom:28px;">
-              <span style="font-family:'Courier New',Courier,monospace;font-size:22px;font-weight:700;color:#e2e8f0;letter-spacing:0.12em;">CARTUM</span>
-              <span style="color:#6366f1;font-size:18px;margin:0 8px;vertical-align:middle;">·</span>
-              <span style="font-family:'Courier New',Courier,monospace;font-size:11px;color:#64748b;letter-spacing:0.08em;vertical-align:middle;">CMS</span>
+            <td align="center" style="padding-bottom:32px;">
+              <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td valign="middle" style="padding-right:10px;">
+                    <table cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td align="center" style="width:36px;height:36px;background-color:#6366f130;border-radius:50%;line-height:0;">
+                          <img src="${baseUrl}/images/brand/icon.png" width="28" height="28" alt="Cartum" style="display:block;margin:4px auto;" />
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td valign="middle">
+                    <span style="font-family:'Courier New',Courier,monospace;font-size:14px;font-weight:700;color:#e2e8f0;letter-spacing:0.3em;text-transform:uppercase;">CARTUM</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 

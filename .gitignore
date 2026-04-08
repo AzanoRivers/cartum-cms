@@ -324,6 +324,9 @@ build.log
 **/Release/
 **/x64/
 
+# Claude Code — skills locales (dependencias del entorno de desarrollo)
+.claude/skills/
+
 # GODOT
 .import/
 .export/

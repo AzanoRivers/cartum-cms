@@ -152,20 +152,26 @@ export async function testStorageConnection(): Promise<
 
 // ── Email ──────────────────────────────────────────────────────────────────────
 
-export async function getEmailSettings(): Promise<ActionResult<{ resendApiKey: string }>> {
+export async function getEmailSettings(): Promise<ActionResult<{ resendApiKey: string; resendFromEmail: string }>> {
   try {
     await requireSuperAdmin()
-    const key = await getSetting('resend_api_key', process.env.RESEND_API_KEY)
-    return { success: true, data: { resendApiKey: key ?? '' } }
+    const [key, from] = await Promise.all([
+      getSetting('resend_api_key',   process.env.RESEND_API_KEY),
+      getSetting('resend_from_email', process.env.RESEND_FROM_EMAIL),
+    ])
+    return { success: true, data: { resendApiKey: key ?? '', resendFromEmail: from ?? '' } }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
 }
 
-export async function updateEmailSettings(apiKey: string): Promise<ActionResult<void>> {
+export async function updateEmailSettings(apiKey: string, fromEmail: string): Promise<ActionResult<void>> {
   try {
     const session = await requireSuperAdmin()
-    await setSetting('resend_api_key', apiKey || undefined, session.user.id)
+    await Promise.all([
+      setSetting('resend_api_key',   apiKey    || undefined, session.user.id),
+      setSetting('resend_from_email', fromEmail || undefined, session.user.id),
+    ])
     return { success: true, data: undefined }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
@@ -175,11 +181,15 @@ export async function updateEmailSettings(apiKey: string): Promise<ActionResult<
 export async function testEmailConnection(): Promise<ActionResult<{ sent: boolean }>> {
   try {
     const session = await requireSuperAdmin()
-    const apiKey = await getSetting('resend_api_key', process.env.RESEND_API_KEY)
-    if (!apiKey) return { success: false, error: 'No Resend API key configured.' }
+    const [apiKey, fromEmail] = await Promise.all([
+      getSetting('resend_api_key',   process.env.RESEND_API_KEY),
+      getSetting('resend_from_email', process.env.RESEND_FROM_EMAIL),
+    ])
+    if (!apiKey)    return { success: false, error: 'No Resend API key configured.' }
+    if (!fromEmail) return { success: false, error: 'No From email address configured.' }
     const resend = new Resend(apiKey)
     const result = await resend.emails.send({
-      from:    'labs@azanorivers.com',
+      from:    fromEmail,
       to:      session.user.email!,
       subject: 'Cartum — Email test',
       html:    '<p>Your email notification is working correctly.</p>',

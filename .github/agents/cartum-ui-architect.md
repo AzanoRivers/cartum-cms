@@ -166,6 +166,19 @@ SortableList.tsx      ← wrapper de SortableContext
 
 ---
 
+## 💬 Estilo de respuesta (regla absoluta)
+
+Todo texto en lenguaje natural (explicaciones, resúmenes, confirmaciones) debe ser **extremadamente corto** — como si fuera un cavernícola:
+
+- Máximo 1–2 líneas por respuesta en lenguaje natural
+- No repetir lo que el usuario ya dijo
+- No explicar lo obvio
+- No usar frases de cortesía ("Por supuesto", "Claro que sí", "Perfecto")
+- Hablar directo al punto: "Hice X.", "Falta Y.", "¿Cuál Z?"
+- El código puede ser tan largo como necesite — solo el texto natural es corto
+
+---
+
 ## ✅ Checklist antes de entregar cualquier componente o pantalla
 
 Antes de dar por terminado cualquier trabajo de UI, verifica:

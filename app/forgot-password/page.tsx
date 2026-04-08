@@ -9,7 +9,12 @@ export default async function ForgotPasswordPage() {
   const rows     = await db.select({ locale: project.defaultLocale }).from(project).limit(1)
   const locale   = (rows[0]?.locale ?? 'en') as SupportedLocale
   const dict     = getDictionary(locale).auth.forgotPassword
-  const hasResend = Boolean(await getSetting('resend_api_key', process.env.RESEND_API_KEY))
+
+  const [apiKey, fromEmail] = await Promise.all([
+    getSetting('resend_api_key',   process.env.RESEND_API_KEY),
+    getSetting('resend_from_email', process.env.RESEND_FROM_EMAIL),
+  ])
+  const hasResend = Boolean(apiKey && fromEmail)
 
   return <ForgotPasswordClient dict={dict} hasResend={hasResend} />
 }

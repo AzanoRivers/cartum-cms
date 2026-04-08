@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { resetPasswordAction } from '@/lib/actions/auth.actions'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
@@ -37,26 +38,49 @@ export function ResetPasswordClient({ token, dict }: Props) {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[--color-bg]">
+    <main className="min-h-screen flex items-center justify-center bg-bg">
       <VHSTransition duration="full">
         <div className="w-full max-w-sm">
-          <div className="mb-8 text-center">
-            <span className="font-mono text-xs tracking-[0.3em] text-[--color-text-muted] uppercase">◈ Cartum</span>
+
+          {/* Logo — mismo estilo que SetupLayout */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="relative h-8 w-8 shrink-0">
+              <div className="absolute inset-1 rounded-full bg-primary/40 blur-md" />
+              <Image
+                src="/images/brand/icon.svg"
+                alt="Cartum"
+                width={32}
+                height={32}
+                priority
+                className="relative h-8 w-8 object-contain"
+              />
+            </div>
+            <div className="relative select-none">
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 font-mono text-sm tracking-[0.3em] uppercase text-accent blur-[10px] opacity-20"
+              >
+                CARTUM
+              </span>
+              <span className="relative font-mono text-sm tracking-[0.3em] uppercase text-text">
+                CARTUM
+              </span>
+            </div>
           </div>
 
-          <div className="bg-[--color-surface] border border-[--color-border] rounded-lg p-8">
-            <h1 className="text-lg font-semibold text-[--color-text] mb-2">{dict.title}</h1>
-            <p className="text-sm text-[--color-text-muted] mb-6">{dict.subtitle}</p>
+          <div className="bg-surface border border-border rounded-lg p-8">
+            <h1 className="text-lg font-semibold text-text mb-2">{dict.title}</h1>
+            <p className="text-sm text-muted mb-6">{dict.subtitle}</p>
 
             {error && (
-              <div className="mb-4 px-3 py-2 rounded bg-[--color-danger]/10 border border-[--color-danger]/30 text-[--color-danger] text-sm">
+              <div className="mb-4 px-3 py-2 rounded bg-danger/10 border border-danger/30 text-danger text-sm">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label htmlFor="password" className="block text-xs font-mono text-[--color-text-muted] uppercase tracking-wider">
+                <label htmlFor="password" className="block text-xs font-mono text-muted uppercase tracking-wider">
                   {dict.newPassword}
                 </label>
                 <div className="relative">
@@ -67,13 +91,13 @@ export function ResetPasswordClient({ token, dict }: Props) {
                     minLength={12}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[--color-surface-2] border border-[--color-border] rounded px-3 py-2 pr-10 text-sm text-[--color-text] placeholder:text-[--color-text-muted] outline-none focus:border-[--color-accent] transition-colors"
+                    className="w-full bg-surface-2 border border-border rounded px-3 py-2 pr-10 text-sm text-text placeholder:text-muted outline-none focus:border-accent transition-colors"
                     placeholder="••••••••••••"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPwd((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[--color-text-muted] hover:text-[--color-text] transition-colors text-xs"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors text-xs"
                   >
                     {showPwd ? '●' : '○'}
                   </button>
@@ -81,7 +105,7 @@ export function ResetPasswordClient({ token, dict }: Props) {
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="confirm" className="block text-xs font-mono text-[--color-text-muted] uppercase tracking-wider">
+                <label htmlFor="confirm" className="block text-xs font-mono text-muted uppercase tracking-wider">
                   {dict.confirmPassword}
                 </label>
                 <input
@@ -90,7 +114,7 @@ export function ResetPasswordClient({ token, dict }: Props) {
                   required
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
-                  className="w-full bg-[--color-surface-2] border border-[--color-border] rounded px-3 py-2 text-sm text-[--color-text] placeholder:text-[--color-text-muted] outline-none focus:border-[--color-accent] transition-colors"
+                  className="w-full bg-surface-2 border border-border rounded px-3 py-2 text-sm text-text placeholder:text-muted outline-none focus:border-accent transition-colors"
                   placeholder="••••••••••••"
                 />
               </div>
@@ -98,7 +122,7 @@ export function ResetPasswordClient({ token, dict }: Props) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[--color-primary] hover:bg-[--color-primary]/90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded px-4 py-2.5 transition-colors"
+                className="w-full bg-primary hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded px-4 py-2.5 transition-colors"
               >
                 {loading ? dict.submitting : dict.submit}
               </button>

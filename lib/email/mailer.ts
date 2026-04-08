@@ -15,6 +15,10 @@ async function getResendClient(): Promise<Resend | null> {
   return new Resend(apiKey)
 }
 
+async function getFromAddress(): Promise<string | undefined> {
+  return getSetting('resend_from_email', process.env.RESEND_FROM_EMAIL ?? FROM_ADDRESS)
+}
+
 // ── Password reset ─────────────────────────────────────────────────────────────
 
 export interface SendPasswordResetEmailInput {
@@ -26,17 +30,18 @@ export interface SendPasswordResetEmailInput {
 export async function sendPasswordResetEmail(
   input: SendPasswordResetEmailInput,
 ): Promise<{ sent: boolean }> {
-  const resend = await getResendClient()
-  if (!resend) return { sent: false }
+  const [resend, from] = await Promise.all([getResendClient(), getFromAddress()])
+  if (!resend || !from) return { sent: false }
 
   const dict    = getDictionary(input.locale)
   const strings = { ...dict.email.reset, poweredBy: dict.email.poweredBy }
+  const baseUrl = input.resetUrl.match(/^(https?:\/\/[^/]+)/)?.[1] ?? ''
 
   await resend.emails.send({
-    from:    FROM_ADDRESS,
+    from,
     to:      input.to,
     subject: strings.subject,
-    html:    resetPasswordHtml({ resetUrl: input.resetUrl, strings }),
+    html:    resetPasswordHtml({ resetUrl: input.resetUrl, baseUrl, strings }),
   })
 
   return { sent: true }
@@ -55,8 +60,8 @@ export interface SendWelcomeEmailInput {
 export async function sendWelcomeEmail(
   input: SendWelcomeEmailInput,
 ): Promise<{ sent: boolean }> {
-  const resend = await getResendClient()
-  if (!resend) return { sent: false }
+  const [resend, from] = await Promise.all([getResendClient(), getFromAddress()])
+  if (!resend || !from) return { sent: false }
 
   const dict    = getDictionary(input.locale)
   const strings = { ...dict.email.welcome, poweredBy: dict.email.poweredBy }
@@ -66,7 +71,7 @@ export async function sendWelcomeEmail(
     : strings.subjectFallback
 
   await resend.emails.send({
-    from:    FROM_ADDRESS,
+    from,
     to:      input.to,
     subject,
     html:    welcomeHtml({
@@ -88,18 +93,19 @@ export async function sendEmailOtp(input: {
   code:   string
   locale: SupportedLocale
 }): Promise<{ sent: boolean }> {
-  const resend = await getResendClient()
-  if (!resend) return { sent: false }
+  const [resend, from] = await Promise.all([getResendClient(), getFromAddress()])
+  if (!resend || !from) return { sent: false }
 
   const dict    = getDictionary(input.locale)
   const strings = { ...dict.email.verifyEmail, poweredBy: dict.email.poweredBy }
   const subject = t(strings, 'subject', { code: input.code })
+  const baseUrl = (process.env.AUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 
   await resend.emails.send({
-    from:    FROM_ADDRESS,
+    from,
     to:      input.to,
     subject,
-    html:    verifyEmailHtml({ code: input.code, strings }),
+    html:    verifyEmailHtml({ code: input.code, baseUrl, strings }),
   })
 
   return { sent: true }
