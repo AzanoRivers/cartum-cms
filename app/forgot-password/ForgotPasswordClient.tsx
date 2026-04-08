@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { requestPasswordResetAction } from '@/lib/actions/auth.actions'
+import { generateCaptchaAction } from '@/lib/actions/captcha.actions'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import type { Dictionary } from '@/locales/en'
 
@@ -12,17 +13,54 @@ type Props = {
   hasResend: boolean
 }
 
-export function ForgotPasswordClient({ dict, hasResend }: Props) {
-  const [email,     setEmail]     = useState('')
-  const [submitted, setSubmitted] = useState(false)
-  const [loading,   setLoading]   = useState(false)
+type CaptchaChallenge = { a: number; b: number; token: string }
 
-  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
+export function ForgotPasswordClient({ dict, hasResend }: Props) {
+  const [email,        setEmail]        = useState('')
+  const [submitted,    setSubmitted]    = useState(false)
+  const [captcha,      setCaptcha]      = useState<CaptchaChallenge | null>(null)
+  const [captchaInput, setCaptchaInput] = useState('')
+  const [captchaError, setCaptchaError] = useState(false)
+  const [rateLimited,  setRateLimited]  = useState(false)
+  const [isPending,    startTransition] = useTransition()
+
+  async function refreshCaptcha() {
+    setCaptchaInput('')
+    setCaptchaError(false)
+    const challenge = await generateCaptchaAction()
+    setCaptcha(challenge)
+  }
+
+  useEffect(() => {
+    refreshCaptcha()
+  }, [])
+
+  function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
-    setLoading(true)
-    await requestPasswordResetAction({ email })
-    setLoading(false)
-    setSubmitted(true)
+    setCaptchaError(false)
+    setRateLimited(false)
+
+    startTransition(async () => {
+      const res = await requestPasswordResetAction({
+        email,
+        captchaToken:  captcha?.token ?? '',
+        captchaAnswer: Number(captchaInput),
+      })
+
+      if (!res.success) {
+        if (res.error === 'captcha_error') {
+          setCaptchaError(true)
+          await refreshCaptcha()
+          return
+        }
+        if (res.error === 'rate_limited') {
+          setRateLimited(true)
+          return
+        }
+      }
+
+      setSubmitted(true)
+    })
   }
 
   return (
@@ -78,13 +116,21 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
                   </div>
                 )}
 
+                {rateLimited && (
+                  <div className="mb-4 px-3 py-2 rounded bg-danger/10 border border-danger/30 text-danger text-xs">
+                    {dict.rateLimited}
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-4">
+
+                  {/* Email */}
                   <div className="space-y-1.5">
-                    <label htmlFor="email" className="block text-xs font-mono text-muted uppercase tracking-wider">
+                    <label htmlFor="fp-email" className="block text-xs font-mono text-muted uppercase tracking-wider">
                       {dict.email}
                     </label>
                     <input
-                      id="email"
+                      id="fp-email"
                       type="email"
                       required
                       value={email}
@@ -94,12 +140,56 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
                     />
                   </div>
 
+                  {/* CAPTCHA */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-mono text-muted uppercase tracking-wider">
+                      {dict.captchaLabel}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {/* Challenge */}
+                      <div className="flex items-center px-3 py-2 rounded bg-surface-2 border border-border font-mono text-sm text-text select-none shrink-0">
+                        {captcha
+                          ? <span>{captcha.a}&nbsp;+&nbsp;{captcha.b}&nbsp;=</span>
+                          : <span className="text-muted animate-pulse">···</span>
+                        }
+                      </div>
+                      {/* Answer */}
+                      <input
+                        type="number"
+                        required
+                        min={0}
+                        max={99}
+                        value={captchaInput}
+                        onChange={(e) => setCaptchaInput(e.target.value)}
+                        placeholder={dict.captchaPlaceholder}
+                        className={[
+                          'w-16 bg-surface-2 border rounded px-3 py-2 font-mono text-sm text-center text-text placeholder:text-muted outline-none transition-colors',
+                          captchaError
+                            ? 'border-danger focus:border-danger'
+                            : 'border-border focus:border-accent',
+                        ].join(' ')}
+                      />
+                      {/* Refresh */}
+                      <button
+                        type="button"
+                        onClick={refreshCaptcha}
+                        title="New challenge"
+                        className="text-muted hover:text-text transition-colors font-mono text-base leading-none"
+                      >
+                        ↺
+                      </button>
+                    </div>
+                    {captchaError && (
+                      <p className="text-xs text-danger">{dict.captchaError}</p>
+                    )}
+                  </div>
+
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={isPending || !captcha}
                     className="w-full bg-primary hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded px-4 py-2.5 transition-colors"
                   >
-                    {loading ? dict.submitting : dict.submit}
+                    {isPending ? dict.submitting : dict.submit}
                   </button>
                 </form>
 

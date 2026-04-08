@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { resetPasswordAction } from '@/lib/actions/auth.actions'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import type { Dictionary } from '@/locales/en'
@@ -14,27 +15,35 @@ type Props = {
 
 export function ResetPasswordClient({ token, dict }: Props) {
   const router = useRouter()
-  const [password, setPassword] = useState('')
-  const [confirm,  setConfirm]  = useState('')
-  const [showPwd,  setShowPwd]  = useState(false)
-  const [error,    setError]    = useState<string | null>(null)
-  const [loading,  setLoading]  = useState(false)
+  const [password,   setPassword]   = useState('')
+  const [confirm,    setConfirm]    = useState('')
+  const [showPwd,    setShowPwd]    = useState(false)
+  const [error,      setError]      = useState<string | null>(null)
+  const [isPending,  startTransition] = useTransition()
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
-    setLoading(true)
 
-    const result = await resetPasswordAction({ token, password, confirm })
+    startTransition(async () => {
+      try {
+        const result = await resetPasswordAction({ token, password, confirm })
 
-    setLoading(false)
+        if (!result.success) {
+          const msg = result.error ?? dict.errorGeneric
+          setError(msg)
+          toast.error(msg)
+          return
+        }
 
-    if (!result.success) {
-      setError(result.error ?? 'Reset failed.')
-      return
-    }
-
-    router.push('/login?reset=1')
+        toast.success(dict.successToast)
+        router.push('/login?reset=1')
+      } catch {
+        const msg = dict.errorGeneric
+        setError(msg)
+        toast.error(msg)
+      }
+    })
   }
 
   return (
@@ -121,10 +130,10 @@ export function ResetPasswordClient({ token, dict }: Props) {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isPending}
                 className="w-full bg-primary hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded px-4 py-2.5 transition-colors"
               >
-                {loading ? dict.submitting : dict.submit}
+                {isPending ? dict.submitting : dict.submit}
               </button>
             </form>
           </div>

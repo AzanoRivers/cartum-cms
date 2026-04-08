@@ -69,17 +69,15 @@ export async function resetPassword(
   const record = rows[0]
   const passwordHash = await hashPassword(newPassword)
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(users)
-      .set({ passwordHash })
-      .where(eq(users.id, record.userId))
+  await db
+    .update(users)
+    .set({ passwordHash })
+    .where(eq(users.id, record.userId))
 
-    await tx
-      .update(passwordResetTokens)
-      .set({ usedAt: now })
-      .where(eq(passwordResetTokens.id, record.id))
-  })
+  await db
+    .update(passwordResetTokens)
+    .set({ usedAt: now })
+    .where(eq(passwordResetTokens.id, record.id))
 
   return { success: true }
 }
@@ -127,10 +125,8 @@ export async function confirmEmailChange(
 
   const record = rows[0]
 
-  await db.transaction(async (tx) => {
-    await tx.update(users).set({ email: record.pendingEmail }).where(eq(users.id, userId))
-    await tx.update(emailOtpCodes).set({ usedAt: now }).where(eq(emailOtpCodes.id, record.id))
-  })
+  await db.update(users).set({ email: record.pendingEmail }).where(eq(users.id, userId))
+  await db.update(emailOtpCodes).set({ usedAt: now }).where(eq(emailOtpCodes.id, record.id))
 
   return { success: true, newEmail: record.pendingEmail }
 }

@@ -98,6 +98,10 @@ export const en = {
       success:        'If that email is registered, a reset link has been sent.',
       backToLogin:    'Back to login',
       noEmailWarning: 'Email delivery is not configured. Contact your administrator.',
+      captchaLabel:   'Verify the sum',
+      captchaPlaceholder: '?',
+      captchaError:   'Incorrect answer. Try again.',
+      rateLimited:    'Too many requests. Please wait 15 minutes before trying again.',
     },
     resetPassword: {
       title:           'Set new password',
@@ -106,6 +110,8 @@ export const en = {
       confirmPassword: 'Confirm password',
       submit:          'Set new password',
       submitting:      'Saving...',
+      successToast:    'Password updated. You can now log in.',
+      errorGeneric:    'An unexpected error occurred. Please try again.',
     },
   },
   cms: {
@@ -678,10 +684,13 @@ export type Dictionary = {
       title: string; subtitle: string; email: string
       submit: string; submitting: string; success: string
       backToLogin: string; noEmailWarning: string
+      captchaLabel: string; captchaPlaceholder: string; captchaError: string
+      rateLimited: string
     }
     resetPassword: {
       title: string; subtitle: string; newPassword: string
       confirmPassword: string; submit: string; submitting: string
+      successToast: string; errorGeneric: string
     }
   }
   cms: {

@@ -100,6 +100,10 @@ export const es: Dictionary = {
       success:        'Si ese correo está registrado, ya tiene un enlace en camino.',
       backToLogin:    'Volver al login',
       noEmailWarning: 'El envío de correos no está configurado. Contacta al administrador.',
+      captchaLabel:   'Verifica la suma',
+      captchaPlaceholder: '?',
+      captchaError:   'Respuesta incorrecta. Intenta de nuevo.',
+      rateLimited:    'Demasiados intentos. Espera 15 minutos antes de volver a intentarlo.',
     },
     resetPassword: {
       title:           'Nueva contraseña',
@@ -108,6 +112,8 @@ export const es: Dictionary = {
       confirmPassword: 'Confirma la contraseña',
       submit:          'Guardar contraseña',
       submitting:      'Guardando...',
+      successToast:    'Contraseña actualizada. Ya puedes iniciar sesión.',
+      errorGeneric:    'Ocurrió un error inesperado. Intenta de nuevo.',
     },
   },
   cms: {
