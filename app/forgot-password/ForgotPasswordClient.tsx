@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { requestPasswordResetAction } from '@/lib/actions/auth.actions'
 import { generateCaptchaAction } from '@/lib/actions/captcha.actions'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
+import { CaptchaChallenge } from '@/components/ui/molecules/CaptchaChallenge'
 import type { Dictionary } from '@/locales/en'
 
 type Props = {
@@ -13,12 +14,12 @@ type Props = {
   hasResend: boolean
 }
 
-type CaptchaChallenge = { a: number; b: number; token: string }
+type ServerCaptcha = { a: number; b: number; token: string }
 
 export function ForgotPasswordClient({ dict, hasResend }: Props) {
   const [email,        setEmail]        = useState('')
   const [submitted,    setSubmitted]    = useState(false)
-  const [captcha,      setCaptcha]      = useState<CaptchaChallenge | null>(null)
+  const [captcha,      setCaptcha]      = useState<ServerCaptcha | null>(null)
   const [captchaInput, setCaptchaInput] = useState('')
   const [captchaError, setCaptchaError] = useState(false)
   const [rateLimited,  setRateLimited]  = useState(false)
@@ -141,46 +142,19 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
                   </div>
 
                   {/* CAPTCHA */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-mono text-muted uppercase tracking-wider">
-                      {dict.captchaLabel}
-                    </label>
-                    <div className="flex items-center gap-2">
-                      {/* Challenge */}
-                      <div className="flex items-center px-3 py-2 rounded bg-surface-2 border border-border font-mono text-sm text-text select-none shrink-0">
-                        {captcha
-                          ? <span>{captcha.a}&nbsp;+&nbsp;{captcha.b}&nbsp;=</span>
-                          : <span className="text-muted animate-pulse">···</span>
-                        }
-                      </div>
-                      {/* Answer */}
-                      <input
-                        type="number"
-                        required
-                        min={0}
-                        max={99}
-                        value={captchaInput}
-                        onChange={(e) => setCaptchaInput(e.target.value)}
-                        placeholder={dict.captchaPlaceholder}
-                        className={[
-                          'w-16 bg-surface-2 border rounded px-3 py-2 font-mono text-sm text-center text-text placeholder:text-muted outline-none transition-colors',
-                          captchaError
-                            ? 'border-danger focus:border-danger'
-                            : 'border-border focus:border-accent',
-                        ].join(' ')}
-                      />
-                      {/* Refresh */}
-                      <button
-                        type="button"
-                        onClick={refreshCaptcha}
-                        title="New challenge"
-                        className="text-muted hover:text-text transition-colors font-mono text-base leading-none"
-                      >
-                        ↺
-                      </button>
-                    </div>
+                  <div className="pt-1">
+                    <CaptchaChallenge
+                      a={captcha?.a ?? 0}
+                      b={captcha?.b ?? 0}
+                      value={captchaInput}
+                      onChange={(v) => { setCaptchaInput(v); setCaptchaError(false) }}
+                      onRefresh={refreshCaptcha}
+                      label={dict.captchaLabel}
+                      placeholder={dict.captchaPlaceholder}
+                      isError={captchaError}
+                    />
                     {captchaError && (
-                      <p className="text-xs text-danger">{dict.captchaError}</p>
+                      <p className="mt-1.5 font-mono text-xs text-danger">{dict.captchaError}</p>
                     )}
                   </div>
 
@@ -193,8 +167,11 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
                   </button>
                 </form>
 
-                <div className="mt-5 text-center">
-                  <Link href="/login" className="text-xs text-muted hover:text-text transition-colors">
+                <div className="mt-4">
+                  <Link
+                    href="/login"
+                    className="flex items-center justify-center w-full border border-border rounded px-4 py-2.5 text-sm text-muted hover:text-text hover:border-accent transition-colors"
+                  >
                     ← {dict.backToLogin}
                   </Link>
                 </div>
