@@ -7,6 +7,7 @@ import { requestPasswordResetAction } from '@/lib/actions/auth.actions'
 import { generateCaptchaAction } from '@/lib/actions/captcha.actions'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { CaptchaChallenge } from '@/components/ui/molecules/CaptchaChallenge'
+import { toast } from 'sonner'
 import type { Dictionary } from '@/locales/en'
 
 type Props = {
@@ -22,7 +23,6 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
   const [captcha,      setCaptcha]      = useState<ServerCaptcha | null>(null)
   const [captchaInput, setCaptchaInput] = useState('')
   const [captchaError, setCaptchaError] = useState(false)
-  const [rateLimited,  setRateLimited]  = useState(false)
   const [isPending,    startTransition] = useTransition()
 
   async function refreshCaptcha() {
@@ -39,11 +39,16 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
   function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     setCaptchaError(false)
-    setRateLimited(false)
+
+    const emailTrimmed = email.trim()
+    if (!emailTrimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
+      toast.error(dict.emailRequired)
+      return
+    }
 
     startTransition(async () => {
       const res = await requestPasswordResetAction({
-        email,
+        email: emailTrimmed,
         captchaToken:  captcha?.token ?? '',
         captchaAnswer: Number(captchaInput),
       })
@@ -55,7 +60,7 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
           return
         }
         if (res.error === 'rate_limited') {
-          setRateLimited(true)
+          toast.error(dict.rateLimited)
           return
         }
       }
@@ -117,12 +122,6 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
                   </div>
                 )}
 
-                {rateLimited && (
-                  <div className="mb-4 px-3 py-2 rounded bg-danger/10 border border-danger/30 text-danger text-xs">
-                    {dict.rateLimited}
-                  </div>
-                )}
-
                 <form onSubmit={handleSubmit} className="space-y-4">
 
                   {/* Email */}
@@ -133,7 +132,6 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
                     <input
                       id="fp-email"
                       type="email"
-                      required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full bg-surface-2 border border-border rounded px-3 py-2 text-sm text-text placeholder:text-muted outline-none focus:border-accent transition-colors"
@@ -160,7 +158,7 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
 
                   <button
                     type="submit"
-                    disabled={isPending || !captcha}
+                    disabled={isPending || !email.trim() || !captcha || Number(captchaInput) !== captcha.a + captcha.b}
                     className="w-full bg-primary hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded px-4 py-2.5 transition-colors"
                   >
                     {isPending ? dict.submitting : dict.submit}

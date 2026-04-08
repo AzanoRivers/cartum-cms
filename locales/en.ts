@@ -88,6 +88,7 @@ export const en = {
       captchaLabel:   'Verify the sum',
       captchaPlaceholder: '?',
       captchaError:   'Incorrect answer. Try again.',
+      loginSuccess:   'Welcome back!',
     },
     forgotPassword: {
       title:          'Reset password',
@@ -102,6 +103,7 @@ export const en = {
       captchaPlaceholder: '?',
       captchaError:   'Incorrect answer. Try again.',
       rateLimited:    'Too many requests. Please wait 15 minutes before trying again.',
+      emailRequired:  'Enter a valid email address.',
     },
     resetPassword: {
       title:           'Set new password',
@@ -679,13 +681,14 @@ export type Dictionary = {
       show: string; hide: string; submit: string; submitting: string
       error: string; forgotPassword: string
       captchaLabel: string; captchaPlaceholder: string; captchaError: string
+      loginSuccess: string
     }
     forgotPassword: {
       title: string; subtitle: string; email: string
       submit: string; submitting: string; success: string
       backToLogin: string; noEmailWarning: string
       captchaLabel: string; captchaPlaceholder: string; captchaError: string
-      rateLimited: string
+      rateLimited: string; emailRequired: string
     }
     resetPassword: {
       title: string; subtitle: string; newPassword: string

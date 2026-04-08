@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { CaptchaChallenge } from '@/components/ui/molecules/CaptchaChallenge'
 import type { Dictionary } from '@/locales/en'
 
@@ -42,6 +43,7 @@ export function LoginForm({ dict }: LoginFormProps) {
     // Validate captcha first
     if (parseInt(captchaValue, 10) !== captchaA + captchaB) {
       setCaptchaError(true)
+      toast.error(dict.captchaError)
       refreshCaptcha()
       return
     }
@@ -62,6 +64,7 @@ export function LoginForm({ dict }: LoginFormProps) {
       return
     }
 
+    toast.success(dict.loginSuccess)
     router.push('/cms/board')
   }
 

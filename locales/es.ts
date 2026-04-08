@@ -90,6 +90,7 @@ export const es: Dictionary = {
       captchaLabel:   'Verifica la suma',
       captchaPlaceholder: '?',
       captchaError:   'Respuesta incorrecta. Intenta de nuevo.',
+      loginSuccess:   '¡Bienvenido de nuevo!',
     },
     forgotPassword: {
       title:          'Recupera tu acceso',
@@ -104,6 +105,7 @@ export const es: Dictionary = {
       captchaPlaceholder: '?',
       captchaError:   'Respuesta incorrecta. Intenta de nuevo.',
       rateLimited:    'Demasiados intentos. Espera 15 minutos antes de volver a intentarlo.',
+      emailRequired:  'Ingresa un correo electrónico válido.',
     },
     resetPassword: {
       title:           'Nueva contraseña',

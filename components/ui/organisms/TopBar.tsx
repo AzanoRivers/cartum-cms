@@ -15,9 +15,12 @@ export function TopBar({ projectName, userInitials }: TopBarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const breadcrumb = useUIStore((s) => s.breadcrumb)
   const d          = useUIStore((s) => s.cmsDict)
-  const openSettings = useUIStore((s) => s.openSettings)
+  const openSettings     = useUIStore((s) => s.openSettings)
+  const setGlobalLoading = useUIStore((s) => s.setGlobalLoading)
 
   async function handleLogout() {
+    setMenuOpen(false)
+    setGlobalLoading(true)
     const { logout } = await import('@/lib/actions/logout.actions')
     await logout()
     router.push('/login')
