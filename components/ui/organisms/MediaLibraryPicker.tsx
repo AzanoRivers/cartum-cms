@@ -220,7 +220,7 @@ export function MediaLibraryPicker({
                 </span>
               </>
             ) : (
-              <span className="font-mono text-xs text-muted">—</span>
+              <span className="font-mono text-xs text-muted">·</span>
             )}
           </div>
 

@@ -12,12 +12,15 @@ export interface WelcomeTemplateInput {
 }
 
 export function welcomeHtml({ email, password, cmsUrl, strings, projectName }: WelcomeTemplateInput): string {
-  const title   = projectName
+  const title  = projectName
     ? t(strings, 'titleWith', { project: projectName })
     : strings.titleFallback
   const subject = projectName
     ? t(strings, 'subjectWith', { project: projectName })
     : strings.subjectFallback
+  const partOf  = projectName
+    ? t(strings, 'partOf', { project: projectName })
+    : null
 
   // Derive base URL for static assets
   const baseUrl = cmsUrl.match(/^(https?:\/\/[^/]+)/)?.[1] ?? ''
@@ -80,19 +83,32 @@ export function welcomeHtml({ email, password, cmsUrl, strings, projectName }: W
 
                 <!-- Subheading -->
                 <tr>
-                  <td style="padding-bottom:16px;">
+                  <td style="padding-bottom:${partOf ? '12px' : '16px'};">
                     <p style="margin:0;font-size:14px;color:#64748b;line-height:1.7;">
                       ${strings.subtitle}
                     </p>
                   </td>
                 </tr>
 
-                <!-- Save notice -->
+                ${partOf ? `
+                <!-- Part-of project badge -->
+                <tr>
+                  <td style="padding-bottom:16px;">
+                    <p style="margin:0;display:inline-block;font-family:'Courier New',Courier,monospace;font-size:12px;font-weight:600;color:#22d3ee;background-color:#22d3ee10;border:1px solid #22d3ee30;border-radius:6px;padding:6px 12px;letter-spacing:0.04em;">
+                      ${partOf}
+                    </p>
+                  </td>
+                </tr>
+                ` : ''}
+
+                <!-- Separator -->
                 <tr>
                   <td style="padding-bottom:24px;">
-                    <p style="margin:0;font-size:13px;font-weight:600;color:#fca5a5;line-height:1.6;">
-                      ${strings.saveNotice}
-                    </p>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                      <div style="height:1px;flex:1;background-color:#2a2a38;"></div>
+                      <span style="font-family:'Courier New',Courier,monospace;font-size:10px;color:#2a2a38;letter-spacing:0.2em;">&#183;&#183;&#183;</span>
+                      <div style="height:1px;flex:1;background-color:#2a2a38;"></div>
+                    </div>
                   </td>
                 </tr>
 

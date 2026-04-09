@@ -92,18 +92,18 @@ export function EmailSection({ d }: EmailSectionProps) {
         </p>
       </div>
 
-      <div className="pt-1 flex items-center gap-3 justify-end">
+      <div className="pt-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
         <button
           onClick={handleTest}
           disabled={isTesting || !isConfigured}
-          className="rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full sm:w-auto rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isTesting ? d.testing : d.testEmail}
         </button>
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+          className="w-full sm:w-auto rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
         >
           {isSaving ? d.saving : d.save}
         </button>

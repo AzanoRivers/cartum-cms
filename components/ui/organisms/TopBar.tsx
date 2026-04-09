@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { BreadcrumbBar } from '@/components/ui/molecules/BreadcrumbBar'
 import { useUIStore } from '@/lib/stores/uiStore'
 
@@ -35,7 +36,13 @@ export function TopBar({ projectName, userInitials }: TopBarProps) {
     <header className="relative z-20 flex h-10 items-center justify-between border-b border-border bg-surface px-4 shrink-0">
       {/* Left: logo + project name */}
       <div className="flex items-center gap-2 min-w-0">
-        <span className="font-mono text-primary text-sm font-bold select-none">◈</span>
+        <Image
+          src="/images/brand/icon.svg"
+          alt="Cartum"
+          width={18}
+          height={18}
+          className="shrink-0"
+        />
         <span className="font-mono text-sm text-text/80 truncate max-w-40 select-none">
           {projectName}
         </span>

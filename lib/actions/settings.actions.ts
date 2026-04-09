@@ -10,7 +10,7 @@ import { getR2Client } from '@/lib/media/r2-client'
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { Resend } from 'resend'
 import { sendWelcomeEmail } from '@/lib/email/mailer'
-import { getLocale } from '@/lib/i18n/getLocale'
+import type { SupportedLocale } from '@/types/project'
 import type { ActionResult } from '@/types/actions'
 import type {
   ProjectSettings,
@@ -192,7 +192,7 @@ export async function testEmailConnection(): Promise<ActionResult<{ sent: boolea
     const result = await resend.emails.send({
       from:    fromEmail,
       to:      session.user.email!,
-      subject: 'Cartum — Email test',
+      subject: 'Cartum · Email test',
       html:    '<p>Your email notification is working correctly.</p>',
     })
     if (result.error) return { success: false, error: result.error.message }
@@ -282,12 +282,15 @@ export async function inviteUser(
       .values({ userId: newUser.id, roleId: input.roleId })
       .onConflictDoNothing()
 
-    const locale = await getLocale()
+    const localeRows = await db.select({ locale: project.defaultLocale, name: project.name }).from(project).limit(1)
+    const locale      = (localeRows[0]?.locale ?? 'en') as SupportedLocale
+    const projectName = localeRows[0]?.name ?? undefined
     const { sent } = await sendWelcomeEmail({
-      to:       input.email,
-      password: rawPassword,
-      cmsUrl:   process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+      to:          input.email,
+      password:    rawPassword,
+      cmsUrl:      process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
       locale,
+      projectName,
     })
 
     return { success: true, data: sent ? {} : { tempPassword: rawPassword } }

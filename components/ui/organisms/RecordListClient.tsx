@@ -18,7 +18,7 @@ export type RecordListClientProps = {
 }
 
 function formatValue(v: RecordValue): string {
-  if (v === null || v === undefined) return '—'
+  if (v === null || v === undefined) return '·'
   if (typeof v === 'boolean') return v ? '✓' : '✗'
   return String(v)
 }

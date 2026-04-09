@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import {
   listRolesWithCount,
   getPermissionsForRole,
@@ -92,7 +92,6 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
   const [isCreating, startCreate]       = useTransition()
 
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
-  const [rolesOpen, setRolesOpen]       = useState(true)
 
   // Load all roles on mount
   useEffect(() => {
@@ -230,27 +229,8 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
       {/* Two-panel layout — vertical on mobile, horizontal on md+ */}
       <div className="flex flex-col gap-3 md:flex-row md:gap-4 md:min-h-120">
 
-        {/* ── Mobile toggle header ─────────────────────────────────────────────── */}
-        <button
-          onClick={() => setRolesOpen((o) => !o)}
-          className="flex items-center justify-between rounded-md border border-border/60 bg-surface-2/40 px-3 py-2 md:hidden"
-        >
-          <span className="font-mono text-xs text-text">
-            {selectedRole
-              ? (d.builtInRoleLabels[selectedRole.name] ?? selectedRole.name)
-              : d.title}
-          </span>
-          {rolesOpen
-            ? <ChevronUp size={13} className="text-muted" />
-            : <ChevronDown size={13} className="text-muted" />}
-        </button>
-
-        {/* ── Role list — collapsible on mobile, always visible on md+ ────────── */}
-        <div className={[
-          'flex-row gap-1.5 overflow-x-auto pb-1 shrink-0',
-          'md:flex md:flex-col md:w-36 md:overflow-x-visible md:pb-0',
-          rolesOpen ? 'flex' : 'hidden',
-        ].join(' ')}>
+        {/* ── Role list ────────────────────────────────────────────────────────── */}
+        <div className="flex flex-row gap-1.5 overflow-x-auto pb-1 shrink-0 md:flex-col md:w-36 md:overflow-x-visible md:pb-0">
           {roles.map((role) => {
             const selected = role.id === selectedId
             const editable = isEditable(role, isSuperAdmin, isAdmin)
@@ -258,7 +238,7 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
             return (
               <div
                 key={role.id}
-                onClick={() => { setSelectedId(role.id); setRolesOpen(false) }}
+                onClick={() => setSelectedId(role.id)}
                 className={[
                   'group flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-2 cursor-pointer transition-colors',
                   'md:shrink md:w-full',
@@ -445,7 +425,7 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
 
       {/* ── Inline new role form ─────────────────────────────────────────────── */}
       {showCreate && (
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center min-w-0">
           <input
             type="text"
             value={newRoleName}
@@ -456,7 +436,7 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
             }}
             placeholder={d.roleNamePlaceholder}
             autoFocus
-            className="flex-1 rounded-md border border-border bg-surface-2 px-3 py-1.5 font-mono text-xs text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
+            className="flex-1 min-w-0 rounded-md border border-border bg-surface-2 px-3 py-1.5 font-mono text-xs text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
           />
           <button
             onClick={handleCreate}

@@ -133,8 +133,8 @@ export function AccountSection({ currentEmail, d }: AccountSectionProps) {
         <label className="block font-mono text-xs text-muted uppercase tracking-wider">
           {d.currentEmail}
         </label>
-        <div className="flex h-9 items-center rounded-md border border-border bg-bg px-3 font-mono text-sm text-text">
-          {displayEmail}
+        <div className="flex h-9 items-center rounded-md border border-border bg-bg px-3 font-mono text-sm text-text overflow-hidden">
+          <span className="truncate">{displayEmail}</span>
         </div>
       </div>
 
@@ -364,8 +364,8 @@ function PasswordSection({ d }: { d: Dictionary['settings']['account']['password
           <label htmlFor="newPassword" className="block font-mono text-xs text-muted uppercase tracking-wider">
             {d.newLabel}
           </label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
+          <div className="flex gap-2 min-w-0">
+            <div className="relative flex-1 min-w-0">
               <input
                 id="newPassword"
                 ref={newPasswordRef}

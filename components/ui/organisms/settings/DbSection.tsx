@@ -116,7 +116,7 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
           type="button"
           onClick={handleExport}
           disabled={isExporting}
-          className="flex items-center gap-2 h-8 rounded-md bg-primary/10 border border-primary/30 px-4 font-mono text-xs text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 min-h-8 rounded-md bg-primary/10 border border-primary/30 px-4 py-1.5 font-mono text-xs text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors cursor-pointer"
         >
           {isExporting ? (
             <Spinner size="sm" color="primary" />
@@ -161,7 +161,7 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isImporting}
-          className="flex items-center gap-2 h-8 rounded-md border border-border px-4 font-mono text-xs text-muted hover:text-text hover:border-border/80 disabled:opacity-50 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 min-h-8 rounded-md border border-border px-4 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 disabled:opacity-50 transition-colors cursor-pointer"
         >
           {isImporting ? (
             <Spinner size="sm" color="muted" />
@@ -190,7 +190,7 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
           type="button"
           onClick={() => setShowResetDialog(true)}
           disabled={isResetting}
-          className="flex items-center gap-2 h-8 rounded-md bg-danger/10 border border-danger/30 px-4 font-mono text-xs text-danger hover:bg-danger/20 disabled:opacity-50 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 min-h-8 rounded-md bg-danger/10 border border-danger/30 px-4 py-1.5 font-mono text-xs text-danger hover:bg-danger/20 disabled:opacity-50 transition-colors cursor-pointer"
         >
           <Trash2 size={12} strokeWidth={2} />
           {d.dangerButton}

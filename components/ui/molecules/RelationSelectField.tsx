@@ -42,7 +42,7 @@ export function RelationSelectField({
         onChange={(e) => onChange(e.target.value || null)}
         className="h-9 rounded-md border border-border bg-surface-2 px-3 font-mono text-xs text-text outline-none focus:border-primary transition-colors cursor-pointer"
       >
-        <option value="">{d?.content.relation.placeholder ?? '— Select a record —'}</option>
+        <option value="">{d?.content.relation.placeholder ?? 'Select a record'}</option>
         {options.map((r) => (
           <option key={r.id} value={r.id}>
             {getDisplayLabel(r)}

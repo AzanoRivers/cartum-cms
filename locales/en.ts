@@ -211,8 +211,8 @@ export const en = {
         subtypeFloat:    'float',
         min:             'Min',
         max:             'Max',
-        minPlaceholder:  '—',
-        maxPlaceholder:  '—',
+        minPlaceholder:  '',
+        maxPlaceholder:  '',
         rangeError:      'Min must be less than or equal to Max.',
       },
       boolean: {
@@ -233,7 +233,7 @@ export const en = {
       },
       relation: {
         targetLabel:       'Target container',
-        targetPlaceholder: '— Select a container —',
+        targetPlaceholder: 'Select a container',
         relationType:      'Relation type',
       },
       errors: {
@@ -316,7 +316,7 @@ export const en = {
         loadingMore:          'Loading more…',
       },
       relation: {
-        placeholder: '— Select a record —',
+        placeholder: 'Select a record',
         noOptions:   'No records found.',
       },
     },
@@ -463,7 +463,7 @@ export const en = {
       createError:     'Could not create token.',
       copyToken:       'Copy token',
       copied:          'Copied!',
-      tokenOnceNotice: 'Copy this token now — it will not be shown again.',
+      tokenOnceNotice: 'Copy this token now. It will not be shown again.',
       confirmCopied:   'I have copied this token',
       close:           'Close',
       empty:           'No active tokens.',
@@ -508,7 +508,7 @@ export const en = {
       confirmDeleteTitle:    'Delete role "{name}"?',
       confirmDeleteAffected: '{count} user(s) will be reassigned to viewer.',
       confirmDeleteNone:     'No users assigned to this role.',
-      permissionsTitle:      'Permissions — {name}',
+      permissionsTitle:      'Permissions · {name}',
       nodeCol:               'Node',
       readCol:               'Read',
       createCol:             'Create',
@@ -630,11 +630,12 @@ export const en = {
       ignore:     "If you didn't request a password reset, you can safely ignore this email. Your password won't be changed.",
     },
     welcome: {
-      subjectWith:     'Welcome to {project} — save your credentials',
-      subjectFallback: 'Welcome to Cartum — save your credentials',
+      subjectWith:     'Welcome to Cartum · {project}',
+      subjectFallback: 'Welcome to Cartum',
       titleWith:       'Welcome to {project}',
       titleFallback:   'Welcome to Cartum',
       subtitle:        'Your admin account has been created. Below are your access credentials.',
+      partOf:          'You are now part of {project}.',
       saveNotice:      'Save them now. This password will not be shown again.',
       labelEmail:      'EMAIL',
       labelPassword:   'PASSWORD',
@@ -911,7 +912,7 @@ export type Dictionary = {
     welcome: {
       subjectWith: string; subjectFallback: string
       titleWith: string; titleFallback: string
-      subtitle: string; saveNotice: string
+      subtitle: string; saveNotice: string; partOf: string
       labelEmail: string; labelPassword: string
       warning: string; cta: string; note: string
     }

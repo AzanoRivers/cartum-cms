@@ -10,6 +10,7 @@ import {
   type UserWithRole,
 } from '@/lib/actions/settings.actions'
 import { ConfirmDialog } from '@/components/ui/molecules/ConfirmDialog'
+import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { useToast } from '@/lib/hooks/useToast'
 import type { Dictionary } from '@/locales/en'
 
@@ -109,18 +110,18 @@ export function UsersSection({ currentUserId, isSuperAdmin, d }: UsersSectionPro
       {/* Invite form */}
       <div className="rounded-md border border-border/60 bg-surface-2/40 p-4 space-y-2">
         <p className="font-mono text-xs text-muted uppercase tracking-wider">{d.inviteTitle}</p>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <input
             type="email"
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
             placeholder={d.emailPlaceholder}
-            className="flex-1 min-w-40 rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
+            className="w-full sm:flex-1 sm:min-w-40 rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
           />
           <select
             value={inviteRoleId}
             onChange={(e) => setInviteRoleId(e.target.value)}
-            className="rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text outline-none focus:border-primary/60 transition-colors cursor-pointer"
+            className="w-full sm:w-auto rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text outline-none focus:border-primary/60 transition-colors cursor-pointer"
           >
             {roleOptions.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
@@ -129,7 +130,7 @@ export function UsersSection({ currentUserId, isSuperAdmin, d }: UsersSectionPro
           <button
             onClick={handleInvite}
             disabled={isInviting || !inviteEmail.trim() || !inviteRoleId}
-            className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="w-full sm:w-auto rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             {isInviting ? d.inviting : d.inviteButton}
           </button>
@@ -175,7 +176,7 @@ export function UsersSection({ currentUserId, isSuperAdmin, d }: UsersSectionPro
                   </select>
                 ) : (
                   <span className="font-mono text-xs text-muted">
-                    {user.roleName ?? (user.isSuperAdmin ? 'super_admin' : '—')}
+                    {user.roleName ?? (user.isSuperAdmin ? 'super_admin' : '·')}
                   </span>
                 )}
 
@@ -211,32 +212,37 @@ export function UsersSection({ currentUserId, isSuperAdmin, d }: UsersSectionPro
 
       {/* Temp password modal */}
       {tempModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-6 shadow-2xl space-y-4">
-            <p className="font-mono text-xs text-muted leading-relaxed">{d.noEmailNotice}</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 overflow-x-auto rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-accent select-all">
-                {tempModal.password}
-              </code>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(tempModal.password)
-                  setTempModal((m) => m ? { ...m, copied: true } : null)
-                }}
-                className="shrink-0 rounded-md border border-border px-3 py-2 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
-              >
-                {tempModal.copied ? '✓' : d.copyPassword}
-              </button>
+        <div className="fixed inset-0 z-60 flex items-center justify-center pointer-events-none">
+          <VHSTransition duration="fast" className="w-full max-w-sm mx-4 pointer-events-auto">
+            <div className="w-full rounded-xl border border-border bg-surface shadow-2xl overflow-hidden">
+              <div className="h-0.5 w-full bg-primary" />
+              <div className="p-6 space-y-4">
+                <p className="font-mono text-xs text-muted leading-relaxed">{d.noEmailNotice}</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 overflow-x-auto rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-accent select-all">
+                    {tempModal.password}
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(tempModal.password)
+                      setTempModal((m) => m ? { ...m, copied: true } : null)
+                    }}
+                    className="shrink-0 rounded-md border border-border px-3 py-2 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
+                  >
+                    {tempModal.copied ? '✓' : d.copyPassword}
+                  </button>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setTempModal(null)}
+                    className="rounded-md border border-border px-4 py-1.5 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
+                  >
+                    {d.close}
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-end">
-              <button
-                onClick={() => setTempModal(null)}
-                className="rounded-md border border-border px-4 py-1.5 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
-              >
-                {d.close}
-              </button>
-            </div>
-          </div>
+          </VHSTransition>
         </div>
       )}
     </div>

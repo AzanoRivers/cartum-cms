@@ -1,16 +1,18 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { Trash2 } from 'lucide-react'
+import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 
 export type ConfirmDialogProps = {
-  open: boolean
-  title: string
-  description: string
+  open:          boolean
+  title:         string
+  description:   string
   confirmLabel?: string
-  cancelLabel?: string
-  onConfirm: () => void
-  onCancel: () => void
-  destructive?: boolean
+  cancelLabel?:  string
+  onConfirm:     () => void
+  onCancel:      () => void
+  destructive?:  boolean
 }
 
 export function ConfirmDialog({
@@ -25,7 +27,6 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null)
 
-  // Focus cancel button on open; close on Escape
   useEffect(() => {
     if (!open) return
     cancelRef.current?.focus()
@@ -37,56 +38,68 @@ export function ConfirmDialog({
   if (!open) return null
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-title"
-      aria-describedby="confirm-desc"
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onCancel}
-        aria-hidden="true"
-      />
+    <>
+      {/* Click-away — sin overlay oscuro */}
+      <div className="fixed inset-0 z-40" aria-hidden="true" onClick={onCancel} />
 
-      {/* Panel */}
-      <div className="relative z-10 w-full max-w-sm mx-4 bg-surface border border-border rounded-lg p-6 shadow-xl">
-        <h2
-          id="confirm-title"
-          className="text-text font-semibold text-base leading-snug mb-2"
-        >
-          {title}
-        </h2>
-        <p
-          id="confirm-desc"
-          className="text-muted text-sm leading-relaxed mb-6"
-        >
-          {description}
-        </p>
+      {/* Panel flotante — mismo estilo que Settings / Help */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+        <VHSTransition duration="fast" className="w-full max-w-sm mx-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-title"
+            aria-describedby="confirm-desc"
+            className="pointer-events-auto relative w-full overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Accent bar */}
+            <div className={`h-0.5 w-full ${destructive ? 'bg-danger' : 'bg-primary'}`} />
 
-        <div className="flex gap-3 justify-end">
-          <button
-            ref={cancelRef}
-            onClick={onCancel}
-            className="px-4 py-2 rounded-md border border-border text-muted text-sm font-mono hover:text-text hover:border-border/80 transition-colors"
-          >
-            {cancelLabel}
-          </button>
-          <button
-            onClick={onConfirm}
-            className={[
-              'px-4 py-2 rounded-md text-sm font-mono font-medium text-white transition-colors',
-              destructive
-                ? 'bg-danger hover:bg-danger/90'
-                : 'bg-primary hover:bg-primary/90',
-            ].join(' ')}
-          >
-            {confirmLabel}
-          </button>
-        </div>
+            {/* Content */}
+            <div className="px-5 pt-5 pb-4 space-y-1.5">
+              <h2
+                id="confirm-title"
+                className="font-mono text-sm font-semibold text-text leading-snug"
+              >
+                {title}
+              </h2>
+              <p
+                id="confirm-desc"
+                className="font-mono text-[11px] leading-relaxed text-muted"
+              >
+                {description}
+              </p>
+            </div>
+
+            {/* Divider */}
+            <div className="mx-5 border-t border-border/40" />
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2 px-5 py-4">
+              <button
+                ref={cancelRef}
+                onClick={onCancel}
+                className="rounded-lg border border-border bg-surface-2 px-4 py-1.5 font-mono text-xs text-text hover:bg-surface hover:border-primary/40 transition-colors cursor-pointer"
+              >
+                {cancelLabel}
+              </button>
+              <button
+                onClick={onConfirm}
+                className={[
+                  'flex items-center gap-1.5 rounded-lg px-4 py-1.5 font-mono text-xs font-semibold text-white transition-colors cursor-pointer',
+                  destructive
+                    ? 'bg-danger hover:bg-danger/85 border border-danger/60'
+                    : 'bg-primary hover:bg-primary/85 border border-primary/60',
+                ].join(' ')}
+              >
+                {destructive && <Trash2 size={11} strokeWidth={2.5} />}
+                {confirmLabel}
+              </button>
+            </div>
+          </div>
+        </VHSTransition>
       </div>
-    </div>
+    </>
   )
 }

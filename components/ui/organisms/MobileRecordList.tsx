@@ -18,7 +18,7 @@ export type MobileRecordListProps = {
 }
 
 function formatValue(v: RecordValue): string {
-  if (v === null || v === undefined) return '—'
+  if (v === null || v === undefined) return '·'
   if (typeof v === 'boolean') return v ? '✓' : '✗'
   const s = String(v)
   return s.length > 40 ? s.slice(0, 40) + '…' : s

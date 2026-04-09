@@ -43,7 +43,7 @@ export function AppearanceSection({ d }: AppearanceSectionProps) {
 
       <div>
         <p className="mb-3 font-mono text-xs text-muted">{d.themeLabel}</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
           {THEMES.map((theme) => {
             const themeKey = theme.id === 'cyber-soft' ? 'cyberSoft' : theme.id as 'dark' | 'light'
             const localised = d.themes[themeKey as keyof typeof d.themes]

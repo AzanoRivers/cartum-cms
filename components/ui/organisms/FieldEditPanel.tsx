@@ -295,7 +295,7 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
               label={d?.fieldEdit.number.min ?? 'Min'}
               type="number"
               size="sm"
-              placeholder={d?.fieldEdit.number.minPlaceholder ?? '—'}
+              placeholder={d?.fieldEdit.number.minPlaceholder ?? ''}
               value={numMin}
               onChange={(e) => setNumMin(e.target.value)}
             />
@@ -303,7 +303,7 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
               label={d?.fieldEdit.number.max ?? 'Max'}
               type="number"
               size="sm"
-              placeholder={d?.fieldEdit.number.maxPlaceholder ?? '—'}
+              placeholder={d?.fieldEdit.number.maxPlaceholder ?? ''}
               value={numMax}
               onChange={(e) => setNumMax(e.target.value)}
             />
@@ -419,7 +419,7 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
               onChange={(e) => setRelTarget(e.target.value)}
               className="h-9 rounded-md border border-border bg-surface-2 px-3 font-mono text-xs text-text outline-none focus:border-primary transition-colors cursor-pointer"
             >
-              <option value="">{d?.fieldEdit.relation.targetPlaceholder ?? '— Select a container —'}</option>
+              <option value="">{d?.fieldEdit.relation.targetPlaceholder ?? 'Select a container'}</option>
               {validContainers.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}

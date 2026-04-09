@@ -1,5 +1,6 @@
 'use client'
 
+import { ExternalLink } from 'lucide-react'
 import type { Dictionary } from '@/locales/en'
 
 export type InfoSectionProps = {
@@ -72,38 +73,11 @@ export function InfoSection({ d }: InfoSectionProps) {
 
       {/* Links */}
       <div className="rounded-lg border border-border bg-surface-2 p-4 space-y-3">
-        <Row label={d.docs}>
-          <a
-            href={d.docsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-xs text-primary hover:underline"
-          >
-            {d.docsUrl} ↗
-          </a>
-        </Row>
+        <LinkRow label={d.docs} href={d.docsUrl} text={d.docs} color="primary" />
         <Divider />
-        <Row label={d.openSource}>
-          <a
-            href={d.openSourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-xs text-primary hover:underline"
-          >
-            {d.openSourceUrl} ↗
-          </a>
-        </Row>
+        <LinkRow label={d.openSource} href={d.openSourceUrl} text="GitHub" color="primary" />
         <Divider />
-        <Row label={d.developedBy}>
-          <a
-            href="https://azanorivers.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-xs text-accent hover:underline"
-          >
-            azanorivers.com ↗
-          </a>
-        </Row>
+        <LinkRow label={d.developedBy} href="https://azanorivers.com" text="azanorivers.com" color="accent" />
       </div>
     </div>
   )
@@ -116,6 +90,22 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     <div className="flex items-start justify-between gap-4">
       <span className="font-mono text-xs text-muted shrink-0">{label}</span>
       <div className="text-right">{children}</div>
+    </div>
+  )
+}
+
+function LinkRow({ label, href, text, color }: { label: string; href: string; text: string; color: 'primary' | 'accent' }) {
+  return (
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <span className="font-mono text-xs text-muted shrink-0">{label}</span>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`inline-flex items-center gap-1 font-mono text-xs hover:underline sm:text-right ${color === 'accent' ? 'text-accent' : 'text-primary'}`}
+      >
+        {text} <ExternalLink size={10} />
+      </a>
     </div>
   )
 }

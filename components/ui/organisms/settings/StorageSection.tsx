@@ -104,7 +104,7 @@ export function StorageSection({ d }: StorageSectionProps) {
       {/* Optimization server API key */}
       <Field label={d.mediaVpsKey}>
         <div className="flex gap-2">
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <input
               type={showKey ? 'text' : 'password'}
               value={form.mediaVpsKey ?? ''}
@@ -133,21 +133,21 @@ export function StorageSection({ d }: StorageSectionProps) {
       {/* Test + save row */}
       <div className="pt-1 space-y-2">
         <p className="font-mono text-[11px] text-muted/60">{d.saveEmptyNotice}</p>
-        <div className="flex items-center gap-3 justify-end">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           {testResult && (
             <span className="font-mono text-xs text-success">{testResult}</span>
           )}
           <button
             onClick={handleTest}
             disabled={isTesting}
-            className="rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isTesting ? d.testing : d.testConnection}
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="w-full sm:w-auto rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             {isSaving ? d.saving : d.save}
           </button>

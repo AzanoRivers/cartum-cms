@@ -115,7 +115,7 @@ export function ApiTokensSection({ d }: ApiTokensSectionProps) {
                     {roleOptions.find((r) => r.id === tok.roleId)?.name ?? tok.roleId.slice(0, 8)}
                   </td>
                   <td className="px-3 py-2 font-mono text-xs text-muted">
-                    {tok.lastUsedAt ? formatRelative(tok.lastUsedAt) : '—'}
+                    {tok.lastUsedAt ? formatRelative(tok.lastUsedAt) : '·'}
                   </td>
                   <td className="px-3 py-2 font-mono text-xs text-muted">
                     {tok.expiresAt ? tok.expiresAt.toLocaleDateString() : d.never}
@@ -139,18 +139,18 @@ export function ApiTokensSection({ d }: ApiTokensSectionProps) {
       {/* New token form */}
       <div className="rounded-md border border-border/60 bg-surface-2/40 p-4 space-y-3">
         <p className="font-mono text-xs text-muted uppercase tracking-wider">{d.newTokenTitle}</p>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={d.namePlaceholder}
-            className="flex-1 min-w-32 rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
+            className="w-full sm:flex-1 sm:min-w-32 rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
           />
           <select
             value={roleId}
             onChange={(e) => setRoleId(e.target.value)}
-            className="rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text outline-none focus:border-primary/60 transition-colors cursor-pointer"
+            className="w-full sm:w-auto rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text outline-none focus:border-primary/60 transition-colors cursor-pointer"
           >
             {roleOptions.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
@@ -161,12 +161,12 @@ export function ApiTokensSection({ d }: ApiTokensSectionProps) {
             value={expiresAt}
             onChange={(e) => setExpiresAt(e.target.value)}
             title={d.expiresLabel}
-            className="rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-muted outline-none focus:border-primary/60 transition-colors"
+            className="w-full sm:w-auto rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-muted outline-none focus:border-primary/60 transition-colors"
           />
           <button
             onClick={handleCreate}
             disabled={isCreating || !name.trim() || !roleId}
-            className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="w-full sm:w-auto rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             {isCreating ? d.creating : d.createButton}
           </button>
