@@ -29,6 +29,34 @@
       "when": 1775505753872,
       "tag": "0003_living_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775510000000,
+      "tag": "0004_email_otp_codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775520000000,
+      "tag": "0005_password_reset_rate_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775530000000,
+      "tag": "0006_role_section_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775540000000,
+      "tag": "0007_role_permissions_unique",
+      "breakpoints": true
     }
   ]
 }

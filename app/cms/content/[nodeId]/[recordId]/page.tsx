@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import { redirect, notFound } from 'next/navigation'
 import { auth } from '@/auth'
 import { db } from '@/db'
 import { project } from '@/db/schema'
@@ -28,7 +28,7 @@ export default async function EditRecordPage({
     canUpdate = true
   } else {
     const perms = await rolesService.resolvePermissions(session.user.id, nodeId)
-    if (!perms.canRead) redirect('/cms/content')
+    if (!perms.canRead) notFound()
     canUpdate = perms.canUpdate
   }
 

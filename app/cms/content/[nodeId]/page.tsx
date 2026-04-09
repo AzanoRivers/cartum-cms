@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { headers } from 'next/headers'
 import { auth } from '@/auth'
@@ -34,7 +34,7 @@ export default async function ContentNodePage({
     canCreate = canUpdate = canDelete = true
   } else {
     const perms = await rolesService.resolvePermissions(session.user.id, nodeId)
-    if (!perms.canRead) redirect('/cms/content')
+    if (!perms.canRead) notFound()
     canCreate = perms.canCreate
     canUpdate = perms.canUpdate
     canDelete = perms.canDelete

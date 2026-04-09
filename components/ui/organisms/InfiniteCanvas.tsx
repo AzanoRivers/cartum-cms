@@ -43,6 +43,29 @@ function getPortPos(node: AnyNode, side: PortSide) {
   return                        { x,                  y: y + CARD_H / 2 }
 }
 
+// ── Fit-to-view helper (mobile-aware) ────────────────────────────────────────
+function computeFitView(rect: DOMRect, nodes: AnyNode[]) {
+  const isMobile  = rect.width < 768
+  const PADDING   = isMobile ? 24  : 64
+  const MIN_SCALE = isMobile ? 0.4 : 0.25
+  const MAX_SCALE = isMobile ? 1.2 : 1.0
+
+  const minX = Math.min(...nodes.map((n) => n.positionX))
+  const minY = Math.min(...nodes.map((n) => n.positionY))
+  const maxX = Math.max(...nodes.map((n) => n.positionX + CARD_W))
+  const maxY = Math.max(...nodes.map((n) => n.positionY + CARD_H))
+  const scaleX   = (rect.width  - PADDING * 2) / (maxX - minX || 1)
+  const scaleY   = (rect.height - PADDING * 2) / (maxY - minY || 1)
+  const scale    = Math.min(Math.max(Math.min(scaleX, scaleY), MIN_SCALE), MAX_SCALE)
+  const contentW = (maxX - minX) * scale
+  const contentH = (maxY - minY) * scale
+  return {
+    scale,
+    offsetX: (rect.width  - contentW) / 2 - minX * scale,
+    offsetY: (rect.height - contentH) / 2 - minY * scale,
+  }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export type InfiniteCanvasProps = {
@@ -94,6 +117,8 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Touch pan state
   const touchPanRef = useRef<{ x: number; y: number; moved: boolean } | null>(null)
+  // Pinch-to-zoom state
+  const pinchRef = useRef<{ dist: number } | null>(null)
 
   const editingFieldId = useUIStore((s) => s.editingFieldId)
   const openFieldEdit  = useUIStore((s) => s.openFieldEdit)
@@ -123,21 +148,9 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       }
       const rect = outerRef.current?.getBoundingClientRect()
       if (!rect) { setOffset(0, 0); setScale(1); return }
-      const minX = Math.min(...initialNodes.map((n) => n.positionX))
-      const minY = Math.min(...initialNodes.map((n) => n.positionY))
-      const maxX = Math.max(...initialNodes.map((n) => n.positionX + CARD_W))
-      const maxY = Math.max(...initialNodes.map((n) => n.positionY + CARD_H))
-      const PADDING = 64
-      const scaleX  = (rect.width  - PADDING * 2) / (maxX - minX || 1)
-      const scaleY  = (rect.height - PADDING * 2) / (maxY - minY || 1)
-      const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1)
-      const contentW = (maxX - minX) * newScale
-      const contentH = (maxY - minY) * newScale
-      setOffset(
-        (rect.width  - contentW) / 2 - minX * newScale,
-        (rect.height - contentH) / 2 - minY * newScale,
-      )
-      setScale(newScale)
+      const { scale, offsetX, offsetY } = computeFitView(rect, initialNodes)
+      setOffset(offsetX, offsetY)
+      setScale(scale)
     })
 
     return () => cancelAnimationFrame(frame)
@@ -318,7 +331,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     }
     // touchmove must be non-passive too so e.preventDefault() can suppress scroll
     const touchMoveHandler = (e: TouchEvent) => {
-      if (touchPanRef.current?.moved) e.preventDefault()
+      if (e.touches.length === 2 || touchPanRef.current?.moved) e.preventDefault()
     }
     el.addEventListener('wheel', wheelHandler, { passive: false })
     el.addEventListener('touchmove', touchMoveHandler, { passive: false })
@@ -333,21 +346,9 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     const { nodes: currentNodes } = useNodeBoardStore.getState()
     if (!currentNodes.length || !outerRef.current) return
     const rect = outerRef.current.getBoundingClientRect()
-    const minX = Math.min(...currentNodes.map((n) => n.positionX))
-    const minY = Math.min(...currentNodes.map((n) => n.positionY))
-    const maxX = Math.max(...currentNodes.map((n) => n.positionX + CARD_W))
-    const maxY = Math.max(...currentNodes.map((n) => n.positionY + CARD_H))
-    const PADDING = 64
-    const scaleX  = (rect.width  - PADDING * 2) / (maxX - minX || 1)
-    const scaleY  = (rect.height - PADDING * 2) / (maxY - minY || 1)
-    // Never zoom IN beyond 1:1 — only zoom out if nodes exceed the viewport
-    const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1)
-    const contentW = (maxX - minX) * newScale
-    const contentH = (maxY - minY) * newScale
-    const offsetX  = (rect.width  - contentW) / 2 - minX * newScale
-    const offsetY  = (rect.height - contentH) / 2 - minY * newScale
+    const { scale, offsetX, offsetY } = computeFitView(rect, currentNodes)
     setOffset(offsetX, offsetY)
-    setScale(newScale)
+    setScale(scale)
   }, [setOffset, setScale])
 
   const onContextMenu = useCallback((e: React.MouseEvent) => {
@@ -364,7 +365,21 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
 
   // ── Touch handlers (pan + long-press context menu) ───────────────────────────
   const onTouchStart = useCallback((e: React.TouchEvent) => {
+    // Two fingers → pinch-to-zoom, cancel any pan
+    if (e.touches.length === 2) {
+      touchPanRef.current = null
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current)
+        longPressTimerRef.current = null
+      }
+      const t1 = e.touches[0]
+      const t2 = e.touches[1]
+      pinchRef.current = { dist: Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY) }
+      return
+    }
+
     if (e.touches.length !== 1) return
+    pinchRef.current = null
     const touch = e.touches[0]
     touchPanRef.current = { x: touch.clientX, y: touch.clientY, moved: false }
 
@@ -383,6 +398,28 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   }, [])
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
+    // Pinch-to-zoom (two fingers)
+    if (e.touches.length === 2 && pinchRef.current) {
+      const t1 = e.touches[0]
+      const t2 = e.touches[1]
+      const newDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
+      const { scale: currentScale, offsetX: currentOffX, offsetY: currentOffY } = useNodeBoardStore.getState()
+      const newScale = Math.min(Math.max(currentScale * (newDist / pinchRef.current.dist), 0.3), 2.0)
+
+      // Zoom toward midpoint of the two fingers
+      const rect  = outerRef.current?.getBoundingClientRect()
+      if (rect) {
+        const mx = (t1.clientX + t2.clientX) / 2 - rect.left
+        const my = (t1.clientY + t2.clientY) / 2 - rect.top
+        const canvasMidX = (mx - currentOffX) / currentScale
+        const canvasMidY = (my - currentOffY) / currentScale
+        setOffset(mx - canvasMidX * newScale, my - canvasMidY * newScale)
+      }
+      setScale(newScale)
+      pinchRef.current = { dist: newDist }
+      return
+    }
+
     if (e.touches.length !== 1 || !touchPanRef.current) return
     const touch = e.touches[0]
     const dx = touch.clientX - touchPanRef.current.x
@@ -403,7 +440,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       touchPanRef.current.x = touch.clientX
       touchPanRef.current.y = touch.clientY
     }
-  }, [setOffset])
+  }, [setOffset, setScale])
 
   const onTouchEnd = useCallback(() => {
     if (longPressTimerRef.current) {
@@ -411,6 +448,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       longPressTimerRef.current = null
     }
     touchPanRef.current = null
+    pinchRef.current = null
   }, [])
 
   // ── Context menu actions ─────────────────────────────────────────────────────

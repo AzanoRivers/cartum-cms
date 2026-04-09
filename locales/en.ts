@@ -89,6 +89,7 @@ export const en = {
       captchaPlaceholder: '?',
       captchaError:   'Incorrect answer. Try again.',
       loginSuccess:   'Welcome back!',
+      accountDisabled: 'Your account is disabled. Contact your administrator.',
     },
     forgotPassword: {
       title:          'Reset password',
@@ -520,6 +521,21 @@ export const en = {
       permsError:            'Could not save permissions.',
       noCustomRoles:         'No custom roles yet.',
       selectToEdit:          'Select a custom role to edit its permissions.',
+      systemBadge:           'SYSTEM',
+      noPermission:          'No permission to edit',
+      sectionPermissionsTitle: 'Settings access',
+      saveSectionPerms:      'Save changes',
+      savingSectionPerms:    'Saving...',
+      sectionPermsSaved:     'Permissions saved.',
+      sectionPermsError:     'Could not save permissions.',
+      cancel:                'Cancel',
+      userCount:             '{count} user(s)',
+      builtInRoleLabels: {
+        admin:      'Admin',
+        editor:     'Editor',
+        viewer:     'Viewer',
+        restricted: 'Restricted',
+      },
     },
     account: {
       title:               'Account',
@@ -681,7 +697,7 @@ export type Dictionary = {
       show: string; hide: string; submit: string; submitting: string
       error: string; forgotPassword: string
       captchaLabel: string; captchaPlaceholder: string; captchaError: string
-      loginSuccess: string
+      loginSuccess: string; accountDisabled: string
     }
     forgotPassword: {
       title: string; subtitle: string; email: string
@@ -843,6 +859,12 @@ export type Dictionary = {
       updateCol: string; deleteCol: string; wildcardRow: string
       savePerms: string; savingPerms: string; permsSaved: string; permsError: string
       noCustomRoles: string; selectToEdit: string
+      systemBadge: string; noPermission: string
+      sectionPermissionsTitle: string
+      saveSectionPerms: string; savingSectionPerms: string
+      sectionPermsSaved: string; sectionPermsError: string
+      cancel: string; userCount: string
+      builtInRoleLabels: Record<string, string>
     }
     account: {
       title: string; emailSection: string; currentEmail: string

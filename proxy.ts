@@ -1,6 +1,7 @@
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { ROLE_RESTRICTED } from '@/types/roles'
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -44,10 +45,24 @@ export async function proxy(req: NextRequest) {
   }
 
   // Session guard — only after setup is complete
-  if (setupComplete && (isCMSRoute)) {
+  if (setupComplete && isCMSRoute) {
     const session = await auth()
     if (!session) {
       return NextResponse.redirect(new URL('/login', req.url))
+    }
+    // Safety net: block sessions where the user only has the 'restricted' role
+    // (primary block is in auth.ts authorize(); this catches role changes after login)
+    const user = session.user
+    const roles = user.roles ?? []
+    if (
+      !user.isSuperAdmin &&
+      roles.length > 0 &&
+      roles.every((r) => r === ROLE_RESTRICTED)
+    ) {
+      const url = req.nextUrl.clone()
+      url.pathname = '/login'
+      url.searchParams.set('error', 'disabled')
+      return NextResponse.redirect(url)
     }
   }
 

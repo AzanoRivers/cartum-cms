@@ -12,6 +12,7 @@ import { useUIStore } from '@/lib/stores/uiStore'
 import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'
 import { MobileNodeList } from '@/components/ui/molecules/MobileNodeList'
 import type { Dictionary } from '@/locales/en'
+import type { SectionKey } from '@/types/roles'
 
 export type MobileLayoutProps = {
   children: React.ReactNode
@@ -23,6 +24,7 @@ export type MobileLayoutProps = {
   isSuperAdmin: boolean
   isAdmin: boolean
   settingsDict: Dictionary['settings']
+  sectionPermissions: Partial<Record<SectionKey, boolean>>
 }
 
 export function MobileLayout({
@@ -35,6 +37,7 @@ export function MobileLayout({
   isSuperAdmin,
   isAdmin,
   settingsDict,
+  sectionPermissions,
 }: MobileLayoutProps) {
   const router = useRouter()
   const creationPanelOpen = useUIStore((s) => s.creationPanelOpen)
@@ -111,6 +114,7 @@ export function MobileLayout({
           isSuperAdmin={isSuperAdmin}
           isAdmin={isAdmin}
           settingsDict={settingsDict}
+          sectionPermissions={sectionPermissions}
           asSheet
         />
       </BottomSheet>

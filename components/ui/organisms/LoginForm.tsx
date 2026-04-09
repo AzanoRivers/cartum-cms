@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
@@ -8,19 +8,30 @@ import { toast } from 'sonner'
 import { CaptchaChallenge } from '@/components/ui/molecules/CaptchaChallenge'
 import type { Dictionary } from '@/locales/en'
 
-type LoginFormProps = { dict: Dictionary['auth']['login'] }
+type LoginFormProps = {
+  dict:         Dictionary['auth']['login']
+  initialError?: string
+}
 
 function randomDigit() {
   return Math.floor(Math.random() * 10)
 }
 
-export function LoginForm({ dict }: LoginFormProps) {
+export function LoginForm({ dict, initialError }: LoginFormProps) {
   const router = useRouter()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPwd, setShowPwd]   = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const [loading, setLoading]   = useState(false)
+
+  // Show toast if redirected here with an error (e.g., from the middleware)
+  useEffect(() => {
+    if (initialError === 'disabled') {
+      toast.error(dict.accountDisabled)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Captcha state
   const [captchaA, setCaptchaA]         = useState(randomDigit)
@@ -59,6 +70,11 @@ export function LoginForm({ dict }: LoginFormProps) {
     setLoading(false)
 
     if (!result || result.error) {
+      if (result?.error === 'account_disabled') {
+        toast.error(dict.accountDisabled)
+        refreshCaptcha()
+        return
+      }
       setError(dict.error)
       refreshCaptcha()
       return

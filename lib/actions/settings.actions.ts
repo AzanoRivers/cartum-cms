@@ -22,6 +22,7 @@ import type {
 } from '@/types/settings'
 import { type ThemeId, THEMES } from '@/types/theme'
 import { revalidatePath } from 'next/cache'
+import { BUILT_IN_ROLE_NAMES, ROLE_ADMIN } from '@/types/roles'
 
 // ── Auth guards ────────────────────────────────────────────────────────────────
 
@@ -34,7 +35,7 @@ async function requireSuperAdmin() {
 async function requireAdmin() {
   const session = await auth()
   if (!session) throw new Error('UNAUTHORIZED')
-  const ok = session.user.isSuperAdmin || (session.user.roles ?? []).includes('admin')
+  const ok = session.user.isSuperAdmin || (session.user.roles ?? []).includes(ROLE_ADMIN)
   if (!ok) throw new Error('FORBIDDEN')
   return session
 }
@@ -340,11 +341,9 @@ export interface NodePermissionRow {
   canDelete: boolean
 }
 
-const BUILT_IN_ROLES = ['super_admin', 'admin', 'viewer']
-
 export async function listRolesWithCount(): Promise<ActionResult<RoleWithCount[]>> {
   try {
-    await requireSuperAdmin()
+    await requireAdmin()
     const allRoles = await db.select().from(roles)
     const allUsersRoles = await db.select().from(usersRoles)
 
@@ -359,7 +358,7 @@ export async function listRolesWithCount(): Promise<ActionResult<RoleWithCount[]
         id:          r.id,
         name:        r.name,
         description: r.description ?? null,
-        isBuiltIn:   BUILT_IN_ROLES.includes(r.name),
+        isBuiltIn:   (BUILT_IN_ROLE_NAMES as readonly string[]).includes(r.name),
         userCount:   countMap.get(r.id) ?? 0,
       })),
     }
@@ -372,7 +371,7 @@ export async function getUsersForRole(
   roleId: string,
 ): Promise<ActionResult<Array<{ id: string; email: string }>>> {
   try {
-    await requireSuperAdmin()
+    await requireAdmin()
     const rows = await db
       .select({ id: users.id, email: users.email })
       .from(users)
@@ -390,7 +389,7 @@ export async function getPermissionsForRole(
   ActionResult<{ permissions: NodePermissionRow[]; wildcardActions: Array<'read' | 'create' | 'update' | 'delete'> }>
 > {
   try {
-    await requireSuperAdmin()
+    await requireAdmin()
     const containerNodes = await db
       .select({ id: nodes.id, name: nodes.name })
       .from(nodes)
@@ -436,7 +435,7 @@ export async function saveRolePermissions(
   matrix: RolePermissionMatrix,
 ): Promise<ActionResult<void>> {
   try {
-    const session = await requireSuperAdmin()
+    const session = await requireAdmin()
 
     for (const item of matrix.nodePermissions) {
       if (item.nodeId === '*') {

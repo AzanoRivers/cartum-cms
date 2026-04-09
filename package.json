@@ -10,6 +10,7 @@
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:seed": "node --env-file=.env --import tsx db/seeds/default-roles.seed.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
@@ -48,6 +49,7 @@
     "eslint-config-next": "16.2.2",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.4",
+    "tsx": "^4.21.0",
     "typescript": "6.0.2"
   }
 }

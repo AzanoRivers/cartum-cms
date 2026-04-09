@@ -1,6 +1,6 @@
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '@/db'
-import { rolePermissions, usersRoles } from '@/db/schema'
+import { rolePermissions, roleSectionPermissions, usersRoles } from '@/db/schema'
 import { rolesRepository } from '@/db/repositories/roles.repository'
 import { usersRepository } from '@/db/repositories/users.repository'
 import type {
@@ -8,6 +8,8 @@ import type {
   PermissionOperation,
   RoleWithPermissions,
   CreateRoleInput,
+  SectionKey,
+  SectionPermission,
 } from '@/types/roles'
 
 const NULL_PERMISSIONS: NodePermissions = {
@@ -61,19 +63,14 @@ async function getAccessibleNodes(userId: string): Promise<string[]> {
   const rows = await db
     .select({ nodeId: rolePermissions.nodeId })
     .from(rolePermissions)
-    .where(inArray(rolePermissions.roleId, roleIds))
-    .then((rs) => rs.filter((r) => r.nodeId))
+    .where(
+      and(
+        inArray(rolePermissions.roleId, roleIds),
+        eq(rolePermissions.canRead, true),
+      ),
+    )
 
-  // Deduplicate and resolve canRead per node (merging across roles)
-  const uniqueNodeIds = Array.from(new Set(rows.map((r) => r.nodeId)))
-
-  const result: string[] = []
-  for (const nodeId of uniqueNodeIds) {
-    const perms = await resolvePermissions(userId, nodeId)
-    if (perms.canRead) result.push(nodeId)
-  }
-
-  return result
+  return Array.from(new Set(rows.map((r) => r.nodeId).filter(Boolean) as string[]))
 }
 
 /**
@@ -181,6 +178,53 @@ async function getAllWithPermissions(): Promise<RoleWithPermissions[]> {
   )
 }
 
+async function getSectionPermissions(roleId: string): Promise<SectionPermission[]> {
+  const rows = await db
+    .select()
+    .from(roleSectionPermissions)
+    .where(eq(roleSectionPermissions.roleId, roleId))
+
+  return rows.map((r) => ({ section: r.section as SectionKey, canAccess: r.canAccess }))
+}
+
+async function setSectionPermissions(
+  roleId: string,
+  permissions: SectionPermission[],
+): Promise<void> {
+  if (permissions.length === 0) return
+  await db
+    .insert(roleSectionPermissions)
+    .values(permissions.map(({ section, canAccess }) => ({ roleId, section, canAccess })))
+    .onConflictDoUpdate({
+      target: [roleSectionPermissions.roleId, roleSectionPermissions.section],
+      set:    { canAccess: sql`excluded.can_access` },
+    })
+}
+
+/**
+ * Returns a map of section → canAccess for a given user.
+ * SuperAdmin callers bypass this — handle at the callsite.
+ */
+async function getSectionPermissionsForUser(
+  userId: string,
+): Promise<Partial<Record<SectionKey, boolean>>> {
+  const rows = await db
+    .select({
+      section:   roleSectionPermissions.section,
+      canAccess: roleSectionPermissions.canAccess,
+    })
+    .from(roleSectionPermissions)
+    .innerJoin(usersRoles, eq(usersRoles.roleId, roleSectionPermissions.roleId))
+    .where(eq(usersRoles.userId, userId))
+
+  const result: Partial<Record<SectionKey, boolean>> = {}
+  for (const row of rows) {
+    const key = row.section as SectionKey
+    result[key] = result[key] || row.canAccess
+  }
+  return result
+}
+
 export const rolesService = {
   resolvePermissions,
   getAccessibleNodes,
@@ -192,4 +236,7 @@ export const rolesService = {
   assignToUser,
   removeFromUser,
   getAllWithPermissions,
+  getSectionPermissions,
+  setSectionPermissions,
+  getSectionPermissionsForUser,
 }

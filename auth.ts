@@ -1,9 +1,14 @@
-import NextAuth from 'next-auth'
+import NextAuth, { CredentialsSignin } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { usersRepository } from '@/db/repositories/users.repository'
 import { rolesRepository } from '@/db/repositories/roles.repository'
 import { verifyPassword } from '@/lib/services/auth.service'
+import { ROLE_RESTRICTED } from '@/types/roles'
 import '@/types/auth'
+
+class AccountDisabledError extends CredentialsSignin {
+  code = 'account_disabled'
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -24,6 +29,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!valid) return null
 
         const roleRows = await rolesRepository.findByUserId(user.id)
+
+        // Block users whose only role is 'restricted'
+        if (
+          !user.isSuperAdmin &&
+          roleRows.length > 0 &&
+          roleRows.every((r) => r.name === ROLE_RESTRICTED)
+        ) {
+          throw new AccountDisabledError()
+        }
 
         return {
           id:           user.id,

@@ -1,7 +1,7 @@
 # RBAC — UX de Roles y Sistema de Permisos por Sección
 
 **Fecha:** 08/04/2026
-**Estado:** En planificación
+**Estado:** Completado
 **Prioridad:** Alta
 **Área:** Backend (DB/schema) + Frontend (Settings UX) + Auth gate
 
@@ -280,51 +280,51 @@ lib/actions/roles.actions.ts                          ← añadir updateSectionP
 ## Criterios de aceptación
 
 ### CA-1 — Roles visibles en Ajustes
-- [ ] Los 4 roles (`admin`, `editor`, `lector`, `restringido`) se listan en la sección Roles del modal de Ajustes cuando el usuario es `admin` o `superAdmin`
-- [ ] `superAdmin` aparece en la lista con badge "SISTEMA" sin controles editables
-- [ ] Los roles muestran su nombre y descripción
+- [x] Los 4 roles (`admin`, `editor`, `viewer`, `restricted`) se listan en la sección Roles del modal de Ajustes cuando el usuario es `admin` o `superAdmin`
+- [x] `superAdmin` aparece en la lista con badge "SISTEMA" sin controles editables
+- [x] Los roles muestran su nombre y descripción
 
 ### CA-2 — Restricciones de edición entre roles
-- [ ] `superAdmin` puede editar todos los roles excepto el suyo propio
-- [ ] `admin` puede editar `editor`, `lector`, `restringido` pero NO `admin` ni `superAdmin`
-- [ ] Los toggles del rol `admin` aparecen `disabled` cuando el usuario logueado es `admin`
+- [x] `superAdmin` puede editar todos los roles excepto el suyo propio
+- [x] `admin` puede editar `editor`, `viewer`, `restricted` pero NO `admin` ni `superAdmin`
+- [x] Los toggles del rol `admin` aparecen `disabled` cuando el usuario logueado es `admin`
 
 ### CA-3 — Permisos de nodos (tablero)
-- [ ] La sección de roles muestra la lista de nodos del tablero principal (type = 'container', parentId = null)
-- [ ] Por cada nodo: toggles individuales para Leer, Crear, Editar, Borrar
-- [ ] Guardar actualiza `role_permissions` vía Server Action
-- [ ] Toast de éxito al guardar
-- [ ] En el board: usuario con `canRead: false` en un nodo no lo ve listado
+- [x] La sección de roles muestra la lista de nodos del tablero principal (type = 'container', parentId = null)
+- [x] Por cada nodo: toggles individuales para Leer, Crear, Editar, Borrar
+- [x] Guardar actualiza `role_permissions` vía Server Action
+- [x] Toast de éxito al guardar
+- [x] En el board: usuario con `canRead: false` en un nodo no lo ve listado
 
 ### CA-4 — Permisos de secciones de Ajustes
-- [ ] La sección de roles muestra la lista de secciones del menú de Ajustes
-- [ ] Por cada sección: toggle "Permitir acceso"
-- [ ] Guardar actualiza `role_section_permissions`
-- [ ] En el modal de Ajustes: las secciones sin acceso no se muestran para ese rol
-- [ ] `admin` siempre tiene acceso a `db` pero la zona de peligro solo es visible para `superAdmin`
+- [x] La sección de roles muestra la lista de secciones del menú de Ajustes
+- [x] Por cada sección: toggle "Permitir acceso"
+- [x] Guardar actualiza `role_section_permissions`
+- [x] En el modal de Ajustes: las secciones sin acceso no se muestran para ese rol
+- [x] `admin` siempre tiene acceso a `db` pero la zona de peligro solo es visible para `superAdmin`
 
 ### CA-5 — Rol restringido bloquea acceso al CMS
-- [ ] Usuario con rol `restringido` (y sin otro rol activo) no puede entrar al CMS
-- [ ] Al intentar login, aparece toast de error con mensaje "Tu cuenta está deshabilitada"
-- [ ] No se produce redirección al dashboard
+- [x] Usuario con rol `restricted` (y sin otro rol activo) no puede entrar al CMS
+- [x] Al intentar login, aparece toast de error con mensaje "Tu cuenta está deshabilitada"
+- [x] No se produce redirección al dashboard
 
 ### CA-6 — Seed de roles por defecto
-- [ ] Al ejecutar el seed, se crean los 4 roles si no existen
-- [ ] Las `role_section_permissions` por defecto se insertan según la tabla del alcance
-- [ ] El seed es idempotente (no duplica si ya existen)
+- [x] Al ejecutar el seed, se crean los 4 roles si no existen
+- [x] Las `role_section_permissions` por defecto se insertan según la tabla del alcance
+- [x] El seed es idempotente (no duplica si ya existen)
 
 ### CA-7 — UX y estilo
-- [ ] La sección de Roles sigue la línea gráfica del proyecto (dark-first, paleta del sistema, monospace para labels)
-- [ ] Usa `VHSTransition` al cambiar de rol seleccionado en el panel derecho
-- [ ] Todos los estados (loading, error, success) tienen feedback visual (toasts o estados inline)
-- [ ] Funciona correctamente en mobile (layout apilado)
+- [x] La sección de Roles sigue la línea gráfica del proyecto (dark-first, paleta del sistema, monospace para labels)
+- [x] Usa `VHSTransition` al cambiar de rol seleccionado en el panel derecho
+- [x] Todos los estados (loading, error, success) tienen feedback visual (toasts o estados inline)
+- [x] Funciona correctamente en mobile (layout apilado)
 
 ### CA-8 — Protección server-side por URL
-- [ ] Acceder directamente a `/cms/content/[nodeId]` sin permiso `canRead` retorna 404 (no 403 — evita enumeración)
-- [ ] Acceder a `/cms/content/[nodeId]/new` sin permiso `canCreate` retorna 404
-- [ ] Usuario con rol único `restringido` que accede a cualquier ruta `/cms/*` es redirigido a `/login?error=disabled`
-- [ ] `superAdmin` accede a todas las rutas sin restricción
-- [ ] El bypass no es posible: ni cambiando el `nodeId` en la URL, ni limpiando cookies del toast, ni desde otra sesión copiando la URL
+- [x] Acceder directamente a `/cms/content/[nodeId]` sin permiso `canRead` retorna 404 (no 403 — evita enumeración)
+- [x] Acceder a `/cms/content/[nodeId]/new` sin permiso `canCreate` retorna 404
+- [x] Usuario con rol único `restricted` que accede a cualquier ruta `/cms/*` es redirigido a `/login?error=disabled` (implementado en `proxy.ts`)
+- [x] `superAdmin` accede a todas las rutas sin restricción
+- [x] El bypass no es posible: ni cambiando el `nodeId` en la URL, ni limpiando cookies del toast, ni desde otra sesión copiando la URL
 
 ---
 

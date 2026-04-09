@@ -4,6 +4,7 @@ import { db } from '@/db'
 import { project, roles } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import type { SupportedLocale } from '@/types/project'
+import { ROLE_ADMIN, ROLE_EDITOR, ROLE_VIEWER, ROLE_RESTRICTED } from '@/types/roles'
 
 // ── Create Super Admin ────────────────────────────────────────────────────────
 
@@ -55,9 +56,10 @@ export async function createProjectService(input: CreateProjectInput): Promise<v
 // ── Initialize Schema ─────────────────────────────────────────────────────────
 
 const DEFAULT_ROLES = [
-  { name: 'admin',  description: 'Full access to all nodes and records' },
-  { name: 'editor', description: 'Can create and update records, cannot delete nodes' },
-  { name: 'viewer', description: 'Read-only access to all records' },
+  { name: ROLE_ADMIN,      description: 'Full access to all nodes and records' },
+  { name: ROLE_EDITOR,     description: 'Can create and update records, cannot delete nodes' },
+  { name: ROLE_VIEWER,     description: 'Read-only access to all records' },
+  { name: ROLE_RESTRICTED, description: 'Suspended access. Cannot log in to the CMS.' },
 ]
 
 export async function initializeSchemaService(): Promise<void> {

@@ -1,4 +1,4 @@
-import { boolean, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { boolean, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
 import { users } from './users.schema'
 import { nodes } from './nodes.schema'
 
@@ -17,7 +17,7 @@ export const rolePermissions = pgTable('role_permissions', {
   canCreate: boolean('can_create').notNull().default(false),
   canUpdate: boolean('can_update').notNull().default(false),
   canDelete: boolean('can_delete').notNull().default(false),
-})
+}, (t) => [unique().on(t.roleId, t.nodeId)])
 
 export const usersRoles = pgTable(
   'users_roles',

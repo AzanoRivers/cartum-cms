@@ -9,6 +9,7 @@ import { BrandFooter } from '@/components/ui/atoms/BrandFooter'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'
 import type { Dictionary } from '@/locales/en'
+import type { SectionKey } from '@/types/roles'
 
 export type DesktopLayoutProps = {
   children: React.ReactNode
@@ -19,6 +20,7 @@ export type DesktopLayoutProps = {
   isSuperAdmin: boolean
   isAdmin: boolean
   settingsDict: Dictionary['settings']
+  sectionPermissions: Partial<Record<SectionKey, boolean>>
 }
 
 export function DesktopLayout({
@@ -30,6 +32,7 @@ export function DesktopLayout({
   isSuperAdmin,
   isAdmin,
   settingsDict,
+  sectionPermissions,
 }: DesktopLayoutProps) {
   const creationPanelOpen = useUIStore((s) => s.creationPanelOpen)
   const parentId = useUIStore((s) => s.parentId)
@@ -53,6 +56,7 @@ export function DesktopLayout({
         isSuperAdmin={isSuperAdmin}
         isAdmin={isAdmin}
         settingsDict={settingsDict}
+        sectionPermissions={sectionPermissions}
       />
       <HelpPanel />
     </div>

@@ -1,9 +1,11 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { auth } from '@/auth'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { InfiniteCanvas } from '@/components/ui/organisms/InfiniteCanvas'
 import { BreadcrumbSetter } from '@/components/ui/molecules/BreadcrumbSetter'
 import { nodeService } from '@/lib/services/nodes.service'
 import { connectionsService } from '@/lib/services/connections.service'
+import { rolesService } from '@/lib/services/roles.service'
 
 type Props = {
   params: Promise<{ nodeId: string[] }>
@@ -25,11 +27,19 @@ export default async function NestedBoardPage({ params }: Props) {
   const currentId = nodeId.at(-1)
   if (!currentId || !UUID_RE.test(currentId)) notFound()
 
-  const [nodes, breadcrumb, connections] = await Promise.all([
+  const session = await auth()
+  if (!session) redirect('/login')
+
+  const [permsResult, nodes, breadcrumb, connections] = await Promise.all([
+    session.user.isSuperAdmin
+      ? Promise.resolve(null)
+      : rolesService.resolvePermissions(session.user.id, currentId),
     nodeService.getBoard(currentId),
     nodeService.getBreadcrumb(currentId),
     connectionsService.getForBoard(currentId),
   ])
+
+  if (permsResult && !permsResult.canRead) notFound()
 
   // Node doesn't exist in DB
   if (breadcrumb.length === 0 && nodes.length === 0) notFound()

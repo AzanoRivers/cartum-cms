@@ -11,10 +11,11 @@ import { toast } from 'sonner'
 import type { Dictionary } from '@/locales/en'
 
 export type DbSectionProps = {
-  d: Dictionary['settings']['db']
+  d:            Dictionary['settings']['db']
+  isSuperAdmin: boolean
 }
 
-export function DbSection({ d }: DbSectionProps) {
+export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
   const router  = useRouter()
   const setGlobalLoading = useUIStore((s) => s.setGlobalLoading)
 
@@ -172,7 +173,8 @@ export function DbSection({ d }: DbSectionProps) {
       </div>
 
       {/* ── Block C: Danger zone ───────────────────────────────────────────── */}
-      <div className="rounded-lg border border-danger/20 bg-danger/5 p-5 space-y-4">
+      {isSuperAdmin && (
+        <div className="rounded-lg border border-danger/20 bg-danger/5 p-5 space-y-4">
         <div className="flex items-start gap-3">
           <Trash2 size={16} className="mt-0.5 text-danger shrink-0" strokeWidth={1.8} />
           <div className="flex-1 min-w-0">
@@ -194,6 +196,7 @@ export function DbSection({ d }: DbSectionProps) {
           {d.dangerButton}
         </button>
       </div>
+      )}
 
       {/* ── Danger reset dialog ────────────────────────────────────────────── */}
       {showResetDialog && (

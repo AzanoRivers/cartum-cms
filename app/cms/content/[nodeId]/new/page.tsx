@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import { redirect, notFound } from 'next/navigation'
 import { auth } from '@/auth'
 import { db } from '@/db'
 import { project } from '@/db/schema'
@@ -23,7 +23,7 @@ export default async function NewRecordPage({
 
   if (!session.user.isSuperAdmin) {
     const perms = await rolesService.resolvePermissions(session.user.id, nodeId)
-    if (!perms.canCreate) redirect(`/cms/content/${nodeId}`)
+    if (!perms.canCreate) notFound()
   }
 
   const [proj] = await db
