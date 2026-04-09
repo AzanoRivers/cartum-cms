@@ -1,4 +1,4 @@
-CREATE TABLE "email_otp_codes" (
+CREATE TABLE IF NOT EXISTS "email_otp_codes" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"code_hash" text NOT NULL,
