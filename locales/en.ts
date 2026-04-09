@@ -364,6 +364,7 @@ export const en = {
         uploading:       'Uploading',
         uploadSuccess:   'File uploaded.',
         uploadError:     'Upload failed.',
+        confirmDelete:   'Sure?',
         ofLabel:         'of',
         perPageLabel:    'Per page',
         // Optimus VPS warnings (upload succeeds but optimizer had issues)
@@ -852,6 +853,7 @@ export type Dictionary = {
         uploadBtn: string; emptyImages: string; emptyVideos: string; emptySearch: string
         dropHere: string; orClick: string; uploadStart: string
         optimizing: string; uploading: string; uploadSuccess: string; uploadError: string
+        confirmDelete: string
         ofLabel: string; perPageLabel: string
         vpsUnreachable: string; vpsAuth: string; vpsTimeout: string
         vpsValidation: string; vpsPartial: string

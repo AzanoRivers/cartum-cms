@@ -60,13 +60,15 @@ export async function POST(req: NextRequest) {
   }
 
   // Build Optimus multipart request
+  // NOTE: out/size params must be query params in the URL, NOT form-data fields
+  // (form-data text fields are ignored by Optimus — works in curl/fetch but not Postman)
+  const optimusUrl = `${vpsUrl}/api/v1/media/images/compress?out=webp`
   const optimusForm = new FormData()
   optimusForm.append('files', fileEntry, 'upload')
-  optimusForm.append('out', 'webp')
 
   let optimusRes: Response
   try {
-    optimusRes = await fetch(`${vpsUrl}/api/v1/media/images/compress`, {
+    optimusRes = await fetch(optimusUrl, {
       method:  'POST',
       headers: { 'X-API-Key': vpsKey },
       body:    optimusForm,

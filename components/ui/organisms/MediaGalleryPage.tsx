@@ -144,6 +144,7 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
           onSelect={(asset) => setPreviewAsset(asset)}
           onDelete={handleDelete}
           emptyLabel={emptyLabel}
+          confirmDeleteLabel={g.confirmDelete}
         />
 
         {/* Pagination — bottom */}

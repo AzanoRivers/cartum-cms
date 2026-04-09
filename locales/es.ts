@@ -366,6 +366,7 @@ export const es: Dictionary = {
         uploading:         'Subiendo',
         uploadSuccess:     'Archivo subido.',
         uploadError:       'Error al subir.',
+        confirmDelete:     '¿Seguro?',
         ofLabel:           'de',
         perPageLabel:      'Por página',
         // Advertencias del optimizador Optimus (la subida tiene éxito pero el optimizador falló)

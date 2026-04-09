@@ -4,12 +4,13 @@ import { MediaGalleryCard } from './MediaGalleryCard'
 import type { MediaRecord } from '@/types/media'
 
 export type MediaGalleryGridProps = {
-  assets:      MediaRecord[]
-  loading:     boolean
-  onSelect:    (asset: MediaRecord) => void
-  onDelete?:   (asset: MediaRecord) => void
-  emptyLabel:  string
-  loadingCount?: number
+  assets:               MediaRecord[]
+  loading:              boolean
+  onSelect:             (asset: MediaRecord) => void
+  onDelete?:            (asset: MediaRecord) => void
+  emptyLabel:           string
+  confirmDeleteLabel?:  string
+  loadingCount?:        number
 }
 
 function SkeletonCard() {
@@ -28,6 +29,7 @@ export function MediaGalleryGrid({
   onSelect,
   onDelete,
   emptyLabel,
+  confirmDeleteLabel,
   loadingCount = 20,
 }: MediaGalleryGridProps) {
   if (loading) {
@@ -56,6 +58,7 @@ export function MediaGalleryGrid({
           asset={asset}
           onClick={onSelect}
           onDelete={onDelete}
+          confirmDeleteLabel={confirmDeleteLabel}
         />
       ))}
     </div>

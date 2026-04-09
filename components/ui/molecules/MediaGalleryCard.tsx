@@ -5,9 +5,10 @@ import { Link2, Trash2, Check } from 'lucide-react'
 import type { MediaRecord } from '@/types/media'
 
 export type MediaGalleryCardProps = {
-  asset:     MediaRecord
-  onClick?:  (asset: MediaRecord) => void
-  onDelete?: (asset: MediaRecord) => void
+  asset:               MediaRecord
+  onClick?:            (asset: MediaRecord) => void
+  onDelete?:           (asset: MediaRecord) => void
+  confirmDeleteLabel?: string
 }
 
 function formatBytes(bytes: number | null): string {
@@ -21,7 +22,7 @@ function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('default', { month: 'short', day: 'numeric' }).format(new Date(date))
 }
 
-export function MediaGalleryCard({ asset, onClick, onDelete }: MediaGalleryCardProps) {
+export function MediaGalleryCard({ asset, onClick, onDelete, confirmDeleteLabel = 'Sure?' }: MediaGalleryCardProps) {
   const isVideo  = asset.mimeType.startsWith('video/')
   const name     = asset.key.split('/').pop() ?? asset.key
   const [copied,      setCopied]      = useState(false)
@@ -106,7 +107,7 @@ export function MediaGalleryCard({ asset, onClick, onDelete }: MediaGalleryCardP
             >
               <Trash2 size={11} className="sm:hidden" />
               <Trash2 size={16} className="hidden sm:block" />
-              {confirming && <span>sure?</span>}
+              {confirming && <span>{confirmDeleteLabel}</span>}
             </button>
           )}
         </div>
