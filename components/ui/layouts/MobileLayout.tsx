@@ -10,7 +10,6 @@ import { SettingsPanel } from '@/components/ui/organisms/SettingsPanel'
 import { BrandFooter } from '@/components/ui/atoms/BrandFooter'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'
-import { MobileNodeList } from '@/components/ui/molecules/MobileNodeList'
 import type { Dictionary } from '@/locales/en'
 import type { SectionKey } from '@/types/roles'
 
@@ -80,12 +79,9 @@ export function MobileLayout({
         </span>
       </header>
 
-      {/* Hidden: renders BreadcrumbSetter + seeds nodeBoard store via InfiniteCanvas */}
-      <div className="sr-only" aria-hidden="true">{children}</div>
-
-      {/* Scrollable node list — sorted by creation date */}
-      <main className="relative flex-1 overflow-y-auto px-3 pt-3 pb-safe">
-        <MobileNodeList />
+      {/* Canvas — fills remaining space between header and bottom nav */}
+      <main id="main-content" className="relative flex flex-1 overflow-hidden">
+        {children}
       </main>
 
       {/* Bottom tab bar */}

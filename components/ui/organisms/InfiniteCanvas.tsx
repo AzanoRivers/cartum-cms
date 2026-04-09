@@ -44,25 +44,30 @@ function getPortPos(node: AnyNode, side: PortSide) {
 }
 
 // ── Fit-to-view helper (mobile-aware) ────────────────────────────────────────
-function computeFitView(rect: DOMRect, nodes: AnyNode[]) {
-  const isMobile  = rect.width < 768
-  const PADDING   = isMobile ? 24  : 64
-  const MIN_SCALE = isMobile ? 0.4 : 0.25
-  const MAX_SCALE = isMobile ? 1.2 : 1.0
+// Uses clientWidth/clientHeight (layout dimensions) to avoid being affected by
+// parent CSS transforms (e.g. VHSTransition scale animation).
+function computeFitView(w: number, h: number, nodes: AnyNode[]) {
+  const isMobile  = w < 768
+  const PADDING   = isMobile ? 32  : 64
+  const MIN_SCALE = isMobile ? 0.3 : 0.25
+  const MAX_SCALE = isMobile ? 1.0 : 1.0
 
   const minX = Math.min(...nodes.map((n) => n.positionX))
   const minY = Math.min(...nodes.map((n) => n.positionY))
   const maxX = Math.max(...nodes.map((n) => n.positionX + CARD_W))
   const maxY = Math.max(...nodes.map((n) => n.positionY + CARD_H))
-  const scaleX   = (rect.width  - PADDING * 2) / (maxX - minX || 1)
-  const scaleY   = (rect.height - PADDING * 2) / (maxY - minY || 1)
-  const scale    = Math.min(Math.max(Math.min(scaleX, scaleY), MIN_SCALE), MAX_SCALE)
+  const scaleX = (w - PADDING * 2) / (maxX - minX || 1)
+  const scaleY = (h - PADDING * 2) / (maxY - minY || 1)
+  const scale  = Math.min(Math.max(Math.min(scaleX, scaleY), MIN_SCALE), MAX_SCALE)
   const contentW = (maxX - minX) * scale
   const contentH = (maxY - minY) * scale
+  // canvas div uses transform-origin:center (cx=w/2, cy=h/2).
+  // A node at (nx,ny) renders at: scale*(nx - cx) + tx + cx
+  // To center: solve for tx → tx = scale*(cx - minX) - contentW/2
   return {
     scale,
-    offsetX: (rect.width  - contentW) / 2 - minX * scale,
-    offsetY: (rect.height - contentH) / 2 - minY * scale,
+    offsetX: scale * (w / 2 - minX) - contentW / 2,
+    offsetY: scale * (h / 2 - minY) - contentH / 2,
   }
 }
 
@@ -135,25 +140,52 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     changeConnectionType,
   } = useConnections(connections)
 
-  // Seed store — then fit all nodes into view on next frame so the board always
-  // shows content centred, whether coming from a fresh load or navigating back.
+  // Seed store — then fit all nodes into view.
+  // Uses ResizeObserver as fallback for when flex-1 hasn't resolved height yet
+  // on the first RAF (common on narrow/mobile viewports).
   useEffect(() => {
     setNodes(initialNodes)
 
-    const frame = requestAnimationFrame(() => {
-      if (!initialNodes.length) {
-        setOffset(0, 0)
-        setScale(1)
-        return
-      }
-      const rect = outerRef.current?.getBoundingClientRect()
-      if (!rect) { setOffset(0, 0); setScale(1); return }
-      const { scale, offsetX, offsetY } = computeFitView(rect, initialNodes)
+    if (!initialNodes.length) {
+      setOffset(0, 0)
+      setScale(1)
+      return
+    }
+
+    let done = false
+
+    function doFit() {
+      if (done) return
+      const el = outerRef.current
+      if (!el) return
+      const w = el.clientWidth
+      const h = el.clientHeight
+      if (h < 50) return
+      done = true
+      observer?.disconnect()
+      const { scale, offsetX, offsetY } = computeFitView(w, h, initialNodes)
       setOffset(offsetX, offsetY)
       setScale(scale)
-    })
+    }
 
-    return () => cancelAnimationFrame(frame)
+    // Double RAF: first frame schedules layout, second frame reads settled dimensions
+    let frame2: number
+    const frame1 = requestAnimationFrame(() => { frame2 = requestAnimationFrame(doFit) })
+
+    // ResizeObserver fallback: fires once the container has a stable size
+    // (handles cases where flex layout takes more than 2 frames to settle)
+    let observer: ResizeObserver | null = null
+    if (outerRef.current) {
+      observer = new ResizeObserver(doFit)
+      observer.observe(outerRef.current)
+    }
+
+    return () => {
+      done = true
+      cancelAnimationFrame(frame1)
+      cancelAnimationFrame(frame2)
+      observer?.disconnect()
+    }
   }, [initialNodes, setNodes, setOffset, setScale])
 
   // Subscribe to offset/scale → direct DOM (zero React re-renders on pan)
@@ -345,8 +377,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   const handleFitAll = useCallback(() => {
     const { nodes: currentNodes } = useNodeBoardStore.getState()
     if (!currentNodes.length || !outerRef.current) return
-    const rect = outerRef.current.getBoundingClientRect()
-    const { scale, offsetX, offsetY } = computeFitView(rect, currentNodes)
+    const { scale, offsetX, offsetY } = computeFitView(outerRef.current.clientWidth, outerRef.current.clientHeight, currentNodes)
     setOffset(offsetX, offsetY)
     setScale(scale)
   }, [setOffset, setScale])

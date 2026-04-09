@@ -144,7 +144,7 @@ Field nodes:
   [ T  title ]  [ # order ]  [ ⇒ author ]
 ```
 
-On mobile: separate sections in the scrollable list.
+On mobile: same canvas view — field nodes appear below container nodes with the same separator.
 
 ---
 
@@ -200,7 +200,6 @@ No component in `/app/(cms)` or `/components/ui/` may contain hardcoded user-vis
 | `creation` | `NodeCreationPanel.tsx` — all titles, labels, errors |
 | `fieldTypePicker` | `FieldTypePicker.tsx`, `NodeCreationPanel.tsx` — type labels |
 | `fieldEdit` | `FieldEditPanel.tsx` — all panel text, errors, storage warnings |
-| `mobileList` | `MobileNodeList.tsx` — empty state, fields separator |
 
 ### Acceptance Criteria (i18n)
 
@@ -216,4 +215,3 @@ No component in `/app/(cms)` or `/components/ui/` may contain hardcoded user-vis
 - [x] `InfiniteCanvas.tsx` — no hardcoded strings
 - [x] `FieldTypePicker.tsx` — no hardcoded strings
 - [x] `FieldEditPanel.tsx` — no hardcoded strings
-- [x] `MobileNodeList.tsx` — no hardcoded strings

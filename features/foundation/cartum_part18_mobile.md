@@ -112,47 +112,12 @@ Active tab highlighted with `text-primary`. Inactive tabs use `text-muted`.
 
 ---
 
-## Mobile Node Board → Card List
+## Mobile Node Board → InfiniteCanvas
 
-The canvas board is replaced with a card list view on mobile. Users can view nodes but cannot visually arrange them (drag on canvas is desktop-only).
+The canvas board is the same on mobile and desktop. `InfiniteCanvas` renders on all devices.
+Touch interactions are built in: pan (single finger), pinch-to-zoom (two fingers), long-press for context menu.
 
-### Route behavior
-
-- `/cms/board` on mobile → renders `MobileNodeList` instead of `InfiniteCanvas`
-- Clicking a container node → navigates to `/cms/board/[nodeId]` (same URL, different renderer)
-
-```tsx
-// app/(cms)/board/[[...nodeId]]/page.tsx
-import { isMobileDevice } from '@/lib/utils/device'
-
-export default async function BoardPage({ params }) {
-  const mobile = await isMobileDevice()
-  const nodeId = params.nodeId?.[0] ?? null
-
-  if (mobile) {
-    return <MobileNodeList parentNodeId={nodeId} />
-  }
-  return <InfiniteCanvas parentNodeId={nodeId} />
-}
-```
-
-### `MobileNodeList` Component
-
-```tsx
-// components/ui/organisms/MobileNodeList.tsx
-// Renders a scrollable list of node cards
-// Each card shows: node name, type badge, field count
-// Container nodes: tap → navigate deeper
-// Field nodes: tap → opens bottom sheet editor
-```
-
-Structure per card:
-```
-┌────────────────────────────────────┐
-│ [icon]  Blog Posts        [»]      │
-│         Container · 4 fields       │
-└────────────────────────────────────┘
-```
+`MobileNodeList` was removed — the canvas is fully usable on touch devices.
 
 ---
 
@@ -297,9 +262,9 @@ This prevents iPad users from getting a canvas that's hard to use, and desktop u
 - [x] iPhone UA → `MobileLayout` renders (no flash of desktop layout)
 - [x] Desktop UA → `DesktopLayout` renders
 - [x] `BottomTabBar` shows 4 tabs with correct active highlight
-- [x] `/cms/board` on mobile shows `MobileNodeList` (card list, not canvas)
-- [x] Tapping a container node navigates to `/cms/board/[nodeId]`
-- [x] Mobile breadcrumb shows back arrow + current node name
+- [x] `/cms/board` on mobile shows `InfiniteCanvas` with touch interactions
+- [x] Pan (single finger), pinch-to-zoom (two fingers), long-press context menu
+- [x] fit-to-view centers nodes correctly on any viewport size
 - [x] Record list on mobile renders as stacked cards
 - [x] Record create/edit forms are full-width and usable on 375px screens
 - [x] Field edit opens as a bottom sheet on mobile
