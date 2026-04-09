@@ -1,7 +1,7 @@
 # Part 09 — Node Board: Canvas & Node Cards
 
 ## Goal
-Build the infinite canvas board where nodes are rendered as draggable cards, including the BreadcrumbBar, DockBar, the NodeCreationPanel, and the two layout variants (desktop canvas / mobile card list).
+Build the infinite canvas board where nodes are rendered as draggable cards, including the BreadcrumbBar, DockBar, and the NodeCreationPanel. Both mobile and desktop use the same InfiniteCanvas.
 
 ## Prerequisites
 - Part 06 (node backend: getBoard, createContainer, createField, getBreadcrumb)
@@ -317,7 +317,7 @@ export const useUIStore = create<UIState>()((set) => ({
 - [x] BreadcrumbBar shows correct path and segment links are functional
 - [x] Clicking Home in BreadcrumbBar or DockBar returns to root board
 - [x] Canvas pans on mouse drag and zooms on scroll
-- [x] Desktop renders InfiniteCanvas; mobile renders card list for the same route
+- [x] Desktop and mobile both render InfiniteCanvas with touch/mouse support
 - [x] NodeCreationPanel at root level shows only Container option
 - [x] NodeCreationPanel inside a container shows Container + all Field type options
 - [x] TopBar shows project name and avatar on all board routes

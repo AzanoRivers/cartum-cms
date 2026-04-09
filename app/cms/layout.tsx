@@ -50,7 +50,6 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
         <MobileLayout
           projectName={projectName}
           userInitials={userInitials}
-          isStorageConfigured={isStorageConfigured}
           userEmail={userEmail}
           userId={userId}
           isSuperAdmin={isSuperAdmin}

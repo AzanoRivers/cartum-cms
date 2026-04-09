@@ -520,4 +520,4 @@ A `CircleHelp` icon button added at the end of the dock:
 - **`helpOpen` / `openHelp` / `closeHelp`** in `uiStore`
 - **`G + ?`** shortcut added to `useKeyboardShortcuts`
 - **`dock.help` + `help.*` keys** added to `en.ts`, `es.ts`, and `Dictionary` type
-- **`CircleHelp` button** in `DockBar` (desktop only — `BottomTabBar` on mobile has no equivalent, intentionally)
+- **`CircleHelp` button** in `DockBar` (visible on all devices — same DockBar used in mobile and desktop)

@@ -26,7 +26,6 @@ export type SettingsPanelProps = {
   isAdmin:            boolean
   settingsDict:       Dictionary['settings']
   sectionPermissions: Partial<Record<SectionKey, boolean>>
-  /** When true, skips the fixed backdrop (for use inside BottomSheet on mobile) */
   asSheet?: boolean
 }
 

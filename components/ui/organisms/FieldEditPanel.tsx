@@ -23,7 +23,6 @@ import type {
 
 export type FieldEditPanelProps = {
   isStorageConfigured: boolean
-  /** When true, skips the absolute overlay wrapper (for use inside BottomSheet on mobile) */
   asSheet?: boolean
 }
 
