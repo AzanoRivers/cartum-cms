@@ -33,7 +33,7 @@ export function TopBar({ projectName, userInitials }: TopBarProps) {
   }
 
   return (
-    <header className="relative z-20 flex h-10 items-center justify-between border-b border-border bg-surface px-4 shrink-0">
+    <header className="relative z-40 flex h-10 items-center justify-between border-b border-border bg-surface px-4 shrink-0">
       {/* Left: logo + project name */}
       <div className="flex items-center gap-2 min-w-0">
         <Image
