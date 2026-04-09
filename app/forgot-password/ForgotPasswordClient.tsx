@@ -7,6 +7,7 @@ import { requestPasswordResetAction } from '@/lib/actions/auth.actions'
 import { generateCaptchaAction } from '@/lib/actions/captcha.actions'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { CaptchaChallenge } from '@/components/ui/molecules/CaptchaChallenge'
+import type { CaptchaChallenge as CaptchaData } from '@/lib/services/captcha.service'
 import { toast } from 'sonner'
 import type { Dictionary } from '@/locales/en'
 
@@ -15,12 +16,10 @@ type Props = {
   hasResend: boolean
 }
 
-type ServerCaptcha = { a: number; b: number; token: string }
-
 export function ForgotPasswordClient({ dict, hasResend }: Props) {
   const [email,        setEmail]        = useState('')
   const [submitted,    setSubmitted]    = useState(false)
-  const [captcha,      setCaptcha]      = useState<ServerCaptcha | null>(null)
+  const [captcha,      setCaptcha]      = useState<CaptchaData | null>(null)
   const [captchaInput, setCaptchaInput] = useState('')
   const [captchaError, setCaptchaError] = useState(false)
   const [isPending,    startTransition] = useTransition()
@@ -40,15 +39,9 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
     e.preventDefault()
     setCaptchaError(false)
 
-    const emailTrimmed = email.trim()
-    if (!emailTrimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
-      toast.error(dict.emailRequired)
-      return
-    }
-
     startTransition(async () => {
       const res = await requestPasswordResetAction({
-        email: emailTrimmed,
+        email,
         captchaToken:  captcha?.token ?? '',
         captchaAnswer: Number(captchaInput),
       })
@@ -56,7 +49,7 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
       if (!res.success) {
         if (res.error === 'captcha_error') {
           setCaptchaError(true)
-          await refreshCaptcha()
+          void refreshCaptcha()
           return
         }
         if (res.error === 'rate_limited') {
@@ -74,7 +67,6 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
       <VHSTransition duration="full">
         <div className="w-full max-w-sm">
 
-          {/* Logo — mismo estilo que SetupLayout */}
           <div className="flex items-center justify-center gap-3 mb-8">
             <div className="relative h-8 w-8 shrink-0">
               <div className="absolute inset-1 rounded-full bg-primary/40 blur-md" />
@@ -124,7 +116,6 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
 
-                  {/* Email */}
                   <div className="space-y-1.5">
                     <label htmlFor="fp-email" className="block text-xs font-mono text-muted uppercase tracking-wider">
                       {dict.email}
@@ -139,7 +130,6 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
                     />
                   </div>
 
-                  {/* CAPTCHA */}
                   <div className="pt-1">
                     <CaptchaChallenge
                       a={captcha?.a ?? 0}
