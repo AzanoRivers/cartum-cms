@@ -50,6 +50,10 @@ export type NodeCardProps = {
   onSelect?: (id: string) => void
   onPortDragStart?: (nodeId: string, side: PortSide) => void
   onEditField?: (nodeId: string) => void
+  /** Mobile: when true, the connection ports are always visible (after single-tap select). */
+  showPorts?: boolean
+  /** Mobile: when true, click events must NOT trigger navigation (handled by gesture hook). */
+  mobileMode?: boolean
 }
 
 function NodeCardInner({
@@ -62,6 +66,8 @@ function NodeCardInner({
   onSelect,
   onPortDragStart,
   onEditField,
+  showPorts = false,
+  mobileMode = false,
 }: NodeCardProps) {
   const router = useRouter()
   const d = useUIStore((s) => s.cmsDict)
@@ -69,6 +75,9 @@ function NodeCardInner({
 
   function handleClick(e: React.MouseEvent) {
     if ((e.target as HTMLElement).closest('[data-port]')) return
+    // In mobile mode all tap → navigate logic is handled by the gesture hook;
+    // clicks are suppressed by InfiniteCanvas's onClickCapture. Nothing to do here.
+    if (mobileMode) { onSelect?.(node.id); return }
     onSelect?.(node.id)
     if (node.type === 'container') {
       setIsNavigating(true)
@@ -96,13 +105,14 @@ function NodeCardInner({
         className={`${baseClasses} ${stateClasses} min-w-52`}
         aria-selected={selected}
       >
-        {/* Connector ports — visible on group-hover */}
+        {/* Connector ports — visible on group-hover or when showPorts is true */}
         {onPortDragStart && PORT_SIDES.map((side) => (
           <ConnectorPort
             key={side}
             nodeId={node.id}
             side={side}
             onDragStart={onPortDragStart}
+            alwaysVisible={showPorts}
           />
         ))}
 
@@ -162,7 +172,9 @@ function areNodeCardPropsEqual(prev: NodeCardProps, next: NodeCardProps): boolea
     prev.isValidTarget    === next.isValidTarget    &&
     prev.connectionCount  === next.connectionCount  &&
     prev.fieldCount       === next.fieldCount       &&
-    prev.recordCount      === next.recordCount
+    prev.recordCount      === next.recordCount      &&
+    prev.showPorts        === next.showPorts        &&
+    prev.mobileMode       === next.mobileMode
   )
 }
 

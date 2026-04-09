@@ -132,17 +132,27 @@ export const en = {
       help:          'Help & Shortcuts',
     },
     help: {
-      title:           'Help',
-      shortcutsTitle:  'Keyboard Shortcuts',
-      close:           'Close',
-      categoryNav:     'Navigation',
-      categoryPanels:  'Panels',
+      title:              'Help',
+      shortcutsTitle:     'Keyboard Shortcuts',
+      gesturesTitle:      'Touch Gestures',
+      close:              'Close',
+      categoryNav:        'Navigation',
+      categoryPanels:     'Panels',
+      categoryGestures:   'Board',
       shortcuts: {
         goHome:       { keys: 'G → H', description: 'Go to Board' },
         goContent:    { keys: 'G → C', description: 'Go to Content' },
         newNode:      { keys: 'G → N', description: 'Create new node' },
         openSettings: { keys: 'G → ,', description: 'Open Settings' },
         closeOverlay: { keys: 'Esc',   description: 'Close any open panel' },
+      },
+      gestures: {
+        singleTap:   { icon: '1×', description: 'Tap once: select the node and reveal its connection ports' },
+        doubleTap:   { icon: '2×', description: 'Tap twice: enter the node (open container or edit field)' },
+        longPress:   { icon: '⏱',  description: 'Hold and move: drag the node to reposition it' },
+        portDrag:    { icon: '⊙',  description: 'Tap a port dot, then drag to draw a connection' },
+        pinch:       { icon: '⟺',  description: 'Two-finger pinch: zoom in or out' },
+        panCanvas:   { icon: '↕',  description: 'Drag on empty space: pan the canvas' },
       },
     },
     canvas: {
@@ -717,14 +727,22 @@ export type Dictionary = {
     topBar: { account: string; logOut: string; userMenuAriaLabel: string }
     dock:   { settings: string; home: string; content: string; create: string; backToBuilder: string; help: string }
     help: {
-      title: string; shortcutsTitle: string; close: string
-      categoryNav: string; categoryPanels: string
+      title: string; shortcutsTitle: string; gesturesTitle: string; close: string
+      categoryNav: string; categoryPanels: string; categoryGestures: string
       shortcuts: {
         goHome:       { keys: string; description: string }
         goContent:    { keys: string; description: string }
         newNode:      { keys: string; description: string }
         openSettings: { keys: string; description: string }
         closeOverlay: { keys: string; description: string }
+      }
+      gestures: {
+        singleTap:  { icon: string; description: string }
+        doubleTap:  { icon: string; description: string }
+        longPress:  { icon: string; description: string }
+        portDrag:   { icon: string; description: string }
+        pinch:      { icon: string; description: string }
+        panCanvas:  { icon: string; description: string }
       }
     }
     canvas: { ariaLabel: string; empty: string; emptyHint: string }

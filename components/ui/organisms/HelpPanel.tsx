@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
@@ -16,10 +16,31 @@ type ShortcutGroup = {
   rows: ShortcutRow[]
 }
 
+type GestureRow = {
+  icon: string
+  description: string
+}
+
+// ── Mobile detection (same breakpoint as NodePanel) ───────────────────────────
+function useIsMobile(): boolean {
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    setMobile(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return mobile
+}
+
 export function HelpPanel() {
   const open      = useUIStore((s) => s.helpOpen)
   const closeHelp = useUIStore((s) => s.closeHelp)
   const d         = useUIStore((s) => s.cmsDict)
+  const isMobile  = useIsMobile()
 
   const panelRef = useRef<HTMLDivElement>(null)
   useFocusTrap(panelRef, open)
@@ -28,7 +49,7 @@ export function HelpPanel() {
 
   const h = d.help
 
-  const groups: ShortcutGroup[] = [
+  const shortcutGroups: ShortcutGroup[] = [
     {
       category: h.categoryNav,
       rows: [
@@ -44,6 +65,15 @@ export function HelpPanel() {
         h.shortcuts.closeOverlay,
       ],
     },
+  ]
+
+  const gestureRows: GestureRow[] = [
+    h.gestures.singleTap,
+    h.gestures.doubleTap,
+    h.gestures.longPress,
+    h.gestures.portDrag,
+    h.gestures.pinch,
+    h.gestures.panCanvas,
   ]
 
   return (
@@ -65,54 +95,88 @@ export function HelpPanel() {
             className="pointer-events-auto relative w-full overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-        <VHSTransition duration="fast" trigger={open} className="contents">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface-2">
-                <Icon name="CircleHelp" size="sm" className="text-primary" />
-              </div>
-              <span className="font-mono text-sm font-medium text-text">{h.title}</span>
-            </div>
-            <button
-              onClick={closeHelp}
-              aria-label={h.close}
-              className="flex h-6 w-6 items-center justify-center rounded-md border border-border font-mono text-xs text-muted transition-colors hover:border-border/80 hover:text-text cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Body — keyboard shortcuts */}
-          <div className="p-5 space-y-5">
-            <p className="font-mono text-xs uppercase tracking-widest text-muted">
-              {h.shortcutsTitle}
-            </p>
-
-            {groups.map((group) => (
-              <div key={group.category} className="space-y-2">
-                <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
-                  {group.category}
-                </p>
-                <div className="overflow-hidden rounded-lg border border-border">
-                  {group.rows.map((row, i) => (
-                    <div
-                      key={row.keys}
-                      className={[
-                        'flex items-center justify-between px-4 py-2.5 gap-4',
-                        i < group.rows.length - 1 ? 'border-b border-border' : '',
-                        'bg-surface-2/40 hover:bg-surface-2 transition-colors',
-                      ].join(' ')}
-                    >
-                      <span className="text-xs text-muted">{row.description}</span>
-                      <KbdSequence keys={row.keys} />
-                    </div>
-                  ))}
+            <VHSTransition duration="fast" trigger={open} className="contents">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface-2">
+                    <Icon name="CircleHelp" size="sm" className="text-primary" />
+                  </div>
+                  <span className="font-mono text-sm font-medium text-text">{h.title}</span>
                 </div>
+                <button
+                  onClick={closeHelp}
+                  aria-label={h.close}
+                  className="flex h-6 w-6 items-center justify-center rounded-md border border-border font-mono text-xs text-muted transition-colors hover:border-border/80 hover:text-text cursor-pointer"
+                >
+                  ✕
+                </button>
               </div>
-            ))}
-          </div>
-        </VHSTransition>
+
+              {/* Body */}
+              <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
+                {/* ── Mobile: gesture guide ─────────────────────────────── */}
+                {isMobile && (
+                  <div className="space-y-2">
+                    <p className="font-mono text-xs uppercase tracking-widest text-muted">
+                      {h.gesturesTitle}
+                    </p>
+                    <div className="overflow-hidden rounded-lg border border-border">
+                      {gestureRows.map((row, i) => (
+                        <div
+                          key={row.description}
+                          className={[
+                            'flex items-center gap-3 px-4 py-2.5',
+                            i < gestureRows.length - 1 ? 'border-b border-border' : '',
+                            'bg-surface-2/40 hover:bg-surface-2 transition-colors',
+                          ].join(' ')}
+                        >
+                          <span
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface font-mono text-base"
+                            aria-hidden="true"
+                          >
+                            {row.icon}
+                          </span>
+                          <span className="text-xs text-muted">{row.description}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Desktop: keyboard shortcuts (hidden on mobile) ────── */}
+                {!isMobile && (
+                  <>
+                    <p className="font-mono text-xs uppercase tracking-widest text-muted">
+                      {h.shortcutsTitle}
+                    </p>
+
+                    {shortcutGroups.map((group) => (
+                      <div key={group.category} className="space-y-2">
+                        <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
+                          {group.category}
+                        </p>
+                        <div className="overflow-hidden rounded-lg border border-border">
+                          {group.rows.map((row, i) => (
+                            <div
+                              key={row.keys}
+                              className={[
+                                'flex items-center justify-between px-4 py-2.5 gap-4',
+                                i < group.rows.length - 1 ? 'border-b border-border' : '',
+                                'bg-surface-2/40 hover:bg-surface-2 transition-colors',
+                              ].join(' ')}
+                            >
+                              <span className="text-xs text-muted">{row.description}</span>
+                              <KbdSequence keys={row.keys} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </VHSTransition>
           </div>
         </VHSTransition>
       </div>
@@ -122,7 +186,6 @@ export function HelpPanel() {
 
 /** Renders a sequence like "G → H" as a series of <kbd> chips */
 function KbdSequence({ keys }: { keys: string }) {
-  // Split on " → " to render each key separately
   const parts = keys.split(' → ')
   return (
     <span className="flex items-center gap-1 shrink-0">

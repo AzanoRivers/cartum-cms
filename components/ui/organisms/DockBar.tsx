@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { DockIcon } from '@/components/ui/molecules/DockIcon'
 import { useUIStore } from '@/lib/stores/uiStore'
@@ -13,6 +14,8 @@ export function DockBar() {
   const setGlobalLoading   = useUIStore((s) => s.setGlobalLoading)
   const d                  = useUIStore((s) => s.cmsDict)
   const canAccessBuilder   = useUIStore((s) => s.canAccessBuilder)
+
+  const createBtnRef = useRef<HTMLSpanElement>(null)
 
   function goHome() {
     if (pathname === '/cms/board') return
@@ -33,11 +36,13 @@ export function DockBar() {
         />
       )}
       {canAccessBuilder && (
-        <DockIcon
-          icon="Plus"
-          tooltip={d?.dock.create ?? 'Create node'}
-          onClick={() => openCreationPanel()}
-        />
+        <span ref={createBtnRef}>
+          <DockIcon
+            icon="Plus"
+            tooltip={d?.dock.create ?? 'Create node'}
+            onClick={() => openCreationPanel(createBtnRef.current ?? undefined)}
+          />
+        </span>
       )}
       <DockIcon
         icon="CircleHelp"

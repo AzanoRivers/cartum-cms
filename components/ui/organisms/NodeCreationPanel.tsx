@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { NodePanel } from '@/components/ui/organisms/NodePanel'
 import { Button } from '@/components/ui/atoms/Button'
 import { Input } from '@/components/ui/atoms/Input'
@@ -58,8 +58,14 @@ function calcNextPosition(parentId: string | null): { positionX: number; positio
 
 export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
   const closeCreationPanel = useUIStore((s) => s.closeCreationPanel)
+  const anchorEl           = useUIStore((s) => s.creationPanelAnchorEl)
   const addNode = useNodeBoardStore((s) => s.addNode)
   const d = useUIStore((s) => s.cmsDict)
+
+  // Wrap the stored anchor element in a stable ref so NodePanel (desktop) can
+  // position the panel anchored to the DockBar "+ Create" button.
+  const anchorRef = useRef<HTMLElement | null>(null)
+  anchorRef.current = anchorEl
 
   const [step, setStep] = useState<Step>('type-select')
   const [selectedKind, setSelectedKind] = useState<NodeKind | null>(null)
@@ -150,6 +156,7 @@ export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
     <NodePanel
       open
       onClose={handleClose}
+      anchorRef={anchorRef}
       title={stepTitle}
       width={320}
     >

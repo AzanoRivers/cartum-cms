@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { throttle } from '@/lib/utils/throttle'
 import { NodeCard } from '@/components/ui/molecules/NodeCard'
 import { ConnectionLayer } from '@/components/ui/organisms/ConnectionLayer'
@@ -13,6 +14,7 @@ import type { CanvasContextMenuState, CanvasContextMenuDict } from '@/components
 import { useNodeBoardStore } from '@/lib/stores/nodeBoardStore'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useConnections } from '@/lib/hooks/useConnections'
+import { useMobileNodeGestures } from '@/lib/hooks/useMobileNodeGestures'
 import { updateNodePosition, deleteNode, createContainerNode, createFieldNode, renameNode } from '@/lib/actions/nodes.actions'
 import { RenameNodeDialog } from '@/components/ui/molecules/RenameNodeDialog'
 import type { RenameNodeDialogDict } from '@/components/ui/molecules/RenameNodeDialog'
@@ -80,6 +82,7 @@ export type InfiniteCanvasProps = {
 }
 
 export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfigured = false }: InfiniteCanvasProps) {
+  const router    = useRouter()
   const outerRef  = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const connectionLayerRef = useRef<ConnectionLayerHandle>(null)
@@ -118,13 +121,6 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   const [deleteIsPending,  setDeleteIsPending]  = useState(false)
   const [isCheckingDelete, setIsCheckingDelete] = useState(false)
 
-  // Long-press timer for mobile context menu
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Touch pan state
-  const touchPanRef = useRef<{ x: number; y: number; moved: boolean } | null>(null)
-  // Pinch-to-zoom state
-  const pinchRef = useRef<{ dist: number } | null>(null)
-
   const editingFieldId = useUIStore((s) => s.editingFieldId)
   const openFieldEdit  = useUIStore((s) => s.openFieldEdit)
   const d              = useUIStore((s) => s.cmsDict)
@@ -139,6 +135,63 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     removeConnection,
     changeConnectionType,
   } = useConnections(connections)
+
+  // ── Mobile gesture hook ────────────────────────────────────────────────────
+  const {
+    onTouchStart:          mobileOnTouchStart,
+    onTouchMove:           mobileOnTouchMove,
+    onTouchEnd:            mobileOnTouchEnd,
+    mobileHoveredNodeId,
+    shouldPreventScrollRef,
+  } = useMobileNodeGestures({
+    outerRef,
+
+    onNodeDragEnd: (nodeId, finalX, finalY) => {
+      updateNodePosition({ id: nodeId, x: finalX, y: finalY })
+    },
+
+    onNodeTap: (nodeId) => {
+      selectNode(nodeId)
+    },
+
+    onNodeDoubleTap: (nodeId) => {
+      const node = useNodeBoardStore.getState().nodes.find((n) => n.id === nodeId)
+      if (!node) return
+      if (node.type === 'container') {
+        router.push(`/cms/board/${node.id}`)
+      } else {
+        openFieldEdit(nodeId)
+      }
+    },
+
+    onPortDragStart: (nodeId, side) => {
+      handlePortDragStart(nodeId, side)
+    },
+
+    onPortDragMove: (clientX, clientY) => {
+      const canvasPos = clientToCanvas(clientX, clientY)
+      connectionLayerRef.current?.moveDragLine(canvasPos)
+    },
+
+    onPortDragEnd: (clientX, clientY) => {
+      connectionLayerRef.current?.hideDragLine()
+      dragOriginRef.current = null
+      const el = document.elementFromPoint(clientX, clientY)?.closest('[data-nodeid]') as HTMLElement | null
+      if (el?.dataset.nodetype === 'container') {
+        completeDrag(el.dataset.nodeid!)
+      } else {
+        cancelDrag()
+      }
+    },
+
+    onCanvasLongPress: (x, y) => {
+      setCanvasMenu({ x, y })
+    },
+
+    suppressClick: (nodeId) => {
+      suppressClickRef.current = nodeId
+    },
+  })
 
   // Seed store — then fit all nodes into view.
   // Uses ResizeObserver as fallback for when flex-1 hasn't resolved height yet
@@ -361,9 +414,10 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       const { scale } = useNodeBoardStore.getState()
       setScale(scale + delta)
     }
-    // touchmove must be non-passive too so e.preventDefault() can suppress scroll
+    // touchmove must be non-passive so e.preventDefault() can suppress native scroll
+    // during canvas pan, node drag, pinch-to-zoom, and port connection drag.
     const touchMoveHandler = (e: TouchEvent) => {
-      if (e.touches.length === 2 || touchPanRef.current?.moved) e.preventDefault()
+      if (shouldPreventScrollRef.current || e.touches.length === 2) e.preventDefault()
     }
     el.addEventListener('wheel', wheelHandler, { passive: false })
     el.addEventListener('touchmove', touchMoveHandler, { passive: false })
@@ -371,7 +425,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       el.removeEventListener('wheel', wheelHandler)
       el.removeEventListener('touchmove', touchMoveHandler)
     }
-  }, [setScale])
+  }, [setScale, shouldPreventScrollRef])
 
   // ── Context menu (right-click) ───────────────────────────────────────────────
   const handleFitAll = useCallback(() => {
@@ -394,93 +448,9 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     setContextMenu({ x: e.clientX, y: e.clientY, nodeId, nodeType })
   }, [])
 
-  // ── Touch handlers (pan + long-press context menu) ───────────────────────────
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    // Two fingers → pinch-to-zoom, cancel any pan
-    if (e.touches.length === 2) {
-      touchPanRef.current = null
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current)
-        longPressTimerRef.current = null
-      }
-      const t1 = e.touches[0]
-      const t2 = e.touches[1]
-      pinchRef.current = { dist: Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY) }
-      return
-    }
-
-    if (e.touches.length !== 1) return
-    pinchRef.current = null
-    const touch = e.touches[0]
-    touchPanRef.current = { x: touch.clientX, y: touch.clientY, moved: false }
-
-    // Start long-press timer for context menu
-    const nodeEl = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
-    if (nodeEl) {
-      const nodeId   = nodeEl.dataset.nodeid!
-      const nodeType = (nodeEl.dataset.nodetype ?? 'container') as 'container' | 'field'
-      longPressTimerRef.current = setTimeout(() => {
-        if (touchPanRef.current && !touchPanRef.current.moved) {
-          setContextMenu({ x: touch.clientX, y: touch.clientY, nodeId, nodeType })
-        }
-        longPressTimerRef.current = null
-      }, 500)
-    }
-  }, [])
-
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    // Pinch-to-zoom (two fingers)
-    if (e.touches.length === 2 && pinchRef.current) {
-      const t1 = e.touches[0]
-      const t2 = e.touches[1]
-      const newDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
-      const { scale: currentScale, offsetX: currentOffX, offsetY: currentOffY } = useNodeBoardStore.getState()
-      const newScale = Math.min(Math.max(currentScale * (newDist / pinchRef.current.dist), 0.3), 2.0)
-
-      // Zoom toward midpoint of the two fingers
-      const rect  = outerRef.current?.getBoundingClientRect()
-      if (rect) {
-        const mx = (t1.clientX + t2.clientX) / 2 - rect.left
-        const my = (t1.clientY + t2.clientY) / 2 - rect.top
-        const canvasMidX = (mx - currentOffX) / currentScale
-        const canvasMidY = (my - currentOffY) / currentScale
-        setOffset(mx - canvasMidX * newScale, my - canvasMidY * newScale)
-      }
-      setScale(newScale)
-      pinchRef.current = { dist: newDist }
-      return
-    }
-
-    if (e.touches.length !== 1 || !touchPanRef.current) return
-    const touch = e.touches[0]
-    const dx = touch.clientX - touchPanRef.current.x
-    const dy = touch.clientY - touchPanRef.current.y
-
-    if (!touchPanRef.current.moved && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
-      touchPanRef.current.moved = true
-      // Cancel long-press if user moved
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current)
-        longPressTimerRef.current = null
-      }
-    }
-
-    if (touchPanRef.current.moved) {
-      const { offsetX, offsetY } = useNodeBoardStore.getState()
-      setOffset(offsetX + dx, offsetY + dy)
-      touchPanRef.current.x = touch.clientX
-      touchPanRef.current.y = touch.clientY
-    }
-  }, [setOffset, setScale])
-
-  const onTouchEnd = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current)
-      longPressTimerRef.current = null
-    }
-    touchPanRef.current = null
-    pinchRef.current = null
-  }, [])
+  // ── Touch handlers — delegated to useMobileNodeGestures hook ────────────────
+  // The hook manages the full gesture state machine: single/double-tap, long-press
+  // node drag, port connection drag, canvas pan, pinch-to-zoom, and canvas long-press.
 
   // ── Context menu actions ─────────────────────────────────────────────────────
   const toast = useToast()
@@ -593,9 +563,9 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
       onContextMenu={onContextMenu}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
+      onTouchStart={mobileOnTouchStart}
+      onTouchMove={mobileOnTouchMove}
+      onTouchEnd={mobileOnTouchEnd}
       onClickCapture={onClickCapture}
     >
       {/* Dot-grid background */}
@@ -630,6 +600,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
               onSelect={selectNode}
               onPortDragStart={node.type === 'container' ? handlePortDragStart : undefined}
               onEditField={node.type === 'field' ? openFieldEdit : undefined}
+              showPorts={mobileHoveredNodeId === node.id}
             />
           </div>
         ))}

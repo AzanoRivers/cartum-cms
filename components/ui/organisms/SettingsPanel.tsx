@@ -146,7 +146,7 @@ export function SettingsPanel({
         aria-hidden="true"
         onClick={closeSettings}
       />
-      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none pb-14 sm:pb-0">
         <VHSTransition duration="fast" trigger={open} className="w-full max-w-3xl h-[82vh]">
           <DialogContent
             panelRef={panelRef}

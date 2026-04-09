@@ -9,6 +9,9 @@ interface UIState {
   settingsSection: SettingsSection
   helpOpen: boolean
   creationPanelOpen: boolean
+  /** Anchor element for the creation panel (set by DockBar "+ Create" button).
+   *  Used by NodePanel on desktop to position the anchored popover near the trigger. */
+  creationPanelAnchorEl: HTMLElement | null
   editingFieldId: string | null
   breadcrumb: BreadcrumbItem[]
   parentId: string | null
@@ -20,7 +23,7 @@ interface UIState {
   closeSettings: () => void
   openHelp: () => void
   closeHelp: () => void
-  openCreationPanel: () => void
+  openCreationPanel: (anchor?: HTMLElement | null) => void
   closeCreationPanel: () => void
   openFieldEdit: (id: string) => void
   closeFieldEdit: () => void
@@ -35,6 +38,7 @@ export const useUIStore = create<UIState>()((set) => ({
   settingsSection: 'project',
   helpOpen: false,
   creationPanelOpen: false,
+  creationPanelAnchorEl: null,
   editingFieldId: null,
   breadcrumb: [],
   parentId: null,
@@ -46,8 +50,8 @@ export const useUIStore = create<UIState>()((set) => ({
   closeSettings: () => set({ settingsOpen: false }),
   openHelp: () => set({ helpOpen: true }),
   closeHelp: () => set({ helpOpen: false }),
-  openCreationPanel: () => set({ creationPanelOpen: true }),
-  closeCreationPanel: () => set({ creationPanelOpen: false }),
+  openCreationPanel: (anchor) => set({ creationPanelOpen: true, creationPanelAnchorEl: anchor ?? null }),
+  closeCreationPanel: () => set({ creationPanelOpen: false, creationPanelAnchorEl: null }),
   openFieldEdit: (id) => set({ editingFieldId: id }),
   closeFieldEdit: () => set({ editingFieldId: null }),
   setBreadcrumb: (items, parentId) => set({ breadcrumb: items, parentId }),
