@@ -266,13 +266,18 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   }, [setCanvasDimensions])
 
   // ── Canvas-space coordinate conversion ──────────────────────────────────────
+  // The canvas div uses `transform-origin: center` (origin-center class) so the
+  // mapping is: screen = scale*(canvas - cx) + cx + offset  where cx = rect.width/2.
+  // Solving for canvas: canvas = (screen - cx - offset) / scale + cx
   function clientToCanvas(clientX: number, clientY: number) {
     const rect = outerRef.current?.getBoundingClientRect()
     if (!rect) return { x: 0, y: 0 }
     const { offsetX, offsetY, scale } = useNodeBoardStore.getState()
+    const cx = rect.width  / 2
+    const cy = rect.height / 2
     return {
-      x: (clientX - rect.left - offsetX) / scale,
-      y: (clientY - rect.top  - offsetY) / scale,
+      x: (clientX - rect.left - cx - offsetX) / scale + cx,
+      y: (clientY - rect.top  - cy - offsetY) / scale + cy,
     }
   }
 

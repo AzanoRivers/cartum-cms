@@ -42,9 +42,12 @@ function calcNextPosition(parentId: string | null): { positionX: number; positio
   const siblings = nodes.filter((n) => n.parentId === parentId)
   const idx = siblings.length
 
-  // Convert the canvas container's center to canvas-space coordinates.
-  const centerX = (canvasWidth  / 2 - offsetX) / scale
-  const centerY = (canvasHeight / 2 - offsetY) / scale
+  // With transform-origin:center, the canvas-space point at the viewport center is:
+  //   center = canvasDim/2 - offset/scale
+  // (derived from: screen = scale*(canvas - cx) + cx + offset  →  canvas = (screen-cx-offset)/scale + cx
+  //  at screen = cx  →  canvas = -offset/scale + cx)
+  const centerX = canvasWidth  / 2 - offsetX / scale
+  const centerY = canvasHeight / 2 - offsetY / scale
 
   const col = idx % GRID_COLS
   const row = Math.floor(idx / GRID_COLS)

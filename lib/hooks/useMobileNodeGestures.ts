@@ -122,9 +122,11 @@ export function useMobileNodeGestures(cb: MobileGestureCallbacks) {
     const rect = cb.outerRef.current?.getBoundingClientRect()
     if (!rect) return { x: 0, y: 0 }
     const { offsetX, offsetY, scale } = useNodeBoardStore.getState()
+    const cx = rect.width  / 2
+    const cy = rect.height / 2
     return {
-      x: (clientX - rect.left - offsetX) / scale,
-      y: (clientY - rect.top  - offsetY) / scale,
+      x: (clientX - rect.left - cx - offsetX) / scale + cx,
+      y: (clientY - rect.top  - cy - offsetY) / scale + cy,
     }
   }, [cb.outerRef])
 

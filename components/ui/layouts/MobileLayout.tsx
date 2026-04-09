@@ -6,6 +6,7 @@ import { NodeCreationPanel } from '@/components/ui/organisms/NodeCreationPanel'
 import { SettingsPanel } from '@/components/ui/organisms/SettingsPanel'
 import { HelpPanel } from '@/components/ui/organisms/HelpPanel'
 import { BrandFooter } from '@/components/ui/atoms/BrandFooter'
+import { MobileBreadcrumbBar } from '@/components/ui/molecules/MobileBreadcrumbBar'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'
 import type { Dictionary } from '@/locales/en'
@@ -47,6 +48,7 @@ export function MobileLayout({
     <div className="flex h-dvh flex-col overflow-hidden bg-bg">
       <TopBar projectName={projectName} userInitials={userInitials} />
       <main id="main-content" className="relative flex flex-1 overflow-hidden">
+        <MobileBreadcrumbBar />
         {children}
         <DockBar />
         {creationPanelOpen && (

@@ -48,9 +48,9 @@ export function TopBar({ projectName, userInitials }: TopBarProps) {
         </span>
       </div>
 
-      {/* Center: breadcrumb */}
-      <div className="absolute left-1/2 -translate-x-1/2">
-        <BreadcrumbBar breadcrumb={breadcrumb} />
+      {/* Center: breadcrumb — hidden on mobile (MobileBreadcrumbBar handles it) */}
+      <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex max-w-[min(50vw,540px)] overflow-hidden">
+        <BreadcrumbBar breadcrumb={breadcrumb} maxItems={4} />
       </div>
 
       {/* Right: avatar */}
