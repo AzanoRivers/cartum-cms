@@ -57,7 +57,7 @@ export function BoardContextMenu({ menu, onRename, onDuplicate, onDelete, onClos
       ref={ref}
       role="menu"
       aria-label="Node actions"
-      className="fixed z-50 min-w-44 rounded-lg border border-border bg-surface shadow-xl animate-in fade-in-0 zoom-in-95 duration-100"
+      className="fixed z-50 min-w-44 rounded-lg border border-border bg-surface shadow-xl animate-in fade-in-0 zoom-in-95 duration-100 select-none"
       style={{ left, top }}
       onContextMenu={(e) => e.preventDefault()}
     >

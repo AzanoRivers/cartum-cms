@@ -14,8 +14,6 @@ import { BreadcrumbBar } from '@/components/ui/molecules/BreadcrumbBar'
 export function MobileBreadcrumbBar() {
   const breadcrumb = useUIStore((s) => s.breadcrumb)
 
-  if (breadcrumb.length === 0) return null
-
   return (
     <div
       aria-label="Mobile breadcrumb"

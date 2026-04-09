@@ -38,6 +38,11 @@ export function BreadcrumbBar({ breadcrumb, maxItems, className }: BreadcrumbBar
   const head: BreadcrumbItem[] = shouldCollapse && maxItems >= 2 ? [breadcrumb[0]] : []
   // tail = last item shown after "…"
   const tail: BreadcrumbItem[] = shouldCollapse ? [breadcrumb[breadcrumb.length - 1]] : []
+  // ellipsisTarget = item just before tail — clicking "…" navigates there
+  const ellipsisTarget: BreadcrumbItem | null =
+    shouldCollapse && breadcrumb.length >= 2
+      ? breadcrumb[breadcrumb.length - 2]
+      : null
 
   return (
     <nav
@@ -78,10 +83,22 @@ export function BreadcrumbBar({ breadcrumb, maxItems, className }: BreadcrumbBar
             </span>
           ))}
 
-          {/* Ellipsis */}
+          {/* Ellipsis — clickable, navigates to item just before the tail */}
           <span className="flex items-center gap-1 shrink-0 text-muted/60 select-none">
             <span>/</span>
-            <span>…</span>
+            {ellipsisTarget ? (
+              <button
+                type="button"
+                onClick={() => navigate(`/cms/board/${ellipsisTarget.id}`)}
+                title={ellipsisTarget.name}
+                className="hover:text-text transition-colors cursor-pointer"
+                aria-label={`Go to ${ellipsisTarget.name}`}
+              >
+                …
+              </button>
+            ) : (
+              <span>…</span>
+            )}
           </span>
 
           {/* Tail: current (last) item */}
