@@ -446,6 +446,8 @@ export const es: Dictionary = {
       notConfigured:       'El envío de correos no está configurado. Añade una clave API de Resend para activar la recuperación de contraseña e invitar usuarios.',
       resendApiKey:        'Clave API de Resend',
       resendKeyPlaceholder: 're_••••••••••••',
+      fromEmailLabel:      'Dirección de envío',
+      fromEmailHint:       'Debe pertenecer a un dominio verificado en tu cuenta de Resend.',
       testEmail:           'Enviar correo de prueba',
       testing:             'Enviando...',
       testOk:              'Correo de prueba enviado.',

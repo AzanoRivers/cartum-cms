@@ -444,6 +444,8 @@ export const en = {
       notConfigured:       'Email delivery is not configured. Add a Resend API key to enable password recovery and user invites.',
       resendApiKey:        'Resend API key',
       resendKeyPlaceholder: 're_••••••••••••',
+      fromEmailLabel:      'From email address',
+      fromEmailHint:       'Must be from a verified domain in your Resend account.',
       testEmail:           'Send test email',
       testing:             'Sending...',
       testOk:              'Test email sent.',
@@ -848,6 +850,7 @@ export type Dictionary = {
     email: {
       title: string; notConfigured: string
       resendApiKey: string; resendKeyPlaceholder: string
+      fromEmailLabel: string; fromEmailHint: string
       testEmail: string; testing: string; testOk: string; testFail: string
       save: string; saving: string; saved: string; error: string
     }

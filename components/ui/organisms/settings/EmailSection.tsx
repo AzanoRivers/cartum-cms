@@ -79,7 +79,7 @@ export function EmailSection({ d }: EmailSectionProps) {
       </div>
 
       <div className="space-y-1.5">
-        <label className="block font-mono text-xs text-text-muted">From email address</label>
+        <label className="block font-mono text-xs text-text-muted">{d.fromEmailLabel}</label>
         <input
           type="email"
           value={fromEmail}
@@ -88,7 +88,7 @@ export function EmailSection({ d }: EmailSectionProps) {
           className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
         />
         <p className="font-mono text-[10px] text-muted leading-relaxed">
-          Must be from a verified domain in your Resend account.
+          {d.fromEmailHint}
         </p>
       </div>
 
