@@ -19,7 +19,9 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: [
           { key: 'Cross-Origin-Opener-Policy',   value: 'same-origin' },
-          { key: 'Cross-Origin-Embedder-Policy',  value: 'require-corp' },
+          // 'credentialless' still enables SharedArrayBuffer (ffmpeg.wasm)
+          // but does NOT block cross-origin images/assets without CORP headers
+          { key: 'Cross-Origin-Embedder-Policy',  value: 'credentialless' },
         ],
       },
     ]

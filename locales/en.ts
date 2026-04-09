@@ -253,6 +253,25 @@ export const en = {
         relTargetRequired: 'Please select a relation target.',
         unknown:          'Unknown error.',
       },
+      accordion: {
+        typeSection:    'Field type',
+        contentSection: 'Content',
+      },
+      mediaContent: {
+        noImage:       'No default image',
+        noVideo:       'No default video',
+        dragOrSelect:  'Drag here or choose an option',
+        dropHere:      'Drop here',
+        selectFromLib: 'From library',
+        uploadNew:     'Upload file',
+        changeMedia:   'Change',
+        removeMedia:   'Remove',
+        confirmRemove: 'Confirm?',
+        otherTypesMsg: 'This field\'s content is edited in the node\'s records.',
+        uploading:     'Uploading…',
+        optimizing:    'Optimizing…',
+        uploadError:   'Upload failed.',
+      },
     },
     mobileList: {
       empty:           'No nodes yet.',
@@ -328,6 +347,31 @@ export const en = {
       relation: {
         placeholder: 'Select a record',
         noOptions:   'No records found.',
+      },
+      mediaGallery: {
+        title:           'Media Gallery',
+        tabImages:       'Images',
+        tabVideos:       'Videos',
+        searchPlaceholder: 'Search…',
+        uploadBtn:       'Upload',
+        emptyImages:     'No images yet.',
+        emptyVideos:     'No videos yet.',
+        emptySearch:     'No results for your search.',
+        dropHere:        'Drop files here',
+        orClick:         'or click to browse',
+        uploadStart:     'Upload',
+        optimizing:      'Optimizing…',
+        uploading:       'Uploading',
+        uploadSuccess:   'File uploaded.',
+        uploadError:     'Upload failed.',
+        ofLabel:         'of',
+        perPageLabel:    'Per page',
+        // Optimus VPS warnings (upload succeeds but optimizer had issues)
+        vpsUnreachable: 'Uploaded without optimization — optimizer is unreachable.',
+        vpsAuth:        'Uploaded without optimization — invalid optimizer API key.',
+        vpsTimeout:     'File too large for the optimizer — uploaded as original.',
+        vpsValidation:  'Format not supported by the optimizer — uploaded as original.',
+        vpsPartial:     'Partially optimized — some images uploaded as originals.',
       },
     },
     board: {
@@ -768,6 +812,12 @@ export type Dictionary = {
       storage: { notConfiguredImages: string; notConfiguredVideos: string; configuredImages: string; configuredVideos: string; imageFormats: string; videoFormats: string; goToContent: string }
       relation:{ targetLabel: string; targetPlaceholder: string; relationType: string }
       errors:  { nameRequired: string; nameInvalid: string; nameTaken: string; relTargetRequired: string; unknown: string }
+      accordion: { typeSection: string; contentSection: string }
+      mediaContent: {
+        noImage: string; noVideo: string; dragOrSelect: string; dropHere: string
+        selectFromLib: string; uploadNew: string; changeMedia: string; removeMedia: string
+        confirmRemove: string; otherTypesMsg: string; uploading: string; optimizing: string; uploadError: string
+      }
     }
     mobileList: { empty: string; emptyHint: string; fieldsSeparator: string }
     content: {
@@ -797,6 +847,15 @@ export type Dictionary = {
         emptyLibrary: string; emptySearch: string; selectAsset: string; loadingMore: string
       }
       relation: { placeholder: string; noOptions: string }
+      mediaGallery: {
+        title: string; tabImages: string; tabVideos: string; searchPlaceholder: string
+        uploadBtn: string; emptyImages: string; emptyVideos: string; emptySearch: string
+        dropHere: string; orClick: string; uploadStart: string
+        optimizing: string; uploading: string; uploadSuccess: string; uploadError: string
+        ofLabel: string; perPageLabel: string
+        vpsUnreachable: string; vpsAuth: string; vpsTimeout: string
+        vpsValidation: string; vpsPartial: string
+      }
     }
     board: {
       canvasMenu: { back: string; forward: string; fitAll: string }

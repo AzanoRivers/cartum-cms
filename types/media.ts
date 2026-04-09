@@ -52,6 +52,30 @@ export interface MediaAssetsPage {
   nextCursor: string | null
 }
 
+// Offset-based pagination for the Media Gallery page
+export interface ListMediaAssetsPagedInput {
+  filter:   'image' | 'video'
+  page:     number   // 1-indexed
+  perPage:  number   // 10 | 20 | 40
+  search?:  string
+}
+
+export interface MediaAssetsPagedResult {
+  assets:     MediaRecord[]
+  total:      number
+  page:       number
+  totalPages: number
+}
+
+// Minimal metadata for displaying an asset's info without the full record
+export interface MediaMeta {
+  id:        string
+  name:      string   // filename derived from key
+  sizeBytes: number | null
+  mimeType:  string
+  createdAt: Date
+}
+
 export type VpsWarning = 'unreachable' | 'auth' | 'validation' | 'timeout' | 'partial'
 
 export interface UploadViaServerInput {

@@ -23,6 +23,12 @@ export function DockBar() {
     router.push('/cms/board')
   }
 
+  function goContent() {
+    if (pathname === '/cms/content') return
+    setGlobalLoading(true)
+    router.push('/cms/content')
+  }
+
   return (
     <nav
       aria-label="Dock"
@@ -44,6 +50,11 @@ export function DockBar() {
           />
         </span>
       )}
+      <DockIcon
+        icon="Images"
+        tooltip={d?.dock.content ?? 'Content'}
+        onClick={goContent}
+      />
       <DockIcon
         icon="CircleHelp"
         tooltip={d?.dock.help ?? 'Help & Shortcuts'}

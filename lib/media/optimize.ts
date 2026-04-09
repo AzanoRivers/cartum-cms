@@ -11,7 +11,9 @@ export async function optimizeImage(file: File): Promise<OptimizeResult> {
     const compressed = await imageCompression(file, {
       maxSizeMB:        2,
       maxWidthOrHeight: 3840,
-      useWebWorker:     true,
+      // useWebWorker: false — avoids hanging under COEP:credentialless headers
+      // (SharedArrayBuffer cross-origin restriction blocks worker creation silently)
+      useWebWorker:     false,
       fileType:         file.type as string,
     })
     return { file: compressed, tier1Failed: false }

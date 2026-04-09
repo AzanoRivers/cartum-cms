@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react'
+import { useState, useTransition, useEffect, useRef } from 'react'
+import { CheckCircle2, AlertTriangle } from 'lucide-react'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { Button } from '@/components/ui/atoms/Button'
 import { Input } from '@/components/ui/atoms/Input'
 import { Icon } from '@/components/ui/atoms/Icon'
 import { FieldTypePicker } from '@/components/ui/molecules/FieldTypePicker'
+import { FieldAccordionSection } from '@/components/ui/molecules/FieldAccordionSection'
+import { FieldMediaContent } from '@/components/ui/molecules/FieldMediaContent'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useNodeBoardStore } from '@/lib/stores/nodeBoardStore'
 import { updateFieldMeta, getContainerNodes } from '@/lib/actions/nodes.actions'
@@ -19,6 +20,8 @@ import type {
   TextFieldConfig,
   BooleanFieldConfig,
   RelationFieldConfig,
+  ImageFieldConfig,
+  VideoFieldConfig,
 } from '@/types/nodes'
 
 export type FieldEditPanelProps = {
@@ -68,7 +71,6 @@ function Toggle({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEditPanelProps) {
-  const router          = useRouter()
   const editingFieldId = useUIStore((s) => s.editingFieldId)
   const closeFieldEdit  = useUIStore((s) => s.closeFieldEdit)
   const nodes           = useNodeBoardStore((s) => s.nodes)
@@ -96,10 +98,25 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
   const [falseLabel, setFalseLabel]     = useState('')
   const [relTarget, setRelTarget]       = useState('')
   const [relationType, setRelationType] = useState<'1:1' | '1:n' | 'n:m'>('1:n')
+  const [defaultUrl,     setDefaultUrl]     = useState<string | null>(null)
+  const [defaultMediaId, setDefaultMediaId] = useState<string | null>(null)
+
+  // Exclusive accordion: only one section open at a time (resolved in useEffect based on field type)
+  const [openSection, setOpenSection] = useState<'content' | 'type' | null>(null)
 
   const [allContainers, setAllContainers] = useState<ContainerNode[]>([])
   const [errors, setErrors]               = useState<Record<string, string>>({})
   const [pending, startTransition]        = useTransition()
+
+  // ── Native wheel event: stop propagation to canvas ─────────────────────────
+  const panelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = panelRef.current
+    if (!el) return
+    const stop = (e: WheelEvent) => e.stopPropagation()
+    el.addEventListener('wheel', stop)
+    return () => el.removeEventListener('wheel', stop)
+  }, [])
 
   // ── Pre-fill form when field changes ─────────────────────────────────────────
   useEffect(() => {
@@ -108,6 +125,11 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
     setRequired(field.isRequired)
     setFieldType(field.fieldType)
     setErrors({})
+
+    // Open "type" by default for fields whose content is edited in records,
+    // open "content" only for fields with inline-editable content (media)
+    const hasInlineContent = field.fieldType === 'image' || field.fieldType === 'video'
+    setOpenSection(hasInlineContent ? 'content' : 'type')
 
     const cfg = field.config ?? {}
 
@@ -129,6 +151,14 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
       const c = cfg as RelationFieldConfig
       setRelTarget(c.relationTargetId ?? field.relationTargetId ?? '')
       setRelationType(c.relationType ?? '1:n')
+    } else if (field.fieldType === 'image') {
+      const c = cfg as ImageFieldConfig
+      setDefaultUrl(c.defaultUrl ?? null)
+      setDefaultMediaId(c.defaultMediaId ?? null)
+    } else if (field.fieldType === 'video') {
+      const c = cfg as VideoFieldConfig
+      setDefaultUrl(c.defaultUrl ?? null)
+      setDefaultMediaId(c.defaultMediaId ?? null)
     }
   }, [field?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -204,6 +234,18 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
         relationTargetId: relTarget,
         relationType,
       } satisfies RelationFieldConfig
+    }
+    if (fieldType === 'image') {
+      return {
+        defaultUrl:     defaultUrl ?? null,
+        defaultMediaId: defaultMediaId ?? null,
+      } satisfies ImageFieldConfig
+    }
+    if (fieldType === 'video') {
+      return {
+        defaultUrl:     defaultUrl ?? null,
+        defaultMediaId: defaultMediaId ?? null,
+      } satisfies VideoFieldConfig
     }
     return {}
   }
@@ -357,8 +399,7 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
     }
 
     if (fieldType === 'image' || fieldType === 'video') {
-      const isImg    = fieldType === 'image'
-      const parentId = field?.parentId
+      const isImg = fieldType === 'image'
       return (
         <div className="flex flex-col gap-3">
           {/* Storage status */}
@@ -387,17 +428,6 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
               ? (d?.fieldEdit.storage.imageFormats ?? 'Accepted formats: WebP, JPEG (auto-optimized)')
               : (d?.fieldEdit.storage.videoFormats ?? 'Accepted formats: MP4, WebM (auto-optimized)')}
           </p>
-          {/* Quick link to content records */}
-          {isStorageConfigured && parentId && (
-            <button
-              type="button"
-              onClick={() => { closeFieldEdit(); router.push(`/cms/content/${parentId}/new`) }}
-              className="flex items-center gap-1.5 self-start font-mono text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer"
-            >
-              <ArrowRight size={12} />
-              {d?.fieldEdit.storage.goToContent ?? `Upload ${isImg ? 'images' : 'videos'} in a new record`}
-            </button>
-          )}
         </div>
       )
     }
@@ -460,11 +490,27 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
     return null
   }
 
+  const mediaLabels = {
+    noImage:       d?.fieldEdit.mediaContent.noImage       ?? 'No default image',
+    noVideo:       d?.fieldEdit.mediaContent.noVideo       ?? 'No default video',
+    dragOrSelect:  d?.fieldEdit.mediaContent.dragOrSelect  ?? 'Drag here or choose an option',
+    dropHere:      d?.fieldEdit.mediaContent.dropHere      ?? 'Drop here',
+    selectFromLib: d?.fieldEdit.mediaContent.selectFromLib ?? 'From library',
+    uploadNew:     d?.fieldEdit.mediaContent.uploadNew     ?? 'Upload file',
+    changeMedia:   d?.fieldEdit.mediaContent.changeMedia   ?? 'Change',
+    removeMedia:   d?.fieldEdit.mediaContent.removeMedia   ?? 'Remove',
+    confirmRemove: d?.fieldEdit.mediaContent.confirmRemove ?? 'Confirm?',
+    otherTypesMsg: d?.fieldEdit.mediaContent.otherTypesMsg ?? 'This field\'s content is edited in the node\'s records.',
+    uploading:     d?.fieldEdit.mediaContent.uploading     ?? 'Uploading…',
+    optimizing:    d?.fieldEdit.mediaContent.optimizing    ?? 'Optimizing…',
+    uploadError:   d?.fieldEdit.mediaContent.uploadError   ?? 'Upload failed.',
+  }
+
   const innerContent = (
-    <div className="flex flex-col gap-4 p-4">
-      {/* Header — only shown in sheet (bottom drawer) mode; overlay mode has its own sticky header */}
+    <div className="flex flex-col">
+      {/* Header — only shown in sheet (bottom drawer) mode */}
       {asSheet && (
-        <div className="flex items-center justify-between border-b border-border pb-3 -mt-1">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <span className="font-mono text-sm text-text">{d?.fieldEdit.title ?? 'Edit field'}</span>
           <button
             onClick={closeFieldEdit}
@@ -475,77 +521,121 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
           </button>
         </div>
       )}
-    <div className="flex flex-col gap-4">
-            {/* Name */}
-            <Input
-              label={d?.fieldEdit.name ?? 'Name'}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              error={errors.name}
-              placeholder="field_name"
+
+      {/* ── Sección 2: Contenido (abierta por defecto) ──────────────────────── */}
+      <FieldAccordionSection
+        title={d?.fieldEdit.accordion.contentSection ?? 'Content'}
+        open={openSection === 'content'}
+        onToggle={() => setOpenSection((s) => (s === 'content' ? null : 'content'))}
+      >
+        <FieldMediaContent
+          fieldType={fieldType}
+          nodeId={field?.parentId ?? undefined}
+          defaultUrl={defaultUrl}
+          defaultMediaId={defaultMediaId}
+          onChange={async (patch) => {
+            // Update local state
+            const newUrl     = patch.defaultUrl     !== undefined ? (patch.defaultUrl     ?? null) : defaultUrl
+            const newMediaId = patch.defaultMediaId !== undefined ? (patch.defaultMediaId ?? null) : defaultMediaId
+            if (patch.defaultUrl     !== undefined) setDefaultUrl(newUrl)
+            if (patch.defaultMediaId !== undefined) setDefaultMediaId(newMediaId)
+
+            // Auto-persist to DB immediately — user doesn't need to click Save for media changes
+            if (!field) return
+            const result = await updateFieldMeta({
+              nodeId:    field.id,
+              fieldType,
+              config: {
+                defaultUrl:     newUrl,
+                defaultMediaId: newMediaId,
+              },
+            })
+            if (result.success) {
+              setNodes(nodes.map((n) => (n.id === result.data.id ? result.data : n)))
+            }
+          }}
+          labels={mediaLabels}
+        />
+      </FieldAccordionSection>
+
+      {/* ── Sección 1: Tipo de campo (colapsada por defecto) ────────────────── */}
+      <FieldAccordionSection
+        title={d?.fieldEdit.accordion.typeSection ?? 'Field type'}
+        open={openSection === 'type'}
+        onToggle={() => setOpenSection((s) => (s === 'type' ? null : 'type'))}
+      >
+        <div className="flex flex-col gap-4">
+          {/* Name */}
+          <Input
+            label={d?.fieldEdit.name ?? 'Name'}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            error={errors.name}
+            placeholder="field_name"
+          />
+
+          {/* Required toggle */}
+          <Toggle
+            checked={isRequired}
+            onChange={setRequired}
+            label={d?.fieldEdit.requiredToggle ?? 'Required field'}
+          />
+
+          {/* Field type picker */}
+          <div className="flex flex-col gap-1.5">
+            <span className="font-mono text-xs text-muted">{d?.fieldEdit.fieldType ?? 'Field type'}</span>
+            <FieldTypePicker
+              value={fieldType}
+              onChange={(t) => {
+                setFieldType(t)
+                setHasRecords(false)
+                setErrors((prev) => ({ ...prev, fieldType: '' }))
+              }}
+              disabled={hasRecords}
+              disabledReason={
+                hasRecords
+                  ? (d?.fieldEdit.typeChangeBlocked ?? 'This field has existing records. Delete all records first to change the type.')
+                  : errors.fieldType || undefined
+              }
             />
-
-            {/* Required toggle */}
-            <Toggle
-              checked={isRequired}
-              onChange={setRequired}
-              label={d?.fieldEdit.requiredToggle ?? 'Required field'}
-            />
-
-            {/* Field type picker */}
-            <div className="flex flex-col gap-1.5">
-              <span className="font-mono text-xs text-muted">{d?.fieldEdit.fieldType ?? 'Field type'}</span>
-              <FieldTypePicker
-                value={fieldType}
-                onChange={(t) => {
-                  setFieldType(t)
-                  setHasRecords(false)
-                  setErrors((prev) => ({ ...prev, fieldType: '' }))
-                }}
-                disabled={hasRecords}
-                disabledReason={
-                  hasRecords
-                    ? (d?.fieldEdit.typeChangeBlocked ?? 'This field has existing records. Delete all records first to change the type.')
-                    : errors.fieldType || undefined
-                }
-              />
-              {!hasRecords && errors.fieldType && (
-                <p className="text-xs text-danger">{errors.fieldType}</p>
-              )}
-            </div>
-
-            {/* Type-specific config */}
-            <div className="border-t border-border pt-3">
-              {renderTypeConfig()}
-            </div>
-
-            {/* Global error */}
-            {errors.global && (
-              <p className="text-xs text-danger">{errors.global}</p>
+            {!hasRecords && errors.fieldType && (
+              <p className="text-xs text-danger">{errors.fieldType}</p>
             )}
+          </div>
 
-            {/* Actions */}
-            <div className="flex gap-2 pt-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex-1"
-                onClick={closeFieldEdit}
-                disabled={pending}
-              >
-                {d?.fieldEdit.cancel ?? 'Cancel'}
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                className="flex-1"
-                onClick={handleSubmit}
-                disabled={pending}
-              >
-                {pending ? (d?.fieldEdit.saving ?? 'Saving…') : (d?.fieldEdit.save ?? 'Save')}
-              </Button>
-            </div>
-    </div>
+          {/* Type-specific config */}
+          <div className="border-t border-border pt-3">
+            {renderTypeConfig()}
+          </div>
+
+          {/* Global error */}
+          {errors.global && (
+            <p className="text-xs text-danger">{errors.global}</p>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1"
+              onClick={closeFieldEdit}
+              disabled={pending}
+            >
+              {d?.fieldEdit.cancel ?? 'Cancel'}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              className="flex-1"
+              onClick={handleSubmit}
+              disabled={pending}
+            >
+              {pending ? (d?.fieldEdit.saving ?? 'Saving…') : (d?.fieldEdit.save ?? 'Save')}
+            </Button>
+          </div>
+        </div>
+      </FieldAccordionSection>
     </div>
   )
 
@@ -562,7 +652,10 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
       onClick={(e) => { if (e.target === e.currentTarget) closeFieldEdit() }}
     >
       <VHSTransition duration="fast">
-        <div className="w-80 rounded-xl border border-border bg-surface shadow-2xl max-h-[calc(100vh-4rem)] overflow-y-auto">
+        <div
+          ref={panelRef}
+          className="w-85 sm:w-150 rounded-xl border border-border bg-surface shadow-2xl max-h-[calc(100vh-4rem)] overflow-y-auto"
+        >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-4 py-3 sticky top-0 bg-surface z-10">
             <span className="font-mono text-sm text-text">{d?.fieldEdit.title ?? 'Edit field'}</span>

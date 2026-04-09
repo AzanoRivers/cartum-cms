@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf \"app/cms/content/[nodeId]\")",
+      "Bash(rm -f \"components/ui/organisms/RecordListClient.tsx\" \"components/ui/organisms/MobileRecordList.tsx\" \"components/ui/organisms/RecordForm.tsx\")",
+      "Bash(xargs grep:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

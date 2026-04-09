@@ -137,10 +137,14 @@ export function MediaLibraryPicker({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <VHSTransition duration="fast" className="flex w-full max-w-5xl flex-col h-[90vh] mx-4 rounded-xl border border-border bg-background shadow-2xl overflow-hidden">
+      <VHSTransition duration="fast" className="flex w-full sm:max-w-5xl flex-col h-[92dvh] sm:h-[90vh] sm:mx-4 rounded-t-2xl sm:rounded-xl border border-border bg-surface shadow-2xl shadow-black/40 overflow-hidden">
+        {/* Handle — mobile only */}
+        <div className="flex justify-center pt-2 pb-1 sm:hidden shrink-0">
+          <div className="h-1 w-10 rounded-full bg-border" />
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3 shrink-0">
           <span className="font-mono text-sm text-text">

@@ -1,7 +1,16 @@
-import { and, desc, eq, ilike, lt, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, lt, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { media } from '@/db/schema'
-import type { MediaRecord, ListMediaAssetsInput, MediaAssetsPage, SaveMediaInput } from '@/types/media'
+import { DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { getR2Client } from '@/lib/media/r2-client'
+import type {
+  MediaRecord,
+  ListMediaAssetsInput,
+  MediaAssetsPage,
+  ListMediaAssetsPagedInput,
+  MediaAssetsPagedResult,
+  SaveMediaInput,
+} from '@/types/media'
 
 function toMediaRecord(row: typeof media.$inferSelect): MediaRecord {
   return {
@@ -66,5 +75,53 @@ export const mediaRepository = {
       assets:     items.map(toMediaRecord),
       nextCursor: hasMore ? items[items.length - 1].createdAt.toISOString() : null,
     }
+  },
+
+  async listPaginatedOffset(input: ListMediaAssetsPagedInput): Promise<MediaAssetsPagedResult> {
+    const perPage    = Math.min(Math.max(input.perPage, 1), 40)
+    const page       = Math.max(input.page, 1)
+    const offset     = (page - 1) * perPage
+    const typePrefix = input.filter === 'image' ? 'image/%' : 'video/%'
+
+    const conditions = [sql`${media.mimeType} LIKE ${typePrefix}`]
+    if (input.search) {
+      conditions.push(ilike(media.key, `%${input.search}%`))
+    }
+    const where = and(...conditions)
+
+    const [{ value: total }] = await db
+      .select({ value: count() })
+      .from(media)
+      .where(where)
+
+    const rows = await db
+      .select()
+      .from(media)
+      .where(where)
+      .orderBy(desc(media.createdAt))
+      .limit(perPage)
+      .offset(offset)
+
+    return {
+      assets:     rows.map(toMediaRecord),
+      total,
+      page,
+      totalPages: Math.max(Math.ceil(total / perPage), 1),
+    }
+  },
+
+  async delete(id: string): Promise<void> {
+    const [row] = await db.select().from(media).where(eq(media.id, id)).limit(1)
+    if (!row) throw new Error('MEDIA_NOT_FOUND')
+
+    // Delete from R2 storage — best-effort (don't fail if R2 is unreachable)
+    try {
+      const { client, bucket } = await getR2Client()
+      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: row.key }))
+    } catch {
+      // ignore R2 errors — still remove DB record
+    }
+
+    await db.delete(media).where(eq(media.id, id))
   },
 }

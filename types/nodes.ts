@@ -28,11 +28,23 @@ export interface RelationFieldConfig {
   relationType: RelationType
 }
 
+export interface ImageFieldConfig {
+  defaultUrl?:     string | null
+  defaultMediaId?: string | null
+}
+
+export interface VideoFieldConfig {
+  defaultUrl?:     string | null
+  defaultMediaId?: string | null
+}
+
 export type FieldConfig =
   | TextFieldConfig
   | NumberFieldConfig
   | BooleanFieldConfig
   | RelationFieldConfig
+  | ImageFieldConfig
+  | VideoFieldConfig
   | Record<string, never>
 
 export interface BaseNode {

@@ -13,10 +13,13 @@ import type {
   GetUploadUrlInput,
   SaveMediaInput,
   MediaRecord,
+  MediaMeta,
   UploadViaServerInput,
   UploadViaServerResult,
   ListMediaAssetsInput,
   MediaAssetsPage,
+  ListMediaAssetsPagedInput,
+  MediaAssetsPagedResult,
   VpsWarning,
 } from '@/types/media'
 import { ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES } from '@/types/media'
@@ -119,8 +122,12 @@ export async function uploadViaServer(
 
     const isImage = input.mimeType.startsWith('image/')
 
-    // Tier 2 — only for images when VPS is configured
-    if (isImage && vpsUrl && vpsKey) {
+    // Optimus only supports jpeg/png/webp — skip for gif/avif (upload as original without warning)
+    const OPTIMUS_SUPPORTED = ['image/jpeg', 'image/png', 'image/webp']
+    const isOptimizable = isImage && OPTIMUS_SUPPORTED.includes(input.mimeType)
+
+    // Tier 2 — only for Optimus-supported image formats when VPS is configured
+    if (isOptimizable && vpsUrl && vpsKey) {
       try {
         const formData = new FormData()
         formData.append('files', new Blob([fileBuffer], { type: input.mimeType }), 'upload')
@@ -155,7 +162,9 @@ export async function uploadViaServer(
     }
 
     // PUT to R2
-    const ext = isImage && !vpsWarning ? 'webp' : (input.mimeType.split('/')[1] ?? 'bin')
+    // Use webp extension/mime only when Optimus actually ran and succeeded
+    const optimized = isOptimizable && !vpsWarning
+    const ext = optimized ? 'webp' : (input.mimeType.split('/')[1] ?? 'bin')
     const key  = `uploads/${randomUUID()}.${ext}`
 
     const { PutObjectCommand: Put } = await import('@aws-sdk/client-s3')
@@ -163,7 +172,7 @@ export async function uploadViaServer(
       Bucket:      bucket,
       Key:         key,
       Body:        new Uint8Array(fileBuffer),
-      ContentType: isImage && !vpsWarning ? 'image/webp' : input.mimeType,
+      ContentType: optimized ? 'image/webp' : input.mimeType,
     }))
 
     const finalPublicUrl = `${baseUrl}/${key}`
@@ -172,7 +181,7 @@ export async function uploadViaServer(
     await mediaRepository.create({
       key,
       publicUrl:  finalPublicUrl,
-      mimeType:   isImage && !vpsWarning ? 'image/webp' : input.mimeType,
+      mimeType:   optimized ? 'image/webp' : input.mimeType,
       sizeBytes:  fileBuffer.byteLength,
       nodeId:     input.nodeId,
       uploadedBy: userId,
@@ -191,7 +200,7 @@ export async function uploadViaServer(
 }
 
 // -----------------------------------------------------------------------
-// listMediaAssets — paginated asset browser for MediaLibraryPicker
+// listMediaAssets — cursor-based pager for MediaLibraryPicker
 // -----------------------------------------------------------------------
 export async function listMediaAssets(
   input: ListMediaAssetsInput,
@@ -202,5 +211,64 @@ export async function listMediaAssets(
     return { success: true, data: page }
   } catch {
     return { success: false, error: 'Failed to load media assets.' }
+  }
+}
+
+// -----------------------------------------------------------------------
+// listMediaAssetsPaged — offset-based pager for the Media Gallery page
+// -----------------------------------------------------------------------
+export async function listMediaAssetsPaged(
+  input: ListMediaAssetsPagedInput,
+): Promise<ActionResult<MediaAssetsPagedResult>> {
+  try {
+    await requireSession()
+    const result = await mediaRepository.listPaginatedOffset(input)
+    return { success: true, data: result }
+  } catch {
+    return { success: false, error: 'Failed to load media assets.' }
+  }
+}
+
+// -----------------------------------------------------------------------
+// getMediaById — fetch a single asset's metadata by id
+// -----------------------------------------------------------------------
+export async function getMediaById(
+  id: string,
+): Promise<ActionResult<MediaMeta>> {
+  try {
+    await requireSession()
+    const record = await mediaRepository.findById(id)
+    if (!record) return { success: false, error: 'NOT_FOUND' }
+    const name = record.key.split('/').pop() ?? record.key
+    return {
+      success: true,
+      data: {
+        id:        record.id,
+        name,
+        sizeBytes: record.sizeBytes,
+        mimeType:  record.mimeType,
+        createdAt: record.createdAt,
+      },
+    }
+  } catch {
+    return { success: false, error: 'Failed to fetch media record.' }
+  }
+}
+
+// -----------------------------------------------------------------------
+// deleteMediaRecord — removes from R2 + DB
+// -----------------------------------------------------------------------
+export async function deleteMediaRecord(
+  id: string,
+): Promise<ActionResult<void>> {
+  try {
+    await requireSession()
+    await mediaRepository.delete(id)
+    return { success: true }
+  } catch (err) {
+    if (err instanceof Error && err.message === 'MEDIA_NOT_FOUND') {
+      return { success: false, error: 'NOT_FOUND' }
+    }
+    return { success: false, error: 'Failed to delete media record.' }
   }
 }
