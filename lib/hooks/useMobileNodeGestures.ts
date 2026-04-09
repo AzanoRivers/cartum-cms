@@ -55,8 +55,8 @@ export type MobileGestureCallbacks = {
   onPortDragStart: (nodeId: string, side: PortSide) => void
   /** Update the in-progress drag-line position. */
   onPortDragMove: (clientX: number, clientY: number) => void
-  /** Finish or cancel the connection drag (uses document.elementFromPoint). */
-  onPortDragEnd: (clientX: number, clientY: number) => void
+  /** Finish or cancel the connection drag. Receives the resolved target node ID (null = cancel). */
+  onPortDragEnd: (targetNodeId: string | null) => void
   /** Open the canvas context menu (long-press on empty canvas area). */
   onCanvasLongPress: (x: number, y: number) => void
   /** Write nodeId into the suppress-click ref so the synthetic click is eaten. */
@@ -95,6 +95,9 @@ export function useMobileNodeGestures(cb: MobileGestureCallbacks) {
     startX:    number
     startY:    number
   } | null>(null)
+
+  // ── Port drag target tracking (sampled during touchmove, used at touchend) ────
+  const portDragTargetRef = useRef<string | null>(null)
 
   // ── Pan & pinch state ───────────────────────────────────────────────────────
   const panLastRef   = useRef<{ x: number; y: number } | null>(null)
@@ -257,9 +260,15 @@ export function useMobileNodeGestures(cb: MobileGestureCallbacks) {
       return
     }
 
-    // Port connection drag – move the SVG line
+    // Port connection drag – move the SVG line + track drop target under finger
     if (phase === 'dragging-port') {
       cb.onPortDragMove(touch.clientX, touch.clientY)
+      // Sample the element under the finger now (reliable during touchmove,
+      // unreliable at touchend when the finger has already lifted).
+      const el = document.elementFromPoint(touch.clientX, touch.clientY)
+                   ?.closest('[data-nodeid]') as HTMLElement | null
+      portDragTargetRef.current =
+        el?.dataset.nodetype === 'container' ? (el.dataset.nodeid ?? null) : null
       return
     }
 
@@ -316,9 +325,11 @@ export function useMobileNodeGestures(cb: MobileGestureCallbacks) {
 
     // ── Port connection drag end ───────────────────────────────────────────
     if (phase === 'dragging-port') {
-      const touch = e.changedTouches[0]
-      cb.onPortDragEnd(touch.clientX, touch.clientY)
+      cb.onPortDragEnd(portDragTargetRef.current)
+      portDragTargetRef.current = null
       phaseRef.current = 'idle'
+      // Clear selected node so ports hide — prevents accidental port drag next touch
+      setMobileHoveredNodeId(null)
       return
     }
 

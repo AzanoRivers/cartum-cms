@@ -9,7 +9,7 @@ export interface NodePanelProps {
   title:      string
   children:   React.ReactNode
   /** Desktop placement hint. 'auto' picks the side with the most room. */
-  side?:      'auto' | 'right' | 'left' | 'bottom'
+  side?:      'auto' | 'top' | 'right' | 'left' | 'bottom'
   /** Panel width in px — desktop only. Default 320. */
   width?:     number
   className?: string

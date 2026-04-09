@@ -34,18 +34,17 @@ const GRID_GAP_Y = 136   // px between rows
 
 /**
  * Places new nodes near the current viewport center in canvas-space coordinates.
- * Using the viewport center means nodes always appear where the user is looking,
- * regardless of how far the canvas has been panned or zoomed.
+ * Using the canvas container's actual dimensions (tracked in the store) ensures
+ * the center is accurate on both desktop and mobile (where headers/dock consume space).
  */
 function calcNextPosition(parentId: string | null): { positionX: number; positionY: number } {
-  const { nodes, offsetX, offsetY, scale } = useNodeBoardStore.getState()
+  const { nodes, offsetX, offsetY, scale, canvasWidth, canvasHeight } = useNodeBoardStore.getState()
   const siblings = nodes.filter((n) => n.parentId === parentId)
   const idx = siblings.length
 
-  // Convert screen center to canvas-space coordinates.
-  // window.innerWidth/Height approximates the canvas area (sidebar offset is acceptable).
-  const centerX = (window.innerWidth  / 2 - offsetX) / scale
-  const centerY = (window.innerHeight / 2 - offsetY) / scale
+  // Convert the canvas container's center to canvas-space coordinates.
+  const centerX = (canvasWidth  / 2 - offsetX) / scale
+  const centerY = (canvasHeight / 2 - offsetY) / scale
 
   const col = idx % GRID_COLS
   const row = Math.floor(idx / GRID_COLS)

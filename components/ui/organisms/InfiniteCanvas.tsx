@@ -112,6 +112,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   const selectNode     = useNodeBoardStore((s) => s.selectNode)
   const setOffset      = useNodeBoardStore((s) => s.setOffset)
   const setScale       = useNodeBoardStore((s) => s.setScale)
+  const setCanvasDimensions = useNodeBoardStore((s) => s.setCanvasDimensions)
   const updateNodePositionOptimistic = useNodeBoardStore((s) => s.updateNodePositionOptimistic)
 
   const [contextMenu,      setContextMenu]      = useState<BoardContextMenuState | null>(null)
@@ -173,12 +174,11 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       connectionLayerRef.current?.moveDragLine(canvasPos)
     },
 
-    onPortDragEnd: (clientX, clientY) => {
+    onPortDragEnd: (targetNodeId) => {
       connectionLayerRef.current?.hideDragLine()
       dragOriginRef.current = null
-      const el = document.elementFromPoint(clientX, clientY)?.closest('[data-nodeid]') as HTMLElement | null
-      if (el?.dataset.nodetype === 'container') {
-        completeDrag(el.dataset.nodeid!)
+      if (targetNodeId) {
+        completeDrag(targetNodeId)
       } else {
         cancelDrag()
       }
@@ -252,6 +252,18 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       },
     )
   }, [])
+
+  // Track canvas container dimensions in the store so other components (e.g.
+  // NodeCreationPanel) can compute the correct viewport-center in canvas-space.
+  useEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+    const update = () => setCanvasDimensions(el.clientWidth, el.clientHeight)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [setCanvasDimensions])
 
   // ── Canvas-space coordinate conversion ──────────────────────────────────────
   function clientToCanvas(clientX: number, clientY: number) {

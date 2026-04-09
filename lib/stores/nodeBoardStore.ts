@@ -10,6 +10,9 @@ interface NodeBoardState {
   selectedNodeId: string | null
   isDragging: boolean
   dragNodeId: string | null
+  /** Actual pixel dimensions of the canvas container — updated by InfiniteCanvas on mount/resize. */
+  canvasWidth: number
+  canvasHeight: number
 }
 
 interface NodeBoardActions {
@@ -20,6 +23,7 @@ interface NodeBoardActions {
   setOffset: (x: number, y: number) => void
   selectNode: (id: string | null) => void
   setDragging: (id: string | null) => void
+  setCanvasDimensions: (width: number, height: number) => void
   updateNodePositionOptimistic: (id: string, x: number, y: number) => void
   reset: () => void
 }
@@ -32,6 +36,8 @@ const initialState: NodeBoardState = {
   selectedNodeId: null,
   isDragging: false,
   dragNodeId: null,
+  canvasWidth: typeof window !== 'undefined' ? window.innerWidth : 1280,
+  canvasHeight: typeof window !== 'undefined' ? window.innerHeight : 900,
 }
 
 export const useNodeBoardStore = create<NodeBoardState & NodeBoardActions>()(
@@ -43,6 +49,7 @@ export const useNodeBoardStore = create<NodeBoardState & NodeBoardActions>()(
     removeNode:  (id)    => set((state) => ({ nodes: state.nodes.filter((n) => n.id !== id) })),
     setScale: (scale) => set({ scale: Math.min(2, Math.max(0.3, scale)) }),
     setOffset: (x, y) => set({ offsetX: x, offsetY: y }),
+    setCanvasDimensions: (width, height) => set({ canvasWidth: width, canvasHeight: height }),
     selectNode: (id) => set({ selectedNodeId: id }),
     setDragging: (id) => set({ isDragging: id !== null, dragNodeId: id }),
     updateNodePositionOptimistic: (id, x, y) =>

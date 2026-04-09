@@ -9,7 +9,7 @@ const MARGIN = 16  // min distance from viewport edge
 export function useAnchoredPanel(
   anchorRef: React.RefObject<HTMLElement | null> | undefined,
   panelRef:  React.RefObject<HTMLElement | null>,
-  side: 'auto' | 'right' | 'left' | 'bottom' = 'auto',
+  side: 'auto' | 'top' | 'right' | 'left' | 'bottom' = 'auto',
   panelWidth = 320,
 ): AnchoredPanelPosition {
   const [pos, setPos] = useState<AnchoredPanelPosition>({
@@ -44,7 +44,10 @@ export function useAnchoredPanel(
     // Determine best side if 'auto'
     let resolved = side
     if (resolved === 'auto') {
-      if (a.right + pw + GAP + MARGIN <= vw) {
+      // Prefer 'top' when anchor is in the lower half of the screen (e.g. DockBar)
+      if (a.top > vh * 0.5 && a.top - ph - GAP - MARGIN >= 0) {
+        resolved = 'top'
+      } else if (a.right + pw + GAP + MARGIN <= vw) {
         resolved = 'right'
       } else if (a.left - pw - GAP - MARGIN >= 0) {
         resolved = 'left'
@@ -57,7 +60,11 @@ export function useAnchoredPanel(
     let y: number
     let transformOrigin: string
 
-    if (resolved === 'right') {
+    if (resolved === 'top') {
+      x = Math.min(Math.max(a.left + (a.width - pw) / 2, MARGIN), vw - pw - MARGIN)
+      y = a.top - ph - GAP
+      transformOrigin = 'bottom center'
+    } else if (resolved === 'right') {
       x = a.right + GAP
       y = Math.min(Math.max(a.top, MARGIN), vh - ph - MARGIN)
       transformOrigin = 'left center'
@@ -84,6 +91,10 @@ export function useAnchoredPanel(
     calculate()
     const ro = new ResizeObserver(calculate)
     if (anchorRef?.current) ro.observe(anchorRef.current)
+    // Also observe the panel itself: when it renders with its true height the first
+    // time (potentially after ph=0 on the initial call), re-run calculate() so the
+    // y-clamping uses the correct measured height.
+    if (panelRef.current) ro.observe(panelRef.current)
     window.addEventListener('resize', calculate, { passive: true })
     window.addEventListener('scroll', calculate, { passive: true, capture: true })
     return () => {
@@ -91,7 +102,7 @@ export function useAnchoredPanel(
       window.removeEventListener('resize', calculate)
       window.removeEventListener('scroll', calculate, true)
     }
-  }, [calculate])
+  }, [calculate, panelRef, anchorRef])
 
   return pos
 }
