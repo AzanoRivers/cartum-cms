@@ -99,6 +99,8 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
         asset={previewAsset}
         onClose={() => setPreviewAsset(null)}
         onDelete={handleDelete}
+        deleteLabel={g.deleteLabel}
+        confirmLabel={g.confirmDelete}
       />
 
       {/* Tabs + Search */}

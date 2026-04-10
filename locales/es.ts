@@ -366,6 +366,7 @@ export const es: Dictionary = {
         uploading:         'Subiendo',
         uploadSuccess:     'Archivo subido.',
         uploadError:       'Error al subir.',
+        deleteLabel:       'Eliminar',
         confirmDelete:     '¿Seguro?',
         ofLabel:           'de',
         perPageLabel:      'Por página',

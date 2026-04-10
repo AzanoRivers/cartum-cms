@@ -10,6 +10,8 @@ export type MediaPreviewModalProps = {
   asset:     MediaRecord | null
   onClose:   () => void
   onDelete?: (asset: MediaRecord) => void
+  deleteLabel?:  string
+  confirmLabel?: string
 }
 
 function formatBytes(bytes: number | null): string {
@@ -25,7 +27,7 @@ function formatDate(date: Date): string {
   }).format(new Date(date))
 }
 
-export function MediaPreviewModal({ asset, onClose, onDelete }: MediaPreviewModalProps) {
+export function MediaPreviewModal({ asset, onClose, onDelete, deleteLabel = 'Delete', confirmLabel = 'Sure?' }: MediaPreviewModalProps) {
   const open = asset !== null
   const [copied,     setCopied]     = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -114,7 +116,7 @@ export function MediaPreviewModal({ asset, onClose, onDelete }: MediaPreviewModa
               <button
                 type="button"
                 onClick={handleDelete}
-                title={confirming ? 'Click again to confirm' : 'Delete'}
+                title={confirming ? confirmLabel : deleteLabel}
                 className={`flex h-7 items-center gap-1.5 rounded-md px-2 font-mono text-[11px] transition-all duration-150 ${
                   confirming
                     ? 'bg-danger/15 text-danger ring-1 ring-danger/40'
@@ -122,7 +124,7 @@ export function MediaPreviewModal({ asset, onClose, onDelete }: MediaPreviewModa
                 }`}
               >
                 <Trash2 size={12} />
-                <span className="hidden sm:inline">{confirming ? 'Confirm?' : 'Delete'}</span>
+                <span className="hidden sm:inline">{confirming ? confirmLabel : deleteLabel}</span>
               </button>
             )}
 
