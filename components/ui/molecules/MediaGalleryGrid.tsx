@@ -1,7 +1,27 @@
 'use client'
 
 import { MediaGalleryCard } from './MediaGalleryCard'
-import type { MediaRecord } from '@/types/media'
+import { MediaUploadZone }  from '@/components/ui/organisms/MediaUploadZone'
+import type { MediaRecord }  from '@/types/media'
+import type { UploadEntry } from '@/lib/hooks/useMediaGallery'
+
+export type MediaGalleryGridUploadProps = {
+  queue:          UploadEntry[]
+  dragging:       boolean
+  onFiles:        (files: FileList) => void
+  onRemove:       (id: string) => void
+  onStartUpload:  (entry: UploadEntry) => void
+  onDragOver:     (e: React.DragEvent) => void
+  onDragLeave:    () => void
+  onDrop:         (e: React.DragEvent) => void
+  dropHereLabel:  string
+  orClickLabel:   string
+  uploadBtnLabel: string
+  optimizingLabel: string
+  uploadingLabel:  string
+  errorLabel:      string
+  successLabel:    string
+}
 
 export type MediaGalleryGridProps = {
   assets:               MediaRecord[]
@@ -11,6 +31,7 @@ export type MediaGalleryGridProps = {
   emptyLabel:           string
   confirmDeleteLabel?:  string
   loadingCount?:        number
+  uploadProps?:         MediaGalleryGridUploadProps
 }
 
 function SkeletonCard() {
@@ -31,6 +52,7 @@ export function MediaGalleryGrid({
   emptyLabel,
   confirmDeleteLabel,
   loadingCount = 20,
+  uploadProps,
 }: MediaGalleryGridProps) {
   if (loading) {
     return (
@@ -43,6 +65,30 @@ export function MediaGalleryGrid({
   }
 
   if (assets.length === 0) {
+    if (uploadProps) {
+      return (
+        <div className="rounded-md border border-border bg-surface p-6">
+          <p className="mb-4 font-mono text-sm text-muted">{emptyLabel}</p>
+          <MediaUploadZone
+            queue={uploadProps.queue}
+            dragging={uploadProps.dragging}
+            onFiles={uploadProps.onFiles}
+            onRemove={uploadProps.onRemove}
+            onStartUpload={uploadProps.onStartUpload}
+            onDragOver={uploadProps.onDragOver}
+            onDragLeave={uploadProps.onDragLeave}
+            onDrop={uploadProps.onDrop}
+            dropHereLabel={uploadProps.dropHereLabel}
+            orClickLabel={uploadProps.orClickLabel}
+            uploadBtnLabel={uploadProps.uploadBtnLabel}
+            optimizingLabel={uploadProps.optimizingLabel}
+            uploadingLabel={uploadProps.uploadingLabel}
+            errorLabel={uploadProps.errorLabel}
+            successLabel={uploadProps.successLabel}
+          />
+        </div>
+      )
+    }
     return (
       <div className="flex flex-col items-center justify-center rounded-md border border-border bg-surface py-16">
         <p className="font-mono text-sm text-muted">{emptyLabel}</p>

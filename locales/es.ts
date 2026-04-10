@@ -370,11 +370,11 @@ export const es: Dictionary = {
         ofLabel:           'de',
         perPageLabel:      'Por página',
         // Advertencias del optimizador Optimus (la subida tiene éxito pero el optimizador falló)
-        vpsUnreachable:   'Subido sin optimizar — el optimizador no está disponible.',
-        vpsAuth:          'Subido sin optimizar — clave de API del optimizador inválida.',
-        vpsTimeout:       'Archivo muy grande para el optimizador — subido como original.',
-        vpsValidation:    'Formato no compatible con el optimizador — subido como original.',
-        vpsPartial:       'Optimización parcial — algunas imágenes se subieron como originales.',
+        vpsUnreachable:   'Subido sin optimizar. El optimizador no está disponible.',
+        vpsAuth:          'Subido sin optimizar. Clave de API del optimizador inválida.',
+        vpsTimeout:       'Archivo muy grande para el optimizador. Subido como original.',
+        vpsValidation:    'Formato no compatible con el optimizador. Subido como original.',
+        vpsPartial:       'Optimización parcial. Algunas imágenes se subieron como originales.',
       },
     },
     board: {

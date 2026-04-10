@@ -12,9 +12,9 @@ export async function optimizeImage(file: File): Promise<OptimizeResult> {
       maxSizeMB:        2,
       maxWidthOrHeight: 3840,
       // useWebWorker: false — avoids hanging under COEP:credentialless headers
-      // (SharedArrayBuffer cross-origin restriction blocks worker creation silently)
       useWebWorker:     false,
-      fileType:         file.type as string,
+      // Always output WebP — highest compression, always required by the CMS
+      fileType:         'image/webp',
     })
     return { file: compressed, tier1Failed: false }
   } catch {

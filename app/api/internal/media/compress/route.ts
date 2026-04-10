@@ -60,11 +60,14 @@ export async function POST(req: NextRequest) {
   }
 
   // Build Optimus multipart request
-  // NOTE: out/size params must be query params in the URL, NOT form-data fields
-  // (form-data text fields are ignored by Optimus — works in curl/fetch but not Postman)
+  // Filename MUST include a valid extension — Optimus validates by extension (.jpg/.png/.webp)
+  // NOTE: out param goes in the URL query string, not form-data (recommended in docs)
+  const ext = mimeType === 'image/jpeg' ? 'jpg' : mimeType.split('/')[1] ?? 'png'
   const optimusUrl = `${vpsUrl}/api/v1/media/images/compress?out=webp`
   const optimusForm = new FormData()
-  optimusForm.append('files', fileEntry, 'upload')
+  // Re-wrap as typed Blob to ensure Content-Type is set correctly in the multipart part
+  const typedBlob = new Blob([await fileEntry.arrayBuffer()], { type: mimeType })
+  optimusForm.append('files', typedBlob, `upload.${ext}`)
 
   let optimusRes: Response
   try {

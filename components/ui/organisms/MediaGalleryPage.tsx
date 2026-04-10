@@ -145,6 +145,31 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
           onDelete={handleDelete}
           emptyLabel={emptyLabel}
           confirmDeleteLabel={g.confirmDelete}
+          uploadProps={{
+            queue,
+            dragging,
+            onFiles:        addFilesToQueue,
+            onRemove:       removeFromQueue,
+            onStartUpload:  (entry) => startUpload(entry, {
+              error:          g.uploadError,
+              success:        g.uploadSuccess,
+              vpsUnreachable: g.vpsUnreachable,
+              vpsAuth:        g.vpsAuth,
+              vpsTimeout:     g.vpsTimeout,
+              vpsValidation:  g.vpsValidation,
+              vpsPartial:     g.vpsPartial,
+            }),
+            onDragOver,
+            onDragLeave,
+            onDrop,
+            dropHereLabel:   g.dropHere,
+            orClickLabel:    g.orClick,
+            uploadBtnLabel:  g.uploadStart,
+            optimizingLabel: g.optimizing,
+            uploadingLabel:  g.uploading,
+            errorLabel:      g.uploadError,
+            successLabel:    g.uploadSuccess,
+          }}
         />
 
         {/* Pagination — bottom */}

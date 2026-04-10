@@ -368,11 +368,11 @@ export const en = {
         ofLabel:         'of',
         perPageLabel:    'Per page',
         // Optimus VPS warnings (upload succeeds but optimizer had issues)
-        vpsUnreachable: 'Uploaded without optimization — optimizer is unreachable.',
-        vpsAuth:        'Uploaded without optimization — invalid optimizer API key.',
-        vpsTimeout:     'File too large for the optimizer — uploaded as original.',
-        vpsValidation:  'Format not supported by the optimizer — uploaded as original.',
-        vpsPartial:     'Partially optimized — some images uploaded as originals.',
+        vpsUnreachable: 'Uploaded without optimization. Optimizer is unreachable.',
+        vpsAuth:        'Uploaded without optimization. Invalid optimizer API key.',
+        vpsTimeout:     'File too large for the optimizer. Uploaded as original.',
+        vpsValidation:  'Format not supported by the optimizer. Uploaded as original.',
+        vpsPartial:     'Partially optimized. Some images uploaded as originals.',
       },
     },
     board: {

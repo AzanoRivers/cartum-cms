@@ -147,6 +147,9 @@ export function useMediaGallery() {
     if (isImage) {
       patchEntry(id, { status: 'optimizing', progress: 0 })
 
+      // Yield one frame so React can paint the spinner before blocking the main thread
+      await new Promise<void>((r) => setTimeout(r, 50))
+
       // ── Tier 1: client-side compression ──
       const { file: tier1File } = await optimizeImage(file)
 
@@ -159,10 +162,15 @@ export function useMediaGallery() {
         const form = new FormData()
         form.append('file', tier1File, file.name)
 
+        // 30s timeout — Optimus can be slow but shouldn't exceed this for single images
+        const controller = new AbortController()
+        const timeoutId  = setTimeout(() => controller.abort(), 30_000)
+
         const proxyRes = await fetch('/api/internal/media/compress', {
           method: 'POST',
           body:   form,
-        })
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeoutId))
 
         const skipped = proxyRes.headers.get('X-Vps-Skipped')
         const warnHdr = proxyRes.headers.get('X-Vps-Warning') as VpsWarning | null
@@ -183,7 +191,12 @@ export function useMediaGallery() {
       }
 
       // ── Presigned URL (tiny server request, no bytes) ──
-      const urlRes = await getUploadUrl({ filename: file.name, mimeType: finalMime })
+      // Derive filename with the correct extension — if Optimus converted to webp,
+      // the original file.name still has the old extension (e.g. .png).
+      const baseName     = file.name.replace(/\.[^.]+$/, '')
+      const finalExt     = finalMime === 'image/webp' ? 'webp' : (file.name.split('.').pop() ?? 'bin')
+      const finalFilename = `${baseName}.${finalExt}`
+      const urlRes = await getUploadUrl({ filename: finalFilename, mimeType: finalMime })
       if (!urlRes.success) {
         patchEntry(id, { status: 'error', error: labels.error })
         return
@@ -256,7 +269,8 @@ export function useMediaGallery() {
 
   async function startUpload(entry: UploadEntry, labels: UploadLabels) {
     await uploadEntry(entry, labels)
-    // After done, refresh gallery and clear finished entries
+    // Show done/error state briefly so the user sees the checkmark before it disappears
+    await new Promise((r) => setTimeout(r, 1800))
     setQueue((q) => q.filter((e) => e.id !== entry.id || e.status === 'error'))
     fetchPage(filter, page, perPage, search)
   }

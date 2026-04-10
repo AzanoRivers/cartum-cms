@@ -1,6 +1,6 @@
 'use client'
 
-import { X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { X, CheckCircle2, AlertCircle, Loader2, Clock3 } from 'lucide-react'
 
 export type UploadFileStatus = 'pending' | 'optimizing' | 'uploading' | 'done' | 'error'
 
@@ -36,9 +36,10 @@ export function UploadFileRow({
     <div className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
       {/* Status icon */}
       <span className="shrink-0">
-        {status === 'done' && <CheckCircle2 size={14} className="text-success" />}
-        {status === 'error' && <AlertCircle size={14} className="text-danger" />}
-        {(status === 'pending' || status === 'optimizing' || status === 'uploading') && (
+        {status === 'done'      && <CheckCircle2 size={14} className="text-success" />}
+        {status === 'error'     && <AlertCircle  size={14} className="text-danger" />}
+        {status === 'pending'   && <Clock3        size={14} className="text-muted" />}
+        {(status === 'optimizing' || status === 'uploading') && (
           <Loader2 size={14} className="animate-spin text-primary" />
         )}
       </span>

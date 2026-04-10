@@ -186,7 +186,7 @@ function MediaContentInner({
       <VHSTransition duration="fast" trigger="has-value">
         <div className="flex flex-col gap-2">
         {/* Polaroid card — capped at 50% width on desktop */}
-        <div className="group relative w-full sm:w-1/2 overflow-hidden rounded-md border border-border bg-surface-2">
+        <div className="group relative mx-auto w-full sm:w-1/2 overflow-hidden rounded-md border border-border bg-surface-2">
           {/* Image/video preview */}
           <div className={`${isImage ? 'aspect-4/3' : 'aspect-video'} w-full overflow-hidden bg-surface`}>
             {isImage ? (
@@ -259,7 +259,7 @@ function MediaContentInner({
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        className={`relative flex aspect-4/3 w-full flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed transition-all ${
+        className={`relative flex aspect-4/3 w-full sm:w-1/2 mx-auto flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed transition-all ${
           dragging
             ? 'border-accent bg-accent/5 text-accent'
             : 'border-border bg-surface-2 text-muted hover:border-primary/50 hover:bg-primary/5 hover:text-text'

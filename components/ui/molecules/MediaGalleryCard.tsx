@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Link2, Trash2, Check } from 'lucide-react'
+import { Spinner } from '@/components/ui/atoms/Spinner'
 import type { MediaRecord } from '@/types/media'
 
 export type MediaGalleryCardProps = {
@@ -25,8 +26,9 @@ function formatDate(date: Date): string {
 export function MediaGalleryCard({ asset, onClick, onDelete, confirmDeleteLabel = 'Sure?' }: MediaGalleryCardProps) {
   const isVideo  = asset.mimeType.startsWith('video/')
   const name     = asset.key.split('/').pop() ?? asset.key
-  const [copied,      setCopied]      = useState(false)
-  const [confirming,  setConfirming]  = useState(false)
+  const [copied,     setCopied]     = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [deleting,   setDeleting]   = useState(false)
 
   function handleCopy(e: React.MouseEvent) {
     e.stopPropagation()
@@ -39,8 +41,9 @@ export function MediaGalleryCard({ asset, onClick, onDelete, confirmDeleteLabel 
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
     if (confirming) {
-      onDelete?.(asset)
       setConfirming(false)
+      setDeleting(true)
+      Promise.resolve(onDelete?.(asset)).finally(() => setDeleting(false))
     } else {
       setConfirming(true)
       setTimeout(() => setConfirming(false), 3000)
@@ -51,6 +54,13 @@ export function MediaGalleryCard({ asset, onClick, onDelete, confirmDeleteLabel 
     <div className="group flex flex-col gap-1.5">
       {/* Thumbnail */}
       <div className="relative aspect-square w-full overflow-hidden rounded-md border border-border bg-surface-2 transition-all duration-200 group-hover:border-primary/50 group-hover:ring-1 group-hover:ring-primary/30">
+        {/* Blur + spinner overlay while deleting */}
+        {deleting && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-black/50 backdrop-blur-sm">
+            <Spinner size="md" color="primary" />
+          </div>
+        )}
+
         {/* Clickable area */}
         <button
           type="button"
@@ -77,16 +87,17 @@ export function MediaGalleryCard({ asset, onClick, onDelete, confirmDeleteLabel 
         </button>
 
         {/* Action buttons — appear on hover, sit on a gradient scrim */}
-        <div className="absolute bottom-0 inset-x-0 flex items-center justify-end gap-1.5 px-2 py-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-linear-to-t from-black/60 to-transparent">
+        <div className={`absolute bottom-0 inset-x-0 flex items-center justify-end gap-1.5 px-2 py-2 transition-opacity duration-200 bg-linear-to-t from-black/60 to-transparent ${deleting ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
           {/* Copy link */}
           <button
             type="button"
             onClick={handleCopy}
             title="Copy URL"
+            disabled={deleting}
             className={`flex h-7 w-7 sm:h-10 sm:w-10 items-center justify-center rounded-md transition-all duration-150 ${
               copied
                 ? 'bg-success text-white shadow-sm'
-                : 'bg-surface/70 text-text hover:bg-primary hover:text-white'
+                : 'bg-surface/70 text-text hover:bg-primary hover:text-white disabled:opacity-40'
             }`}
           >
             {copied ? <Check size={13} className="sm:hidden" /> : <Link2 size={13} className="sm:hidden" />}
@@ -98,16 +109,24 @@ export function MediaGalleryCard({ asset, onClick, onDelete, confirmDeleteLabel 
             <button
               type="button"
               onClick={handleDelete}
-              title={confirming ? 'Confirm delete' : 'Delete'}
+              disabled={deleting}
+              title={deleting ? '' : confirming ? 'Confirm delete' : 'Delete'}
               className={`flex h-7 sm:h-10 items-center justify-center rounded-md px-2 sm:px-3 gap-1.5 font-mono text-[11px] sm:text-[13px] font-medium transition-all duration-150 ${
-                confirming
-                  ? 'bg-danger text-white w-auto'
-                  : 'bg-danger/80 text-white hover:bg-danger w-7 sm:w-10'
+                deleting
+                  ? 'bg-danger/60 text-white w-auto cursor-not-allowed'
+                  : confirming
+                    ? 'bg-danger text-white w-auto'
+                    : 'bg-danger/80 text-white hover:bg-danger w-7 sm:w-10'
               }`}
             >
-              <Trash2 size={11} className="sm:hidden" />
-              <Trash2 size={16} className="hidden sm:block" />
-              {confirming && <span>{confirmDeleteLabel}</span>}
+              {deleting
+                ? <><Spinner size="sm" color="primary" className="border-white/60" /><span className="hidden sm:inline">...</span></>
+                : <>
+                    <Trash2 size={11} className="sm:hidden" />
+                    <Trash2 size={16} className="hidden sm:block" />
+                    {confirming && <span>{confirmDeleteLabel}</span>}
+                  </>
+              }
             </button>
           )}
         </div>
