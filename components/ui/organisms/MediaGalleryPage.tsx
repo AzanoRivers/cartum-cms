@@ -128,7 +128,7 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
 
   return (
     <div className="w-full min-h-full">
-      <div className="flex flex-col gap-4 p-4 md:p-6 md:max-w-350 md:mx-auto">
+      <div className="flex flex-col gap-4 p-4 pt-12 md:pt-6 md:p-6 md:max-w-350 md:mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-mono text-base font-semibold text-text">{g.title}</h1>

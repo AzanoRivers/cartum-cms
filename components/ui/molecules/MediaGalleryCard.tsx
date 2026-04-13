@@ -157,7 +157,7 @@ export function MediaGalleryCard({
           }}
           className="absolute inset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded-md"
           aria-label={name}
-          style={{ WebkitUserSelect: 'none', userSelect: 'none' }}
+          style={{ WebkitUserSelect: 'none', userSelect: 'none', touchAction: 'manipulation' }}
         >
           {isVideo ? (
             <div className={`flex h-full w-full items-center justify-center transition-transform duration-300 ${pressing ? '' : 'group-hover:scale-105'}`}>
@@ -177,9 +177,10 @@ export function MediaGalleryCard({
           )}
         </button>
 
-        {/* Action buttons — appear on hover, hidden in selection mode */}
-        {!selectionMode && (
-          <div className={`absolute bottom-0 inset-x-0 flex items-center justify-end gap-1.5 px-2 py-2 transition-opacity duration-200 bg-linear-to-t from-black/60 to-transparent ${deleting ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+        {/* Action buttons — desktop: appear on hover; mobile: appear in selection mode */}
+        <div className={`absolute bottom-0 inset-x-0 flex items-center justify-end gap-1.5 px-2 py-2 transition-opacity duration-200 bg-linear-to-t from-black/60 to-transparent ${
+          deleting || selectionMode ? 'opacity-100' : 'opacity-0 sm:group-hover:opacity-100'
+        }`}>
             {/* Copy link */}
             <button
               type="button"
@@ -222,7 +223,6 @@ export function MediaGalleryCard({
               </button>
             )}
           </div>
-        )}
       </div>
 
       {/* Metadata */}
