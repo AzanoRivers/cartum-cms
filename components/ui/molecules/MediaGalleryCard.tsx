@@ -180,8 +180,10 @@ export function MediaGalleryCard({
         </button>
 
         {/* Action buttons — desktop: appear on hover; mobile: appear in selection mode */}
-        <div className={`absolute bottom-0 inset-x-0 flex items-center justify-end gap-1.5 px-2 py-2 transition-opacity duration-200 bg-linear-to-t from-black/60 to-transparent pointer-events-none ${
-          deleting || selectionMode ? 'opacity-100' : 'opacity-0 sm:group-hover:opacity-100'
+        <div className={`absolute bottom-0 inset-x-0 flex items-center justify-end gap-1.5 px-2 py-2 transition-opacity duration-200 bg-linear-to-t from-black/60 to-transparent ${
+          deleting || selectionMode
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto'
         }`}>
             {/* Copy link */}
             <button
@@ -189,7 +191,7 @@ export function MediaGalleryCard({
               onClick={handleCopy}
               title="Copy URL"
               disabled={deleting}
-              className={`pointer-events-auto flex h-7 w-7 sm:h-10 sm:w-10 items-center justify-center rounded-md transition-all duration-150 ${
+              className={`flex h-7 w-7 sm:h-10 sm:w-10 items-center justify-center rounded-md transition-all duration-150 ${
                 copied
                   ? 'bg-success text-white shadow-sm'
                   : 'bg-surface/70 text-text hover:bg-primary hover:text-white disabled:opacity-40'
@@ -206,7 +208,7 @@ export function MediaGalleryCard({
                 onClick={handleDelete}
                 disabled={deleting}
                 title={deleting ? '' : confirming ? 'Confirm delete' : 'Delete'}
-                className={`pointer-events-auto flex h-7 sm:h-10 items-center justify-center rounded-md px-2 sm:px-3 gap-1.5 font-mono text-[11px] sm:text-[13px] font-medium transition-all duration-150 ${
+                className={`flex h-7 sm:h-10 items-center justify-center rounded-md px-2 sm:px-3 gap-1.5 font-mono text-[11px] sm:text-[13px] font-medium transition-all duration-150 ${
                   deleting
                     ? 'bg-danger/60 text-white w-auto cursor-not-allowed'
                     : confirming
