@@ -906,6 +906,12 @@ export type Dictionary = {
         ofLabel: string; perPageLabel: string
         vpsUnreachable: string; vpsAuth: string; vpsTimeout: string
         vpsValidation: string; vpsPartial: string
+        bulkPlaceholder: string; bulkDownload: string; bulkDelete: string
+        bulkSelected: string; bulkClear: string
+        bulkDeleteTitle: string; bulkDeleteBody: string; bulkDeleteConfirm: string
+        bulkDeleteCancel: string; bulkDeleting: string
+        bulkDeletedSuccess: string; bulkDeletedPartial: string
+        bulkDownloading: string; bulkDownloadSuccess: string
       }
     }
     board: {
