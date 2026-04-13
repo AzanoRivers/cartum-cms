@@ -1,5 +1,5 @@
 export type NodeCategory = 'container' | 'field'
-export type FieldType = 'text' | 'number' | 'boolean' | 'image' | 'video' | 'relation'
+export type FieldType = 'text' | 'number' | 'boolean' | 'image' | 'video' | 'relation' | 'gallery'
 export type RelationType = '1:1' | '1:n' | 'n:m'
 export type PortSide = 'top' | 'right' | 'bottom' | 'left'
 export type Position = { x: number; y: number }
@@ -13,6 +13,8 @@ export interface TextFieldConfig {
 
 export interface NumberFieldConfig {
   subtype: 'integer' | 'float'
+  valueMode?: 'fixed' | 'range'
+  fixedValue?: number | null
   min?: number
   max?: number
 }
@@ -38,6 +40,30 @@ export interface VideoFieldConfig {
   defaultMediaId?: string | null
 }
 
+export interface GalleryItem {
+  url:     string
+  mediaId: string | null
+}
+
+export interface GalleryFieldConfig {
+  items:     GalleryItem[]
+  maxItems?: number
+}
+
+export type GalleryContentLabels = {
+  addImage:      string
+  removeImage:   string
+  confirmRemove: string
+  selectFromLib: string
+  uploadNew:     string
+  dragOrSelect?: string
+  empty:         string
+  maxReached:    string
+  uploading:     string
+  optimizing:    string
+  uploadError:   string
+}
+
 export type FieldConfig =
   | TextFieldConfig
   | NumberFieldConfig
@@ -45,6 +71,7 @@ export type FieldConfig =
   | RelationFieldConfig
   | ImageFieldConfig
   | VideoFieldConfig
+  | GalleryFieldConfig
   | Record<string, never>
 
 export interface BaseNode {
@@ -104,6 +131,7 @@ export interface UpdateFieldMetaInput {
   name?: string
   isRequired?: boolean
   fieldType?: FieldType
+  defaultValue?: string | null
   config?: FieldConfig
   relationTargetId?: string | null
 }

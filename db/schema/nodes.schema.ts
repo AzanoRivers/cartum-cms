@@ -34,6 +34,6 @@ export const fieldMeta = pgTable(
     config:           jsonb('config'),
   },
   (t) => [
-    check('field_meta_type_check', sql`${t.fieldType} IN ('text', 'number', 'boolean', 'image', 'video', 'relation')`),
+    check('field_meta_type_check', sql`${t.fieldType} IN ('text', 'number', 'boolean', 'image', 'video', 'relation', 'gallery')`),
   ],
 )

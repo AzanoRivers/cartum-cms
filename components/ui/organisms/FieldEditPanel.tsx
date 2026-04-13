@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/atoms/Icon'
 import { FieldTypePicker } from '@/components/ui/molecules/FieldTypePicker'
 import { FieldAccordionSection } from '@/components/ui/molecules/FieldAccordionSection'
 import { FieldMediaContent } from '@/components/ui/molecules/FieldMediaContent'
+import { FieldGalleryContent } from '@/components/ui/molecules/FieldGalleryContent'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useNodeBoardStore } from '@/lib/stores/nodeBoardStore'
 import { updateFieldMeta, getContainerNodes } from '@/lib/actions/nodes.actions'
@@ -22,6 +23,8 @@ import type {
   RelationFieldConfig,
   ImageFieldConfig,
   VideoFieldConfig,
+  GalleryFieldConfig,
+  GalleryItem,
 } from '@/types/nodes'
 
 export type FieldEditPanelProps = {
@@ -90,16 +93,21 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
   // type-specific config
   const [multiline, setMultiline]       = useState(false)
   const [maxLength, setMaxLength]       = useState('')
-  const [numSubtype, setNumSubtype]     = useState<'integer' | 'float'>('integer')
-  const [numMin, setNumMin]             = useState('')
-  const [numMax, setNumMax]             = useState('')
+  const [numSubtype, setNumSubtype]         = useState<'integer' | 'float'>('integer')
+  const [numValueMode, setNumValueMode]     = useState<'fixed' | 'range'>('fixed')
+  const [numFixedValue, setNumFixedValue]   = useState('')
+  const [numMin, setNumMin]                 = useState('')
+  const [numMax, setNumMax]                 = useState('')
   const [boolDefault, setBoolDefault]   = useState(false)
   const [trueLabel, setTrueLabel]       = useState('')
   const [falseLabel, setFalseLabel]     = useState('')
   const [relTarget, setRelTarget]       = useState('')
   const [relationType, setRelationType] = useState<'1:1' | '1:n' | 'n:m'>('1:n')
+  const [textDefaultValue, setTextDefaultValue] = useState('')
   const [defaultUrl,     setDefaultUrl]     = useState<string | null>(null)
   const [defaultMediaId, setDefaultMediaId] = useState<string | null>(null)
+  const [galleryItems,    setGalleryItems]    = useState<GalleryItem[]>([])
+  const [galleryMaxItems, setGalleryMaxItems] = useState('')
 
   // Exclusive accordion: only one section open at a time (resolved in useEffect based on field type)
   const [openSection, setOpenSection] = useState<'content' | 'type' | null>(null)
@@ -126,9 +134,8 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
     setFieldType(field.fieldType)
     setErrors({})
 
-    // Open "type" by default for fields whose content is edited in records,
-    // open "content" only for fields with inline-editable content (media)
-    const hasInlineContent = field.fieldType === 'image' || field.fieldType === 'video'
+    // Open "content" for fields with inline-editable content (text, number, image, video)
+    const hasInlineContent = field.fieldType === 'text' || field.fieldType === 'number' || field.fieldType === 'image' || field.fieldType === 'video' || field.fieldType === 'gallery'
     setOpenSection(hasInlineContent ? 'content' : 'type')
 
     const cfg = field.config ?? {}
@@ -137,9 +144,12 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
       const c = cfg as TextFieldConfig
       setMultiline(c.multiline ?? false)
       setMaxLength(c.maxLength != null ? String(c.maxLength) : '')
+      setTextDefaultValue(field.defaultValue ?? '')
     } else if (field.fieldType === 'number') {
       const c = cfg as NumberFieldConfig
       setNumSubtype(c.subtype ?? 'integer')
+      setNumValueMode(c.valueMode ?? 'fixed')
+      setNumFixedValue(c.fixedValue != null ? String(c.fixedValue) : '')
       setNumMin(c.min != null ? String(c.min) : '')
       setNumMax(c.max != null ? String(c.max) : '')
     } else if (field.fieldType === 'boolean') {
@@ -159,6 +169,10 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
       const c = cfg as VideoFieldConfig
       setDefaultUrl(c.defaultUrl ?? null)
       setDefaultMediaId(c.defaultMediaId ?? null)
+    } else if (field.fieldType === 'gallery') {
+      const c = cfg as GalleryFieldConfig
+      setGalleryItems(c.items ?? [])
+      setGalleryMaxItems(c.maxItems != null ? String(c.maxItems) : '')
     }
   }, [field?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -191,7 +205,7 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
       if (taken) errs.name = d?.fieldEdit.errors.nameTaken ?? 'A node with this name already exists here.'
     }
 
-    if (fieldType === 'number') {
+    if (fieldType === 'number' && numValueMode === 'range') {
       const minVal = numMin !== '' ? Number(numMin) : null
       const maxVal = numMax !== '' ? Number(numMax) : null
       if (minVal !== null && maxVal !== null && minVal > maxVal) {
@@ -217,9 +231,11 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
     }
     if (fieldType === 'number') {
       return {
-        subtype: numSubtype,
-        ...(numMin !== '' ? { min: Number(numMin) } : {}),
-        ...(numMax !== '' ? { max: Number(numMax) } : {}),
+        subtype:   numSubtype,
+        valueMode: numValueMode,
+        ...(numValueMode === 'fixed' && numFixedValue !== '' ? { fixedValue: Number(numFixedValue) } : { fixedValue: null }),
+        ...(numValueMode === 'range' && numMin !== '' ? { min: Number(numMin) } : {}),
+        ...(numValueMode === 'range' && numMax !== '' ? { max: Number(numMax) } : {}),
       } satisfies NumberFieldConfig
     }
     if (fieldType === 'boolean') {
@@ -247,6 +263,12 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
         defaultMediaId: defaultMediaId ?? null,
       } satisfies VideoFieldConfig
     }
+    if (fieldType === 'gallery') {
+      return {
+        items: galleryItems,
+        ...(galleryMaxItems !== '' ? { maxItems: Number(galleryMaxItems) } : {}),
+      } satisfies GalleryFieldConfig
+    }
     return {}
   }
 
@@ -265,6 +287,7 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
         name:             name.trim(),
         isRequired,
         fieldType,
+        defaultValue:     fieldType === 'text' ? (textDefaultValue.trim() || null) : undefined,
         config,
         relationTargetId,
       })
@@ -332,27 +355,26 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
               ))}
             </div>
           </div>
-          <div className="flex gap-2">
-            <Input
-              label={d?.fieldEdit.number.min ?? 'Min'}
-              type="number"
-              size="sm"
-              placeholder={d?.fieldEdit.number.minPlaceholder ?? ''}
-              value={numMin}
-              onChange={(e) => setNumMin(e.target.value)}
-            />
-            <Input
-              label={d?.fieldEdit.number.max ?? 'Max'}
-              type="number"
-              size="sm"
-              placeholder={d?.fieldEdit.number.maxPlaceholder ?? ''}
-              value={numMax}
-              onChange={(e) => setNumMax(e.target.value)}
-            />
+          <div className="flex flex-col gap-1">
+            <span className="font-mono text-xs text-muted">{d?.fieldEdit.number.valueModeLabel ?? 'Value type'}</span>
+            <div className="flex gap-2">
+              {(['fixed', 'range'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setNumValueMode(m)}
+                  className={[
+                    'flex-1 rounded-md border py-1.5 font-mono text-xs transition-all cursor-pointer',
+                    numValueMode === m
+                      ? 'border-primary bg-surface text-primary'
+                      : 'border-border bg-surface-2 text-muted hover:border-primary',
+                  ].join(' ')}
+                >
+                  {m === 'fixed' ? (d?.fieldEdit.number.valueModeFixed ?? 'Fixed') : (d?.fieldEdit.number.valueModeRange ?? 'Range')}
+                </button>
+              ))}
+            </div>
           </div>
-          {errors.numRange && (
-            <p className="text-xs text-danger">{errors.numRange}</p>
-          )}
         </div>
       )
     }
@@ -487,6 +509,22 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
       )
     }
 
+    if (fieldType === 'gallery') {
+      return (
+        <div className="flex flex-col gap-3">
+          <Input
+            label={d?.fieldEdit.gallery.maxItems ?? 'Max images (optional)'}
+            type="number"
+            min={1}
+            size="sm"
+            placeholder={d?.fieldEdit.gallery.maxItemsPlaceholder ?? 'e.g. 10'}
+            value={galleryMaxItems}
+            onChange={(e) => setGalleryMaxItems(e.target.value)}
+          />
+        </div>
+      )
+    }
+
     return null
   }
 
@@ -528,34 +566,119 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
         open={openSection === 'content'}
         onToggle={() => setOpenSection((s) => (s === 'content' ? null : 'content'))}
       >
-        <FieldMediaContent
-          fieldType={fieldType}
-          nodeId={field?.parentId ?? undefined}
-          defaultUrl={defaultUrl}
-          defaultMediaId={defaultMediaId}
-          onChange={async (patch) => {
-            // Update local state
-            const newUrl     = patch.defaultUrl     !== undefined ? (patch.defaultUrl     ?? null) : defaultUrl
-            const newMediaId = patch.defaultMediaId !== undefined ? (patch.defaultMediaId ?? null) : defaultMediaId
-            if (patch.defaultUrl     !== undefined) setDefaultUrl(newUrl)
-            if (patch.defaultMediaId !== undefined) setDefaultMediaId(newMediaId)
+        {fieldType === 'text' ? (
+          <div className="flex flex-col gap-1.5">
+            <span className="font-mono text-xs text-muted">
+              {d?.fieldEdit.text.defaultValueLabel ?? 'Default value (optional)'}
+            </span>
+            <textarea
+              className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-text placeholder:text-muted outline-none focus:border-primary transition-colors resize-y min-h-32"
+              rows={8}
+              placeholder={d?.fieldEdit.text.defaultValuePlaceholder ?? 'Enter default text…'}
+              value={textDefaultValue}
+              onChange={(e) => setTextDefaultValue(e.target.value)}
+              maxLength={maxLength !== '' ? Number(maxLength) : undefined}
+            />
+          </div>
+        ) : fieldType === 'number' ? (
+          <div className="flex flex-col gap-3">
+            {numValueMode === 'fixed' ? (
+              <Input
+                label={d?.fieldEdit.number.fixedValue ?? 'Value'}
+                type="number"
+                size="sm"
+                placeholder={d?.fieldEdit.number.fixedValuePlaceholder ?? 'e.g. 42'}
+                value={numFixedValue}
+                onChange={(e) => setNumFixedValue(e.target.value)}
+              />
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <Input
+                    label={d?.fieldEdit.number.min ?? 'Min'}
+                    type="number"
+                    size="sm"
+                    placeholder={d?.fieldEdit.number.minPlaceholder ?? ''}
+                    value={numMin}
+                    onChange={(e) => setNumMin(e.target.value)}
+                  />
+                  <Input
+                    label={d?.fieldEdit.number.max ?? 'Max'}
+                    type="number"
+                    size="sm"
+                    placeholder={d?.fieldEdit.number.maxPlaceholder ?? ''}
+                    value={numMax}
+                    onChange={(e) => setNumMax(e.target.value)}
+                  />
+                </div>
+                {errors.numRange && (
+                  <p className="text-xs text-danger">{errors.numRange}</p>
+                )}
+              </>
+            )}
+          </div>
+        ) : fieldType === 'gallery' ? (
+          <FieldGalleryContent
+            nodeId={field?.parentId ?? undefined}
+            items={galleryItems}
+            maxItems={galleryMaxItems !== '' ? Number(galleryMaxItems) : undefined}
+            onChange={async (newItems) => {
+              setGalleryItems(newItems)
+              if (!field) return
+              const cfg: GalleryFieldConfig = {
+                items: newItems,
+                ...(galleryMaxItems !== '' ? { maxItems: Number(galleryMaxItems) } : {}),
+              }
+              const result = await updateFieldMeta({
+                nodeId:    field.id,
+                fieldType,
+                config:    cfg,
+              })
+              if (result.success) {
+                setNodes(nodes.map((n) => (n.id === result.data.id ? result.data : n)))
+              }
+            }}
+            labels={{
+              addImage:      d?.fieldEdit.galleryContent.addImage      ?? 'Add image',
+              removeImage:   d?.fieldEdit.galleryContent.removeImage   ?? 'Remove',
+              confirmRemove: d?.fieldEdit.galleryContent.confirmRemove ?? 'Confirm?',
+              selectFromLib: d?.fieldEdit.galleryContent.selectFromLib ?? 'From library',
+              uploadNew:     d?.fieldEdit.galleryContent.uploadNew     ?? 'Upload',
+              empty:         d?.fieldEdit.galleryContent.empty         ?? 'No images yet.',
+              maxReached:    d?.fieldEdit.galleryContent.maxReached    ?? 'Max images reached.',
+              uploading:     d?.fieldEdit.galleryContent.uploading     ?? 'Uploading…',
+              optimizing:    d?.fieldEdit.galleryContent.optimizing    ?? 'Optimizing…',
+              uploadError:   d?.fieldEdit.galleryContent.uploadError   ?? 'Upload failed.',
+            }}
+          />
+        ) : (
+          <FieldMediaContent
+            fieldType={fieldType}
+            nodeId={field?.parentId ?? undefined}
+            defaultUrl={defaultUrl}
+            defaultMediaId={defaultMediaId}
+            onChange={async (patch) => {
+              const newUrl     = patch.defaultUrl     !== undefined ? (patch.defaultUrl     ?? null) : defaultUrl
+              const newMediaId = patch.defaultMediaId !== undefined ? (patch.defaultMediaId ?? null) : defaultMediaId
+              if (patch.defaultUrl     !== undefined) setDefaultUrl(newUrl)
+              if (patch.defaultMediaId !== undefined) setDefaultMediaId(newMediaId)
 
-            // Auto-persist to DB immediately — user doesn't need to click Save for media changes
-            if (!field) return
-            const result = await updateFieldMeta({
-              nodeId:    field.id,
-              fieldType,
-              config: {
-                defaultUrl:     newUrl,
-                defaultMediaId: newMediaId,
-              },
-            })
-            if (result.success) {
-              setNodes(nodes.map((n) => (n.id === result.data.id ? result.data : n)))
-            }
-          }}
-          labels={mediaLabels}
-        />
+              if (!field) return
+              const result = await updateFieldMeta({
+                nodeId:    field.id,
+                fieldType,
+                config: {
+                  defaultUrl:     newUrl,
+                  defaultMediaId: newMediaId,
+                },
+              })
+              if (result.success) {
+                setNodes(nodes.map((n) => (n.id === result.data.id ? result.data : n)))
+              }
+            }}
+            labels={mediaLabels}
+          />
+        )}
       </FieldAccordionSection>
 
       {/* ── Sección 1: Tipo de campo (colapsada por defecto) ────────────────── */}

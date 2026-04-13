@@ -141,6 +141,7 @@ export const nodeService = {
       name:             input.name,
       fieldType:        input.fieldType,
       isRequired:       input.isRequired,
+      defaultValue:     input.defaultValue,
       config:           input.config ?? null,
       relationTargetId: input.relationTargetId,
     })

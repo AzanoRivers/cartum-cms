@@ -11,7 +11,7 @@ export function FullscreenLoader({ label }: FullscreenLoaderProps) {
     <div
       role="status"
       aria-label={label ?? 'Loading'}
-      className="fixed inset-0 z-[15] flex flex-col items-center justify-center gap-3 bg-bg/70 backdrop-blur-sm pointer-events-auto"
+      className="fixed inset-0 z-100 flex flex-col items-center justify-center gap-3 bg-bg/70 backdrop-blur-sm pointer-events-auto"
     >
       <Spinner size="lg" color="primary" />
       {label && (

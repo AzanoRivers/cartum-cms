@@ -272,3 +272,27 @@ export async function deleteMediaRecord(
     return { success: false, error: 'Failed to delete media record.' }
   }
 }
+
+// -----------------------------------------------------------------------
+// bulkDeleteMediaRecords — removes multiple records from R2 + DB
+// -----------------------------------------------------------------------
+export async function bulkDeleteMediaRecords(
+  ids: string[],
+): Promise<ActionResult<{ deleted: number; failed: number }>> {
+  try {
+    await requireSession()
+    let deleted = 0
+    let failed  = 0
+    for (const id of ids) {
+      try {
+        await mediaRepository.delete(id)
+        deleted++
+      } catch {
+        failed++
+      }
+    }
+    return { success: true, data: { deleted, failed } }
+  } catch {
+    return { success: false, error: 'Failed to bulk delete media records.' }
+  }
+}

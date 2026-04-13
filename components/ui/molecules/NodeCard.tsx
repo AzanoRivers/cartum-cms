@@ -16,6 +16,7 @@ const FIELD_TYPE_ICON: Record<FieldType, string> = {
   boolean:  'ToggleLeft',
   image:    'Image',
   video:    'Video',
+  gallery:  'LayoutGrid',
   relation: 'Link',
 } as const
 
@@ -25,6 +26,7 @@ const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   boolean:  'boolean',
   image:    'image',
   video:    'video',
+  gallery:  'gallery',
   relation: 'relation',
 } as const
 
@@ -35,6 +37,7 @@ const FIELD_TYPE_ICON_CLASS: Record<FieldType, string> = {
   boolean:  'text-muted',
   image:    'text-accent',
   video:    'text-accent',
+  gallery:  'text-accent',
   relation: 'text-primary',
 } as const
 

@@ -1,0 +1,2 @@
+ALTER TABLE "field_meta" DROP CONSTRAINT "field_meta_type_check";--> statement-breakpoint
+ALTER TABLE "field_meta" ADD CONSTRAINT "field_meta_type_check" CHECK ("field_meta"."field_type" IN ('text', 'number', 'boolean', 'image', 'video', 'relation', 'gallery'));

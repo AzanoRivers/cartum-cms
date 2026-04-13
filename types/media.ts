@@ -100,5 +100,5 @@ export const ALLOWED_VIDEO_TYPES = [
   'video/mp4', 'video/webm', 'video/quicktime',
 ] as const
 
-export const MAX_IMAGE_SIZE_BYTES = 50 * 1024 * 1024   // 50 MB
+export const MAX_IMAGE_SIZE_BYTES = 80 * 1024 * 1024   // 80 MB
 export const MAX_VIDEO_SIZE_BYTES = 500 * 1024 * 1024  // 500 MB

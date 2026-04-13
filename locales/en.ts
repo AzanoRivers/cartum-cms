@@ -171,6 +171,7 @@ export const en = {
         boolean:  'boolean',
         image:    'image',
         video:    'video',
+        gallery:  'gallery',
         relation: 'relation',
       },
     },
@@ -199,6 +200,7 @@ export const en = {
       image:    'Image',
       video:    'Video',
       relation: 'Relation',
+      gallery:  'Gallery',
     },
     fieldEdit: {
       ariaLabel:        'Edit field',
@@ -211,19 +213,26 @@ export const en = {
       saving:           'Saving…',
       typeChangeBlocked: 'This field has existing records. Delete all records first to change the type.',
       text: {
-        multiline:           'Multiline (textarea)',
-        maxLength:           'Max length (optional)',
-        maxLengthPlaceholder: 'e.g. 255',
+        multiline:               'Multiline (textarea)',
+        maxLength:               'Max length (optional)',
+        maxLengthPlaceholder:    'e.g. 255',
+        defaultValueLabel:       'Default value (optional)',
+        defaultValuePlaceholder: 'Enter default text…',
       },
       number: {
-        subtype:         'Subtype',
-        subtypeInt:      'integer',
-        subtypeFloat:    'float',
-        min:             'Min',
-        max:             'Max',
-        minPlaceholder:  '',
-        maxPlaceholder:  '',
-        rangeError:      'Min must be less than or equal to Max.',
+        subtype:              'Subtype',
+        subtypeInt:           'integer',
+        subtypeFloat:         'decimal',
+        valueModeLabel:       'Value type',
+        valueModeFixed:       'Fixed',
+        valueModeRange:       'Range',
+        fixedValue:           'Value',
+        fixedValuePlaceholder: 'e.g. 42',
+        min:                  'Min',
+        max:                  'Max',
+        minPlaceholder:       '',
+        maxPlaceholder:       '',
+        rangeError:           'Min must be less than or equal to Max.',
       },
       boolean: {
         defaultValue:    'Default value',
@@ -268,6 +277,22 @@ export const en = {
         removeMedia:   'Remove',
         confirmRemove: 'Confirm?',
         otherTypesMsg: 'This field\'s content is edited in the node\'s records.',
+        uploading:     'Uploading…',
+        optimizing:    'Optimizing…',
+        uploadError:   'Upload failed.',
+      },
+      gallery: {
+        maxItems:            'Max images (optional)',
+        maxItemsPlaceholder: 'e.g. 10',
+      },
+      galleryContent: {
+        addImage:      'Add image',
+        removeImage:   'Remove',
+        confirmRemove: 'Confirm?',
+        selectFromLib: 'From library',
+        uploadNew:     'Upload',
+        empty:         'No images yet. Add the first one.',
+        maxReached:    'Maximum number of images reached.',
         uploading:     'Uploading…',
         optimizing:    'Optimizing…',
         uploadError:   'Upload failed.',
@@ -366,6 +391,8 @@ export const en = {
         uploadError:     'Upload failed.',
         deleteLabel:     'Delete',
         confirmDelete:   'Sure?',
+        copyUrlLabel:    'Copy URL',
+        copiedLabel:     'Copied!',
         ofLabel:         'of',
         perPageLabel:    'Per page',
         // Optimus VPS warnings (upload succeeds but optimizer had issues)
@@ -374,6 +401,21 @@ export const en = {
         vpsTimeout:     'File too large for the optimizer. Uploaded as original.',
         vpsValidation:  'Format not supported by the optimizer. Uploaded as original.',
         vpsPartial:     'Partially optimized. Some images uploaded as originals.',
+        // Bulk selection
+        bulkPlaceholder:     'Bulk action',
+        bulkDownload:        'Download',
+        bulkDelete:          'Delete',
+        bulkSelected:        '{n} selected',
+        bulkClear:           'Clear selection',
+        bulkDeleteTitle:     'Delete selection',
+        bulkDeleteBody:      'Delete {n} file(s)? This action cannot be undone.',
+        bulkDeleteConfirm:   'Delete {n}',
+        bulkDeleteCancel:    'Cancel',
+        bulkDeleting:        'Deleting…',
+        bulkDeletedSuccess:  'Deleted {n} file(s).',
+        bulkDeletedPartial:  'Deleted {deleted} file(s). {failed} failed.',
+        bulkDownloading:     'Preparing ZIP…',
+        bulkDownloadSuccess: 'Downloaded {n} file(s).',
       },
     },
     board: {
@@ -796,7 +838,7 @@ export type Dictionary = {
     canvas: { ariaLabel: string; empty: string; emptyHint: string }
     nodeCard: {
       fields: string; records: string; connections: string; required: string
-      types: { text: string; number: string; boolean: string; image: string; video: string; relation: string }
+      types: { text: string; number: string; boolean: string; image: string; video: string; gallery: string; relation: string }
     }
     creation: {
       ariaLabel: string; titleTypeSelect: string; titleFieldType: string; titleName: string
@@ -804,12 +846,12 @@ export type Dictionary = {
       nodeName: string; placeholder: string; back: string; create: string
       errors: { nameRequired: string; nameTaken: string }
     }
-    fieldTypePicker: { text: string; number: string; boolean: string; image: string; video: string; relation: string }
+    fieldTypePicker: { text: string; number: string; boolean: string; image: string; video: string; relation: string; gallery: string }
     fieldEdit: {
       ariaLabel: string; title: string; name: string; requiredToggle: string
       fieldType: string; cancel: string; save: string; saving: string; typeChangeBlocked: string
-      text:    { multiline: string; maxLength: string; maxLengthPlaceholder: string }
-      number:  { subtype: string; subtypeInt: string; subtypeFloat: string; min: string; max: string; minPlaceholder: string; maxPlaceholder: string; rangeError: string }
+      text:    { multiline: string; maxLength: string; maxLengthPlaceholder: string; defaultValueLabel: string; defaultValuePlaceholder: string }
+      number:  { subtype: string; subtypeInt: string; subtypeFloat: string; valueModeLabel: string; valueModeFixed: string; valueModeRange: string; fixedValue: string; fixedValuePlaceholder: string; min: string; max: string; minPlaceholder: string; maxPlaceholder: string; rangeError: string }
       boolean: { defaultValue: string; trueLabel: string; falseLabel: string; truePlaceholder: string; falsePlaceholder: string }
       storage: { notConfiguredImages: string; notConfiguredVideos: string; configuredImages: string; configuredVideos: string; imageFormats: string; videoFormats: string; goToContent: string }
       relation:{ targetLabel: string; targetPlaceholder: string; relationType: string }
@@ -819,6 +861,12 @@ export type Dictionary = {
         noImage: string; noVideo: string; dragOrSelect: string; dropHere: string
         selectFromLib: string; uploadNew: string; changeMedia: string; removeMedia: string
         confirmRemove: string; otherTypesMsg: string; uploading: string; optimizing: string; uploadError: string
+      }
+      gallery: { maxItems: string; maxItemsPlaceholder: string }
+      galleryContent: {
+        addImage: string; removeImage: string; confirmRemove: string
+        selectFromLib: string; uploadNew: string; empty: string; maxReached: string
+        uploading: string; optimizing: string; uploadError: string
       }
     }
     mobileList: { empty: string; emptyHint: string; fieldsSeparator: string }
@@ -854,7 +902,7 @@ export type Dictionary = {
         uploadBtn: string; emptyImages: string; emptyVideos: string; emptySearch: string
         dropHere: string; orClick: string; uploadStart: string
         optimizing: string; uploading: string; uploadSuccess: string; uploadError: string
-        deleteLabel: string; confirmDelete: string
+        deleteLabel: string; confirmDelete: string; copyUrlLabel: string; copiedLabel: string
         ofLabel: string; perPageLabel: string
         vpsUnreachable: string; vpsAuth: string; vpsTimeout: string
         vpsValidation: string; vpsPartial: string

@@ -157,6 +157,7 @@ export async function updateFieldMeta(
       name:             parsed.data.name,
       isRequired:       parsed.data.isRequired,
       fieldType:        parsed.data.fieldType,
+      defaultValue:     parsed.data.defaultValue,
       config:           parsed.data.config as FieldConfig | undefined,
       relationTargetId: parsed.data.relationTargetId,
     })

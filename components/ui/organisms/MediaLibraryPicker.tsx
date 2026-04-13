@@ -11,7 +11,11 @@ export type MediaLibraryPickerProps = {
   open:     boolean
   filter:   'image' | 'video'
   onClose:  () => void
-  onSelect: (asset: MediaRecord) => void
+  // Modo single (comportamiento por defecto)
+  onSelect?: (asset: MediaRecord) => void
+  // Modo multi-selección
+  multiSelect?:   boolean
+  onSelectMulti?: (assets: MediaRecord[]) => void
 }
 
 function formatBytes(bytes: number | null): string {
@@ -24,11 +28,13 @@ function formatBytes(bytes: number | null): string {
 function AssetCard({
   asset,
   selected,
+  multiMode,
   onSelect,
   onDoubleClick,
 }: {
   asset:         MediaRecord
   selected:      boolean
+  multiMode:     boolean
   onSelect:      (a: MediaRecord) => void
   onDoubleClick: (a: MediaRecord) => void
 }) {
@@ -39,11 +45,13 @@ function AssetCard({
     <button
       type="button"
       onClick={() => onSelect(asset)}
-      onDoubleClick={() => onDoubleClick(asset)}
+      onDoubleClick={() => !multiMode && onDoubleClick(asset)}
       className={[
         'relative aspect-square overflow-hidden rounded-md border bg-surface-2 transition-all duration-150 cursor-pointer',
         selected
-          ? 'border-primary ring-2 ring-primary ring-offset-1 ring-offset-background'
+          ? multiMode
+            ? 'border-primary ring-2 ring-primary ring-offset-1 ring-offset-background'
+            : 'border-primary ring-2 ring-primary ring-offset-1 ring-offset-background'
           : 'border-border hover:border-primary/60',
       ].join(' ')}
       title={name}
@@ -66,7 +74,15 @@ function AssetCard({
         </div>
       )}
 
-      {selected && (
+      {selected && multiMode && (
+        <div className="absolute inset-0 flex items-center justify-center bg-primary/60">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+      )}
+
+      {selected && !multiMode && (
         <div className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="20 6 9 17 4 12" />
@@ -88,28 +104,48 @@ export function MediaLibraryPicker({
   filter,
   onClose,
   onSelect,
+  multiSelect = false,
+  onSelectMulti,
 }: MediaLibraryPickerProps) {
   const d = useUIStore((s) => s.cmsDict)
   const u = d?.content.upload
 
+  // Single-select state
   const selectedRef                              = useRef<MediaRecord | null>(null)
   const { assets, isLoading, hasMore, sentinelRef, handleSearch } = useMediaLibrary(filter, open)
 
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId]       = useState<string | null>(null)
+  // Multi-select state
+  const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set())
 
   function handleSingleSelect(asset: MediaRecord) {
     setSelectedId(asset.id)
     selectedRef.current = asset
   }
 
+  function handleMultiSelect(asset: MediaRecord) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(asset.id)) next.delete(asset.id)
+      else next.add(asset.id)
+      return next
+    })
+  }
+
   function handleDoubleClick(asset: MediaRecord) {
-    onSelect(asset)
+    onSelect?.(asset)
     onClose()
   }
 
-  function handleConfirm() {
+  function handleConfirmSingle() {
     if (!selectedRef.current) return
-    onSelect(selectedRef.current)
+    onSelect?.(selectedRef.current)
+    onClose()
+  }
+
+  function handleConfirmMulti() {
+    const selected = assets.filter((a) => selectedIds.has(a.id))
+    onSelectMulti?.(selected)
     onClose()
   }
 
@@ -127,13 +163,15 @@ export function MediaLibraryPicker({
   useEffect(() => {
     if (open) {
       setSelectedId(null)
+      setSelectedIds(new Set())
       selectedRef.current = null
     }
-  }, [open, setSelectedId])
+  }, [open])
 
   if (!open) return null
 
   const selectedAsset = assets.find((a) => a.id === selectedId) ?? null
+  const multiCount    = selectedIds.size
 
   return createPortal(
     <div
@@ -193,8 +231,9 @@ export function MediaLibraryPicker({
                 <AssetCard
                   key={asset.id}
                   asset={asset}
-                  selected={asset.id === selectedId}
-                  onSelect={handleSingleSelect}
+                  selected={multiSelect ? selectedIds.has(asset.id) : asset.id === selectedId}
+                  multiMode={multiSelect}
+                  onSelect={multiSelect ? handleMultiSelect : handleSingleSelect}
                   onDoubleClick={handleDoubleClick}
                 />
               ))}
@@ -212,30 +251,59 @@ export function MediaLibraryPicker({
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border px-5 py-3 shrink-0">
-          <div className="flex flex-col min-w-0">
-            {selectedAsset ? (
-              <>
-                <span className="font-mono text-xs text-text truncate max-w-xs">
-                  {selectedAsset.key.split('/').pop()}
-                </span>
-                <span className="font-mono text-[10px] text-muted">
-                  {formatBytes(selectedAsset.sizeBytes)}
-                  {selectedAsset.mimeType ? ` · ${selectedAsset.mimeType}` : ''}
-                </span>
-              </>
-            ) : (
-              <span className="font-mono text-xs text-muted">·</span>
-            )}
-          </div>
+          {multiSelect ? (
+            // ── Multi-select footer ──
+            <>
+              <span className="font-mono text-xs text-muted">
+                {multiCount > 0 ? `${multiCount} seleccionada${multiCount !== 1 ? 's' : ''}` : '·'}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:bg-surface-2 hover:text-text transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={multiCount === 0}
+                  onClick={handleConfirmMulti}
+                  className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white disabled:opacity-40 hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+                >
+                  {`Añadir${multiCount > 0 ? ` (${multiCount})` : ''}`}
+                </button>
+              </div>
+            </>
+          ) : (
+            // ── Single-select footer ──
+            <>
+              <div className="flex flex-col min-w-0">
+                {selectedAsset ? (
+                  <>
+                    <span className="font-mono text-xs text-text truncate max-w-xs">
+                      {selectedAsset.key.split('/').pop()}
+                    </span>
+                    <span className="font-mono text-[10px] text-muted">
+                      {formatBytes(selectedAsset.sizeBytes)}
+                      {selectedAsset.mimeType ? ` · ${selectedAsset.mimeType}` : ''}
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-mono text-xs text-muted">·</span>
+                )}
+              </div>
 
-          <button
-            type="button"
-            disabled={!selectedAsset}
-            onClick={handleConfirm}
-            className="ml-4 shrink-0 rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white disabled:opacity-40 hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
-          >
-            {u?.selectAsset ?? 'Select'}
-          </button>
+              <button
+                type="button"
+                disabled={!selectedAsset}
+                onClick={handleConfirmSingle}
+                className="ml-4 shrink-0 rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white disabled:opacity-40 hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+              >
+                {u?.selectAsset ?? 'Select'}
+              </button>
+            </>
+          )}
         </div>
       </VHSTransition>
     </div>

@@ -12,6 +12,8 @@ export type MediaPreviewModalProps = {
   onDelete?: (asset: MediaRecord) => void
   deleteLabel?:  string
   confirmLabel?: string
+  copyUrlLabel?: string
+  copiedLabel?:  string
 }
 
 function formatBytes(bytes: number | null): string {
@@ -27,7 +29,7 @@ function formatDate(date: Date): string {
   }).format(new Date(date))
 }
 
-export function MediaPreviewModal({ asset, onClose, onDelete, deleteLabel = 'Delete', confirmLabel = 'Sure?' }: MediaPreviewModalProps) {
+export function MediaPreviewModal({ asset, onClose, onDelete, deleteLabel = 'Delete', confirmLabel = 'Sure?', copyUrlLabel = 'Copy URL', copiedLabel = 'Copied!' }: MediaPreviewModalProps) {
   const open = asset !== null
   const [copied,     setCopied]     = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -79,7 +81,7 @@ export function MediaPreviewModal({ asset, onClose, onDelete, deleteLabel = 'Del
             <button
               type="button"
               onClick={handleCopy}
-              title="Copy URL"
+              title={copied ? copiedLabel : copyUrlLabel}
               className={`flex h-7 items-center gap-1.5 rounded-md px-2 font-mono text-[11px] transition-all duration-150 ${
                 copied
                   ? 'bg-success/15 text-success'
@@ -87,7 +89,7 @@ export function MediaPreviewModal({ asset, onClose, onDelete, deleteLabel = 'Del
               }`}
             >
               {copied ? <Check size={12} /> : <Link2 size={12} />}
-              <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy URL'}</span>
+              <span className="hidden sm:inline">{copied ? copiedLabel : copyUrlLabel}</span>
             </button>
 
             <a

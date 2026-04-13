@@ -16,6 +16,7 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: string }[] = [
   { type: 'boolean',  label: 'Boolean',  icon: 'ToggleLeft' },
   { type: 'image',    label: 'Image',    icon: 'Image' },
   { type: 'video',    label: 'Video',    icon: 'Video' },
+  { type: 'gallery',  label: 'Gallery',  icon: 'LayoutGrid' },
   { type: 'relation', label: 'Relation', icon: 'Link' },
 ]
 

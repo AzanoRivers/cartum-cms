@@ -32,6 +32,9 @@ export type MediaGalleryGridProps = {
   confirmDeleteLabel?:  string
   loadingCount?:        number
   uploadProps?:         MediaGalleryGridUploadProps
+  selectedIds?:         Set<string>
+  selectionMode?:       boolean
+  onToggleSelect?:      (id: string) => void
 }
 
 function SkeletonCard() {
@@ -53,6 +56,9 @@ export function MediaGalleryGrid({
   confirmDeleteLabel,
   loadingCount = 20,
   uploadProps,
+  selectedIds,
+  selectionMode = false,
+  onToggleSelect,
 }: MediaGalleryGridProps) {
   if (loading) {
     return (
@@ -105,6 +111,9 @@ export function MediaGalleryGrid({
           onClick={onSelect}
           onDelete={onDelete}
           confirmDeleteLabel={confirmDeleteLabel}
+          selectionMode={selectionMode}
+          selected={selectedIds?.has(asset.id)}
+          onToggleSelect={() => onToggleSelect?.(asset.id)}
         />
       ))}
     </div>

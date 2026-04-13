@@ -11,6 +11,7 @@ const FIELD_TYPE_OPTIONS: { type: FieldType; label: string; icon: string }[] = [
   { type: 'image',    label: 'Image',    icon: 'Image' },
   { type: 'video',    label: 'Video',    icon: 'Video' },
   { type: 'relation', label: 'Relation', icon: 'Link' },
+  { type: 'gallery',  label: 'Gallery',  icon: 'LayoutGrid' },
 ]
 
 export type FieldTypePickerProps = {

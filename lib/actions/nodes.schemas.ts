@@ -10,7 +10,7 @@ export const CreateContainerSchema = z.object({
 export const CreateFieldSchema = z.object({
   name:             z.string().min(1).max(64).regex(/^[a-zA-Z0-9 _-]+$/, 'Name contains invalid characters.'),
   parentId:         z.string().uuid(),
-  fieldType:        z.enum(['text', 'number', 'boolean', 'image', 'video', 'relation']),
+  fieldType:        z.enum(['text', 'number', 'boolean', 'image', 'video', 'relation', 'gallery']),
   isRequired:       z.boolean().optional().default(false),
   defaultValue:     z.string().optional(),
   relationTargetId: z.string().uuid().optional(),
@@ -53,7 +53,8 @@ export const UpdateFieldMetaSchema = z.object({
   nodeId:           z.string().uuid(),
   name:             z.string().min(1).max(64).regex(/^[a-zA-Z0-9 _-]+$/, 'Name contains invalid characters.').optional(),
   isRequired:       z.boolean().optional(),
-  fieldType:        z.enum(['text', 'number', 'boolean', 'image', 'video', 'relation']).optional(),
+  fieldType:        z.enum(['text', 'number', 'boolean', 'image', 'video', 'relation', 'gallery']).optional(),
+  defaultValue:     z.string().nullable().optional(),
   config:           z.record(z.unknown()).optional(),
   relationTargetId: z.string().uuid().nullable().optional(),
 })

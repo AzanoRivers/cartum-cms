@@ -50,6 +50,23 @@ export function useMediaGallery() {
   const [totalPages, setTotalPages] = useState(1)
   const [loading,    setLoading]    = useState(false)
 
+  // ── Multi-select ───────────────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const selectionMode = selectedIds.size > 0
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function clearSelection() { setSelectedIds(new Set()) }
+
+  function selectAll() { setSelectedIds(new Set(assets.map((a) => a.id))) }
+
   // ── Upload queue ───────────────────────────────────────────────────────────
   const [queue,      setQueue]      = useState<UploadEntry[]>([])
   const [dragging,   setDragging]   = useState(false)
@@ -82,13 +99,18 @@ export function useMediaGallery() {
   function changeFilter(f: MediaGalleryFilter) {
     setFilter(f)
     setPage(1)
+    setSelectedIds(new Set())
   }
 
-  function changePage(p: number) { setPage(p) }
+  function changePage(p: number) {
+    setPage(p)
+    setSelectedIds(new Set())
+  }
 
   function changePerPage(n: number) {
     setPerPage(n)
     setPage(1)
+    setSelectedIds(new Set())
   }
 
   function handleSearchInput(value: string) {
@@ -96,6 +118,7 @@ export function useMediaGallery() {
     searchTimer.current = setTimeout(() => {
       setSearch(value)
       setPage(1)
+      setSelectedIds(new Set())
     }, 350)
   }
 
@@ -299,6 +322,8 @@ export function useMediaGallery() {
     queue, dragging, uploading,
     addFilesToQueue, removeFromQueue, startUpload,
     onDragOver, onDragLeave, onDrop,
+    // selection
+    selectedIds, selectionMode, toggleSelect, clearSelection, selectAll,
     // refresh
     refresh: () => fetchPage(filter, page, perPage, search),
   }

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, lt, sql } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, inArray, lt, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { media } from '@/db/schema'
 import { DeleteObjectCommand } from '@aws-sdk/client-s3'
@@ -46,6 +46,12 @@ export const mediaRepository = {
   async findById(id: string): Promise<MediaRecord | null> {
     const [row] = await db.select().from(media).where(eq(media.id, id)).limit(1)
     return row ? toMediaRecord(row) : null
+  },
+
+  async findByIds(ids: string[]): Promise<MediaRecord[]> {
+    if (ids.length === 0) return []
+    const rows = await db.select().from(media).where(inArray(media.id, ids))
+    return rows.map(toMediaRecord)
   },
 
   async listPaginated(input: ListMediaAssetsInput): Promise<MediaAssetsPage> {
