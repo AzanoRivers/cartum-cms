@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     ? Object.keys(files)[0]
     : `media_${count}_files.zip`
 
-  return new NextResponse(zipBuffer, {
+  return new NextResponse(Buffer.from(zipBuffer), {
     status: 200,
     headers: {
       'Content-Type':        'application/zip',
