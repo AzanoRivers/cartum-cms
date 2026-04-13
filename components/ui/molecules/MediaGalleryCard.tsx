@@ -108,7 +108,7 @@ export function MediaGalleryCard({
   }
 
   return (
-    <div className="group flex flex-col gap-1.5">
+    <div className="group flex flex-col gap-1.5 select-none">
       {/* Thumbnail */}
       <div className={`relative aspect-square w-full overflow-hidden rounded-md border bg-surface-2 transition-all duration-200 ${
         pressing  ? 'scale-95 ring-2 ring-primary/40' :
@@ -157,7 +157,8 @@ export function MediaGalleryCard({
           }}
           className="absolute inset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded-md"
           aria-label={name}
-          style={{ WebkitUserSelect: 'none', userSelect: 'none', touchAction: 'manipulation' }}
+          onContextMenu={(e) => e.preventDefault()}
+          style={{ WebkitUserSelect: 'none', userSelect: 'none', touchAction: 'manipulation', WebkitTouchCallout: 'none' } as React.CSSProperties}
         >
           {isVideo ? (
             <div className={`flex h-full w-full items-center justify-center transition-transform duration-300 ${pressing ? '' : 'group-hover:scale-105'}`}>
@@ -173,12 +174,13 @@ export function MediaGalleryCard({
               loading="lazy"
               draggable={false}
               className={`h-full w-full object-cover transition-transform duration-300 ${pressing ? '' : 'group-hover:scale-105'}`}
+            onContextMenu={(e) => e.preventDefault()}
             />
           )}
         </button>
 
         {/* Action buttons — desktop: appear on hover; mobile: appear in selection mode */}
-        <div className={`absolute bottom-0 inset-x-0 flex items-center justify-end gap-1.5 px-2 py-2 transition-opacity duration-200 bg-linear-to-t from-black/60 to-transparent ${
+        <div className={`absolute bottom-0 inset-x-0 flex items-center justify-end gap-1.5 px-2 py-2 transition-opacity duration-200 bg-linear-to-t from-black/60 to-transparent pointer-events-none ${
           deleting || selectionMode ? 'opacity-100' : 'opacity-0 sm:group-hover:opacity-100'
         }`}>
             {/* Copy link */}
@@ -187,7 +189,7 @@ export function MediaGalleryCard({
               onClick={handleCopy}
               title="Copy URL"
               disabled={deleting}
-              className={`flex h-7 w-7 sm:h-10 sm:w-10 items-center justify-center rounded-md transition-all duration-150 ${
+              className={`pointer-events-auto flex h-7 w-7 sm:h-10 sm:w-10 items-center justify-center rounded-md transition-all duration-150 ${
                 copied
                   ? 'bg-success text-white shadow-sm'
                   : 'bg-surface/70 text-text hover:bg-primary hover:text-white disabled:opacity-40'
@@ -204,7 +206,7 @@ export function MediaGalleryCard({
                 onClick={handleDelete}
                 disabled={deleting}
                 title={deleting ? '' : confirming ? 'Confirm delete' : 'Delete'}
-                className={`flex h-7 sm:h-10 items-center justify-center rounded-md px-2 sm:px-3 gap-1.5 font-mono text-[11px] sm:text-[13px] font-medium transition-all duration-150 ${
+                className={`pointer-events-auto flex h-7 sm:h-10 items-center justify-center rounded-md px-2 sm:px-3 gap-1.5 font-mono text-[11px] sm:text-[13px] font-medium transition-all duration-150 ${
                   deleting
                     ? 'bg-danger/60 text-white w-auto cursor-not-allowed'
                     : confirming
