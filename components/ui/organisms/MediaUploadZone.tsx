@@ -11,6 +11,7 @@ export type MediaUploadZoneProps = {
   onFiles:        (files: FileList) => void
   onRemove:       (id: string) => void
   onStartUpload:  (entry: UploadEntry) => void
+  onCancel?:      (id: string) => void
   onDragOver:     (e: React.DragEvent) => void
   onDragLeave:    () => void
   onDrop:         (e: React.DragEvent) => void
@@ -30,6 +31,7 @@ export function MediaUploadZone({
   onFiles,
   onRemove,
   onStartUpload,
+  onCancel,
   onDragOver,
   onDragLeave,
   onDrop,
@@ -107,8 +109,12 @@ export function MediaUploadZone({
               onRemove={entry.status === 'pending' || entry.status === 'error'
                 ? () => onRemove(entry.id)
                 : undefined}
+              onCancel={onCancel && entry.phaseLabel !== undefined
+                ? () => onCancel(entry.id)
+                : undefined}
               optimizingLabel={optimizingLabel}
               uploadingLabel={uploadingLabel}
+              phaseLabel={entry.phaseLabel}
             />
           ))}
         </div>

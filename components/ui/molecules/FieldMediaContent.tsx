@@ -197,14 +197,23 @@ function MediaContentInner({
                 className="h-full w-full object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center">
-                <VideoIcon size={32} className="text-muted" />
+              <div className="relative h-full w-full bg-black">
+                <video
+                  src={`${defaultUrl!}#t=5`}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <VideoIcon size={32} className="text-white/60 drop-shadow" />
+                </div>
               </div>
             )}
           </div>
 
-          {/* Hover overlay */}
-          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+          {/* Hover overlay — always visible on mobile (no hover), on-hover on desktop */}
+          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
             <button
               type="button"
               onClick={() => setLibOpen(true)}

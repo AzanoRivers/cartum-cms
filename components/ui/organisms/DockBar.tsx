@@ -29,6 +29,8 @@ export function DockBar() {
     router.push('/cms/content')
   }
 
+  const isDocs = pathname.startsWith('/cms/docs')
+
   return (
     <nav
       aria-label="Dock"
@@ -41,7 +43,7 @@ export function DockBar() {
           onClick={goHome}
         />
       )}
-      {canAccessBuilder && (
+      {!isDocs && canAccessBuilder && (
         <span ref={createBtnRef}>
           <DockIcon
             icon="Plus"
@@ -50,11 +52,13 @@ export function DockBar() {
           />
         </span>
       )}
-      <DockIcon
-        icon="Images"
-        tooltip={d?.dock.content ?? 'Content'}
-        onClick={goContent}
-      />
+      {!isDocs && (
+        <DockIcon
+          icon="Images"
+          tooltip={d?.dock.content ?? 'Content'}
+          onClick={goContent}
+        />
+      )}
       <DockIcon
         icon="CircleHelp"
         tooltip={d?.dock.help ?? 'Help & Shortcuts'}

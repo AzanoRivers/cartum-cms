@@ -10,8 +10,12 @@ export type UploadFileRowProps = {
   progress: number   // 0–100, used during 'uploading'
   error?:   string
   onRemove?: () => void
+  /** Called when the user clicks Cancel on an active VPS upload. */
+  onCancel?: () => void
   optimizingLabel: string
   uploadingLabel:  string
+  /** When set and status==='uploading', replaces the uploadingLabel prefix text */
+  phaseLabel?:     string
 }
 
 function formatName(name: string) {
@@ -27,8 +31,10 @@ export function UploadFileRow({
   progress,
   error,
   onRemove,
+  onCancel,
   optimizingLabel,
   uploadingLabel,
+  phaseLabel,
 }: UploadFileRowProps) {
   const showBar = status === 'uploading' || status === 'optimizing'
 
@@ -57,7 +63,12 @@ export function UploadFileRow({
         )}
         {showBar && (
           <p className="mt-0.5 font-mono text-[10px] text-muted">
-            {status === 'optimizing' ? optimizingLabel : `${uploadingLabel} ${progress}%`}
+            {status === 'optimizing'
+              ? optimizingLabel
+              : phaseLabel
+                ? `${phaseLabel} ${progress}%`
+                : `${uploadingLabel} ${progress}%`
+            }
           </p>
         )}
         {status === 'error' && error && (
@@ -65,7 +76,17 @@ export function UploadFileRow({
         )}
       </div>
 
-      {/* Remove (only for pending/error) */}
+      {/* Remove (only for pending/error) or Cancel (only for active VPS uploads) */}
+      {onCancel && status === 'uploading' && phaseLabel !== undefined && (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="shrink-0 rounded p-0.5 text-muted hover:text-danger focus:outline-none"
+          aria-label="Cancel upload"
+        >
+          <X size={12} />
+        </button>
+      )}
       {onRemove && (status === 'pending' || status === 'error') && (
         <button
           type="button"

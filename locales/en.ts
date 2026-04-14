@@ -154,6 +154,173 @@ export const en = {
         pinch:       { icon: '⟺',  description: 'Two-finger pinch: zoom in or out' },
         panCanvas:   { icon: '↕',  description: 'Drag on empty space: pan the canvas' },
       },
+      docsButton: 'Documentation',
+    },
+    docs: {
+      breadcrumb: 'Docs',
+      sidebarAriaLabel: 'Documentation navigation',
+      sections: {
+        gettingStarted: 'Getting Started',
+        navigation:     'Navigation',
+        nodesAndFields: 'Nodes & Fields',
+        content:        'Content',
+        media:          'Media & Storage',
+        apiForDevs:     'API for Developers',
+        apiSchema:      'API: Schema Discovery',
+      },
+      gettingStarted: {
+        title:         'Getting Started',
+        intro:         'Cartum is a serverless-first headless CMS with visual data modeling.',
+        conceptsTitle: 'Core concepts',
+        concepts: {
+          node:       'Node: a database table / model',
+          field:      'Field: a column (text, number, boolean, image, video, gallery, relation)',
+          record:     'Record: a row of data',
+          connection: 'Connection: a relationship between nodes (foreign key)',
+        },
+        flowTitle: 'Basic workflow',
+        flow:      'Create node → add fields → go to Content → create records',
+      },
+      navigation: {
+        title:          'Navigation',
+        dockTitle:      'DockBar',
+        dockDesc:       'The icon sidebar on the left: Home (board), Content, Create node, Settings, Help.',
+        boardLabel:     'Board',
+        boardDesc:      'Infinite visual canvas of nodes and connections.',
+        contentLabel:   'Content',
+        contentDesc:    'Record list per node.',
+        shortcutsTitle: 'Keyboard shortcuts (desktop)',
+        shortcuts: {
+          goHome:       'Go to Board',
+          goContent:    'Go to Content',
+          newNode:      'Create new node',
+          openSettings: 'Open Settings',
+          closeOverlay: 'Close any open panel',
+        },
+        gesturesTitle: 'Touch gestures (mobile)',
+        gestures: {
+          singleTap: 'Tap once: select node and show ports',
+          doubleTap: 'Tap twice: enter the node',
+          longPress:  'Hold and drag: move node',
+          pinch:      'Two-finger pinch: zoom',
+          pan:        'Drag on empty space: pan',
+        },
+      },
+      nodesAndFields: {
+        title:                'Nodes & Fields',
+        createContainerTitle: 'Creating a container node',
+        createContainerDesc:  'Click + in the dock → choose Container → enter a name.',
+        createFieldTitle:     'Creating a field',
+        createFieldDesc:      'Double-click a container → click + inside → choose type → enter name.',
+        fieldTypesTitle:      'Field types',
+        fieldTypes: {
+          text:     'text: string, with optional multiline and max length',
+          number:   'number: integer or decimal, optional range',
+          boolean:  'boolean: true/false with custom labels',
+          image:    'image: uploads to R2, auto-optimized via Optimus VPS',
+          video:    'video: chunked upload, compressed via Optimus VPS',
+          gallery:  'gallery: multiple images (configurable max)',
+          relation: 'relation: foreign key to another container node',
+        },
+        connectionsTitle: 'Connections',
+        connectionsDesc:  'Drag from the port of a relation field to another container to draw a relationship.',
+      },
+      content: {
+        title:          'Content Editing',
+        step1:          'Go to Content from the dock.',
+        step2:          'Select the node to edit.',
+        newRecord:      'New Record: create a record with all container fields.',
+        editRecord:     'Edit Record: modify existing values.',
+        deleteRecord:   'Delete Record: remove with confirmation.',
+        validationNote: 'Validation: required fields and number ranges are enforced.',
+        mediaNote:      'Image/video fields: upload a file or select from the Media Library.',
+      },
+      media: {
+        title:         'Media & Storage',
+        galleryTitle:  'Media Gallery',
+        galleryDesc:   'View all uploaded files at /cms/content/media. Filter by type, search by name, bulk download or delete.',
+        optimTitle:    'Automatic optimization',
+        optimImages:   'Images: client-side compression + Optimus VPS (WebP output).',
+        optimVideos:   'Videos: chunked upload → VPS compression → MP4 saved to R2.',
+        optimFallback: 'If VPS is not configured or fails, the original file is uploaded.',
+        limitsTitle:   'Limits',
+        limitImages:   'Images: max 10 MB',
+        limitVideos:   'Videos: max 500 MB (warning above 100 MB)',
+        configNote:    'Configure storage at Settings → Storage (R2 + Optimus VPS URL and API key).',
+      },
+      apiForDevs: {
+        title:        'API for Developers',
+        intro:        'The public API exposes record data and the node schema. Board canvas positions are internal-only.',
+        tokenTitle:   'Create an API Token',
+        tokenStep1:   'Go to Settings → API Tokens.',
+        tokenStep2:   'Enter a descriptive name (e.g. Frontend App).',
+        tokenStep3:   'Select a Role (defines per-node permissions).',
+        tokenStep4:   'Optionally set an expiration date.',
+        tokenStep5:   'Copy the token. It is shown only once.',
+        authTitle:    'Authentication',
+        authNote:     'All endpoints require this header. Without it: 401 UNAUTHORIZED.',
+        baseUrlTitle: 'Base URL',
+        nodeNameTitle:'What is {nodeName}?',
+        nodeNameDesc: 'The slug of a container node you created in the board. There are no predefined models. You define the structure.',
+        endpointsTitle: 'Available endpoints',
+        endpoints: {
+          schema:      'List all nodes and their fields',
+          listRecords: 'List records (paginated)',
+          getRecord:   'Get a single record by UUID',
+          createRecord:'Create a new record',
+          putRecord:   'Replace all fields of a record',
+          patchRecord: 'Partially update a record (merge)',
+          deleteRecord:'Delete a record',
+        },
+        endpointPermissions: {
+          anyToken: 'any valid token',
+          read:     'read',
+          create:   'create',
+          update:   'update',
+          delete:   'delete',
+        },
+        putVsPatchNote:   'PUT replaces the entire data object. PATCH merges with existing data. Omitted fields are preserved.',
+        canvasNote:       'Node positions in the board canvas are not exposed. They are internal CMS configuration.',
+        queryParamsTitle: 'Query parameters (GET list)',
+        params: {
+          page:    { name: 'page',    type: 'number',   default: '1',            desc: 'Current page' },
+          limit:   { name: 'limit',   type: 'number',   default: '20 (max 100)', desc: 'Items per page' },
+          sort:    { name: 'sort',    type: 'string',   default: 'created_at',   desc: 'Field to sort by' },
+          order:   { name: 'order',   type: 'asc|desc', default: 'desc',         desc: 'Sort direction' },
+          include: { name: 'include', type: 'string',   default: 'none',          desc: 'Relation fields to expand (e.g. author,category). UUID replaced by full record.' },
+        },
+        responseListTitle:   'Successful response: list',
+        responseRecordTitle: 'Successful response: single record',
+        includeTitle:        'Relation expansion (include)',
+        includeDesc:         'Relation fields store the related record UUID. With ?include=field the UUID is replaced by the full record (one level deep).',
+        errorsTitle:         'Error codes',
+        errors: {
+          badRequest:   { code: '400', name: 'BAD_REQUEST',      desc: 'Invalid JSON in request body' },
+          unauthorized: { code: '401', name: 'UNAUTHORIZED',     desc: 'Missing, invalid, revoked, or expired token' },
+          forbidden:    { code: '403', name: 'FORBIDDEN',        desc: 'Token role lacks permission for this node/action' },
+          notFound:     { code: '404', name: 'NOT_FOUND',        desc: 'Node slug or record UUID not found' },
+          validation:   { code: '422', name: 'VALIDATION_ERROR', desc: 'Invalid data (required field, out of range, etc.)' },
+          noContent:    { code: '204', name: 'n/a',               desc: 'DELETE successful (no response body)' },
+        },
+        examplesTitle: 'cURL examples',
+        examplesNote:  'Assumes a node called `products` with fields name (text), price (number), featured (boolean).',
+      },
+      apiSchema: {
+        title:            'API: Schema Discovery',
+        intro:            'Before consuming data, discover which nodes exist and what fields they have, without opening the CMS.',
+        endpointLabel:    'Endpoint',
+        anyTokenNote:     'Any valid token can access this. No per-node permission required.',
+        responseTitle:    'Response',
+        fieldsTableTitle: 'Fields in each field object',
+        fields: {
+          name:         { name: 'name',        type: 'string',  desc: 'Field name' },
+          type:         { name: 'type',         type: 'string',  desc: 'Type: text, number, boolean, image, video, gallery, relation' },
+          required:     { name: 'required',     type: 'boolean', desc: 'Whether the field is required when creating/updating' },
+          defaultValue: { name: 'defaultValue', type: 'string',  desc: '(optional) Configured default value' },
+          relatesTo:    { name: 'relatesTo',    type: 'string',  desc: '(relation fields only) Slug of the related node' },
+        },
+        exampleLabel: 'cURL example',
+      },
     },
     canvas: {
       ariaLabel: 'Node canvas',
@@ -416,6 +583,17 @@ export const en = {
         bulkDeletedPartial:  'Deleted {deleted} file(s). {failed} failed.',
         bulkDownloading:     'Preparing ZIP…',
         bulkDownloadSuccess: 'Downloaded {n} file(s).',
+        // Video VPS upload phases
+        videoSizeError:   'Video exceeds the 500 MB limit.',
+        videoChunking:    'Uploading to VPS…',
+        videoProcessing:  'Compressing…',
+        videoFinalizing:  'Saving…',
+        videoVpsSkipped:  'Optimizer not configured. Uploading original.',
+        // Video fallback warning modal
+        videoFallbackTitle:  'Large video warning',
+        videoFallbackBody:   'This video exceeds 100 MB, which is above the recommended limit. Large videos may cause slow load times even after compression. Consider using a smaller or pre-optimized file.',
+        videoFallbackUpload: 'Upload anyway',
+        videoFallbackCancel: 'Cancel',
       },
     },
     board: {
@@ -834,6 +1012,83 @@ export type Dictionary = {
         pinch:      { icon: string; description: string }
         panCanvas:  { icon: string; description: string }
       }
+      docsButton: string
+    }
+    docs: {
+      breadcrumb: string
+      sidebarAriaLabel: string
+      sections: {
+        gettingStarted: string; navigation: string; nodesAndFields: string
+        content: string; media: string; apiForDevs: string; apiSchema: string
+      }
+      gettingStarted: {
+        title: string; intro: string; conceptsTitle: string
+        concepts: { node: string; field: string; record: string; connection: string }
+        flowTitle: string; flow: string
+      }
+      navigation: {
+        title: string; dockTitle: string; dockDesc: string
+        boardLabel: string; boardDesc: string; contentLabel: string; contentDesc: string
+        shortcutsTitle: string
+        shortcuts: { goHome: string; goContent: string; newNode: string; openSettings: string; closeOverlay: string }
+        gesturesTitle: string
+        gestures: { singleTap: string; doubleTap: string; longPress: string; pinch: string; pan: string }
+      }
+      nodesAndFields: {
+        title: string; createContainerTitle: string; createContainerDesc: string
+        createFieldTitle: string; createFieldDesc: string; fieldTypesTitle: string
+        fieldTypes: { text: string; number: string; boolean: string; image: string; video: string; gallery: string; relation: string }
+        connectionsTitle: string; connectionsDesc: string
+      }
+      content: {
+        title: string; step1: string; step2: string
+        newRecord: string; editRecord: string; deleteRecord: string
+        validationNote: string; mediaNote: string
+      }
+      media: {
+        title: string; galleryTitle: string; galleryDesc: string
+        optimTitle: string; optimImages: string; optimVideos: string; optimFallback: string
+        limitsTitle: string; limitImages: string; limitVideos: string; configNote: string
+      }
+      apiForDevs: {
+        title: string; intro: string
+        tokenTitle: string; tokenStep1: string; tokenStep2: string; tokenStep3: string; tokenStep4: string; tokenStep5: string
+        authTitle: string; authNote: string; baseUrlTitle: string; nodeNameTitle: string; nodeNameDesc: string
+        endpointsTitle: string
+        endpoints: { schema: string; listRecords: string; getRecord: string; createRecord: string; putRecord: string; patchRecord: string; deleteRecord: string }
+        endpointPermissions: { anyToken: string; read: string; create: string; update: string; delete: string }
+        putVsPatchNote: string; canvasNote: string; queryParamsTitle: string
+        params: {
+          page:    { name: string; type: string; default: string; desc: string }
+          limit:   { name: string; type: string; default: string; desc: string }
+          sort:    { name: string; type: string; default: string; desc: string }
+          order:   { name: string; type: string; default: string; desc: string }
+          include: { name: string; type: string; default: string; desc: string }
+        }
+        responseListTitle: string; responseRecordTitle: string
+        includeTitle: string; includeDesc: string; errorsTitle: string
+        errors: {
+          badRequest:   { code: string; name: string; desc: string }
+          unauthorized: { code: string; name: string; desc: string }
+          forbidden:    { code: string; name: string; desc: string }
+          notFound:     { code: string; name: string; desc: string }
+          validation:   { code: string; name: string; desc: string }
+          noContent:    { code: string; name: string; desc: string }
+        }
+        examplesTitle: string; examplesNote: string
+      }
+      apiSchema: {
+        title: string; intro: string; endpointLabel: string; anyTokenNote: string
+        responseTitle: string; fieldsTableTitle: string
+        fields: {
+          name:         { name: string; type: string; desc: string }
+          type:         { name: string; type: string; desc: string }
+          required:     { name: string; type: string; desc: string }
+          defaultValue: { name: string; type: string; desc: string }
+          relatesTo:    { name: string; type: string; desc: string }
+        }
+        exampleLabel: string
+      }
     }
     canvas: { ariaLabel: string; empty: string; emptyHint: string }
     nodeCard: {
@@ -912,6 +1167,10 @@ export type Dictionary = {
         bulkDeleteCancel: string; bulkDeleting: string
         bulkDeletedSuccess: string; bulkDeletedPartial: string
         bulkDownloading: string; bulkDownloadSuccess: string
+        videoSizeError: string; videoChunking: string; videoProcessing: string
+        videoFinalizing: string; videoVpsSkipped: string
+        videoFallbackTitle: string; videoFallbackBody: string
+        videoFallbackUpload: string; videoFallbackCancel: string
       }
     }
     board: {

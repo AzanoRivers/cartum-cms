@@ -183,6 +183,7 @@ export async function uploadViaServer(
       publicUrl:  finalPublicUrl,
       mimeType:   optimized ? 'image/webp' : input.mimeType,
       sizeBytes:  fileBuffer.byteLength,
+      name:       input.filename ?? undefined,
       nodeId:     input.nodeId,
       uploadedBy: userId,
     })

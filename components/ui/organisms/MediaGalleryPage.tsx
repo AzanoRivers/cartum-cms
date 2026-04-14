@@ -12,6 +12,7 @@ import { MediaBulkBar }          from '@/components/ui/molecules/MediaBulkBar'
 import { MediaUploadModal }      from '@/components/ui/organisms/MediaUploadModal'
 import { MediaPreviewModal }     from '@/components/ui/organisms/MediaPreviewModal'
 import { MediaBulkDeleteModal }  from '@/components/ui/organisms/MediaBulkDeleteModal'
+import { VideoFallbackModal }    from '@/components/ui/organisms/VideoFallbackModal'
 import { VHSTransition }         from '@/components/ui/transitions/VHSTransition'
 import type { CmsDictionary }    from '@/locales/en'
 import type { MediaRecord }      from '@/types/media'
@@ -41,11 +42,12 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
     changeFilter, changePage, changePerPage,
     handleSearchInput,
     queue, dragging, uploading,
-    addFilesToQueue, removeFromQueue, startUpload,
+    addFilesToQueue, removeFromQueue, startUpload, cancelUpload, cancelAllUploads,
     onDragOver, onDragLeave, onDrop,
     selectedIds, selectionMode, toggleSelect, clearSelection,
     refresh,
-  } = useMediaGallery()
+    videoFallbackOpen, confirmVideoFallback, cancelVideoFallback,
+  } = useMediaGallery({ videoSizeErrorLabel: g.videoSizeError })
 
   async function handleDelete(asset: MediaRecord) {
     await deleteMediaRecord(asset.id)
@@ -145,22 +147,28 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
       {/* Upload modal */}
       <MediaUploadModal
         open={showUpload}
-        onClose={() => setShowUpload(false)}
+        onClose={() => { cancelAllUploads(); setShowUpload(false) }}
         queue={queue}
         dragging={dragging}
-        onFiles={addFilesToQueue}
+        onFiles={(files) => addFilesToQueue(files, g.videoSizeError)}
         onRemove={removeFromQueue}
         onStartUpload={(entry) =>
           startUpload(entry, {
-            error:          g.uploadError,
-            success:        g.uploadSuccess,
-            vpsUnreachable: g.vpsUnreachable,
-            vpsAuth:        g.vpsAuth,
-            vpsTimeout:     g.vpsTimeout,
-            vpsValidation:  g.vpsValidation,
-            vpsPartial:     g.vpsPartial,
+            error:           g.uploadError,
+            success:         g.uploadSuccess,
+            vpsUnreachable:  g.vpsUnreachable,
+            vpsAuth:         g.vpsAuth,
+            vpsTimeout:      g.vpsTimeout,
+            vpsValidation:   g.vpsValidation,
+            vpsPartial:      g.vpsPartial,
+            videoSizeError:  g.videoSizeError,
+            videoChunking:   g.videoChunking,
+            videoProcessing: g.videoProcessing,
+            videoFinalizing: g.videoFinalizing,
+            videoVpsSkipped: g.videoVpsSkipped,
           })
         }
+        onCancel={cancelUpload}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
@@ -258,6 +266,19 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
         />
       )}
 
+      {/* Video fallback warning modal */}
+      <VideoFallbackModal
+        open={videoFallbackOpen}
+        onUpload={confirmVideoFallback}
+        onCancel={cancelVideoFallback}
+        labels={{
+          title:  g.videoFallbackTitle,
+          body:   g.videoFallbackBody,
+          upload: g.videoFallbackUpload,
+          cancel: g.videoFallbackCancel,
+        }}
+      />
+
       {/* Bulk delete confirmation modal */}
       <MediaBulkDeleteModal
         open={showBulkDelete}
@@ -282,16 +303,22 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
           uploadProps={{
             queue,
             dragging,
-            onFiles:        addFilesToQueue,
+            onFiles:        (files) => addFilesToQueue(files, g.videoSizeError),
             onRemove:       removeFromQueue,
+            onCancel:       cancelUpload,
             onStartUpload:  (entry) => startUpload(entry, {
-              error:          g.uploadError,
-              success:        g.uploadSuccess,
-              vpsUnreachable: g.vpsUnreachable,
-              vpsAuth:        g.vpsAuth,
-              vpsTimeout:     g.vpsTimeout,
-              vpsValidation:  g.vpsValidation,
-              vpsPartial:     g.vpsPartial,
+              error:           g.uploadError,
+              success:         g.uploadSuccess,
+              vpsUnreachable:  g.vpsUnreachable,
+              vpsAuth:         g.vpsAuth,
+              vpsTimeout:      g.vpsTimeout,
+              vpsValidation:   g.vpsValidation,
+              vpsPartial:      g.vpsPartial,
+              videoSizeError:  g.videoSizeError,
+              videoChunking:   g.videoChunking,
+              videoProcessing: g.videoProcessing,
+              videoFinalizing: g.videoFinalizing,
+              videoVpsSkipped: g.videoVpsSkipped,
             }),
             onDragOver,
             onDragLeave,

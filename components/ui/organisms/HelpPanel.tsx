@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
@@ -37,9 +38,11 @@ function useIsMobile(): boolean {
 }
 
 export function HelpPanel() {
-  const open      = useUIStore((s) => s.helpOpen)
-  const closeHelp = useUIStore((s) => s.closeHelp)
-  const d         = useUIStore((s) => s.cmsDict)
+  const open            = useUIStore((s) => s.helpOpen)
+  const closeHelp       = useUIStore((s) => s.closeHelp)
+  const setGlobalLoading = useUIStore((s) => s.setGlobalLoading)
+  const d               = useUIStore((s) => s.cmsDict)
+  const router          = useRouter()
   const isMobile  = useIsMobile()
 
   const panelRef = useRef<HTMLDivElement>(null)
@@ -115,6 +118,14 @@ export function HelpPanel() {
 
               {/* Body */}
               <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
+                {/* ── Docs button ───────────────────────────────────────── */}
+                <button
+                  onClick={() => { closeHelp(); setGlobalLoading(true); router.push('/cms/docs') }}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface-2 py-2.5 font-mono text-xs text-text transition-colors hover:border-primary/40 hover:bg-surface-2/80 cursor-pointer"
+                >
+                  <Icon name="BookOpen" size="sm" className="text-primary" />
+                  {h.docsButton}
+                </button>
                 {/* ── Mobile: gesture guide ─────────────────────────────── */}
                 {isMobile && (
                   <div className="space-y-2">

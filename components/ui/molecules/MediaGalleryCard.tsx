@@ -38,7 +38,7 @@ export function MediaGalleryCard({
   onToggleSelect,
 }: MediaGalleryCardProps) {
   const isVideo  = asset.mimeType.startsWith('video/')
-  const name     = asset.key.split('/').pop() ?? asset.key
+  const name     = asset.name ?? asset.key.split('/').pop() ?? asset.key
   const [copied,     setCopied]     = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [deleting,   setDeleting]   = useState(false)
@@ -161,10 +161,19 @@ export function MediaGalleryCard({
           style={{ WebkitUserSelect: 'none', userSelect: 'none', touchAction: 'manipulation', WebkitTouchCallout: 'none' } as React.CSSProperties}
         >
           {isVideo ? (
-            <div className={`flex h-full w-full items-center justify-center transition-transform duration-300 ${pressing ? '' : 'group-hover:scale-105'}`}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted" aria-hidden="true">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
+            <div className={`relative h-full w-full bg-black transition-transform duration-300 ${pressing ? '' : 'group-hover:scale-105'}`}>
+              <video
+                src={`${asset.publicUrl}#t=5`}
+                preload="metadata"
+                muted
+                playsInline
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="none" className="opacity-60 drop-shadow" aria-hidden="true">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              </div>
             </div>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element

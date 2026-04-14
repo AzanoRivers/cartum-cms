@@ -24,6 +24,7 @@
 - [Requisitos](#requisitos)
 - [Variables de entorno](#variables-de-entorno)
 - [Instalación y arranque local](#instalación-y-arranque-local)
+- [Notas de configuración](#notas-de-configuración)
 - [Despliegue en Vercel](#despliegue-en-vercel)
 - [Despliegue en Cloudflare Pages](#despliegue-en-cloudflare-pages)
 - [API REST](#api-rest)
@@ -186,12 +187,13 @@ Abre [http://localhost:3000](http://localhost:3000), el wizard de configuración
 Una vez configurado el schema en el tablero, la API está disponible en:
 
 ```
-GET    /api/v1/[nodeName]          → listar registros (paginado)
-GET    /api/v1/[nodeName]/[id]     → registro individual
-POST   /api/v1/[nodeName]          → crear registro
-PUT    /api/v1/[nodeName]/[id]     → actualizar registro (completo)
-PATCH  /api/v1/[nodeName]/[id]     → actualizar registro (parcial)
-DELETE /api/v1/[nodeName]/[id]     → eliminar registro
+GET    /api/v1/schema               → listar todos los nodos con sus campos
+GET    /api/v1/[nodeName]           → listar registros (paginado)
+GET    /api/v1/[nodeName]/[id]      → registro individual
+POST   /api/v1/[nodeName]           → crear registro
+PUT    /api/v1/[nodeName]/[id]      → actualizar registro (completo)
+PATCH  /api/v1/[nodeName]/[id]      → actualizar registro (parcial)
+DELETE /api/v1/[nodeName]/[id]      → eliminar registro
 ```
 
 `[nodeName]` es el slug del nodo contenedor raíz (ej: "Blog Posts" → `/api/v1/blog-posts`).
@@ -199,7 +201,12 @@ DELETE /api/v1/[nodeName]/[id]     → eliminar registro
 La autenticación es por **API token**, se genera desde Settings → API Tokens en el CMS.
 
 ```bash
-curl https://tu-dominio.com/api/v1/posts \
+# Descubrir qué nodos y campos existen
+curl https://tu-dominio.com/api/v1/schema \
+  -H "Authorization: Bearer <token>"
+
+# Listar registros de un nodo
+curl https://tu-dominio.com/api/v1/products \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -214,6 +221,29 @@ pnpm start         # Iniciar build de producción
 pnpm db:generate   # Generar migraciones Drizzle
 pnpm db:migrate    # Aplicar migraciones
 pnpm db:studio     # Drizzle Studio (explorador visual de DB)
+```
+
+---
+
+### Notas de configuración
+
+#### `proxyClientMaxBodySize` (Next.js 16)
+
+Next.js 16 introduce un sistema de buffering automático del body de las requests para soportar el mecanismo `proxy.ts`. Por defecto el límite es **10 MB**, lo que trunca los chunks de video antes de que lleguen al route handler.
+
+Este proyecto lo eleva a **100 MB** en `next.config.ts`:
+
+```ts
+experimental: {
+  proxyClientMaxBodySize: '100mb',
+}
+```
+
+Sin esto, los uploads de video fallan silenciosamente: el chunk llega truncado al proxy interno, FastAPI recibe un multipart incompleto y devuelve `422 Field required` para el campo `chunk`. El error en la consola del servidor es:
+
+```
+Request body exceeded 10MB for /api/internal/media/videos/chunk.
+Only the first 10MB will be available...
 ```
 
 ---
@@ -242,6 +272,7 @@ Los códigos van de errores fatales (el servidor no arranca) a advertencias (el 
 - [Requirements](#requirements)
 - [Environment Variables](#environment-variables)
 - [Local Setup](#local-setup)
+- [Configuration Notes](#configuration-notes)
 - [Deploy to Vercel](#deploy-to-vercel)
 - [Deploy to Cloudflare Pages](#deploy-to-cloudflare-pages)
 - [REST API](#rest-api)
@@ -380,18 +411,24 @@ Open [http://localhost:3000](http://localhost:3000), the setup wizard will guide
 Once you define your schema on the board, the API is available at:
 
 ```
-GET    /api/v1/[nodeName]          → list records (paginated)
-GET    /api/v1/[nodeName]/[id]     → single record
-POST   /api/v1/[nodeName]          → create record
-PUT    /api/v1/[nodeName]/[id]     → full update
-PATCH  /api/v1/[nodeName]/[id]     → partial update
-DELETE /api/v1/[nodeName]/[id]     → delete record
+GET    /api/v1/schema               → list all nodes with their fields
+GET    /api/v1/[nodeName]           → list records (paginated)
+GET    /api/v1/[nodeName]/[id]      → single record
+POST   /api/v1/[nodeName]           → create record
+PUT    /api/v1/[nodeName]/[id]      → full update
+PATCH  /api/v1/[nodeName]/[id]      → partial update
+DELETE /api/v1/[nodeName]/[id]      → delete record
 ```
 
 Authenticate using an **API token** generated from Settings → API Tokens:
 
 ```bash
-curl https://your-domain.com/api/v1/posts \
+# Discover which nodes and fields exist
+curl https://your-domain.com/api/v1/schema \
+  -H "Authorization: Bearer <token>"
+
+# List records from a node
+curl https://your-domain.com/api/v1/products \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -406,6 +443,29 @@ pnpm start         # Start production server
 pnpm db:generate   # Generate Drizzle migrations
 pnpm db:migrate    # Apply migrations
 pnpm db:studio     # Drizzle Studio (visual DB explorer)
+```
+
+---
+
+### Configuration Notes
+
+#### `proxyClientMaxBodySize` (Next.js 16)
+
+Next.js 16 introduces automatic request body buffering to support the `proxy.ts` mechanism. The default limit is **10 MB**, which truncates video chunks before they reach the route handler.
+
+This project raises it to **100 MB** in `next.config.ts`:
+
+```ts
+experimental: {
+  proxyClientMaxBodySize: '100mb',
+}
+```
+
+Without this, video uploads fail silently: the chunk is truncated at the internal proxy layer, FastAPI receives an incomplete multipart body and returns `422 Field required` for the `chunk` field. The server console shows:
+
+```
+Request body exceeded 10MB for /api/internal/media/videos/chunk.
+Only the first 10MB will be available...
 ```
 
 ---

@@ -11,6 +11,7 @@ export type MediaGalleryGridUploadProps = {
   onFiles:        (files: FileList) => void
   onRemove:       (id: string) => void
   onStartUpload:  (entry: UploadEntry) => void
+  onCancel?:      (id: string) => void
   onDragOver:     (e: React.DragEvent) => void
   onDragLeave:    () => void
   onDrop:         (e: React.DragEvent) => void
@@ -81,6 +82,7 @@ export function MediaGalleryGrid({
             onFiles={uploadProps.onFiles}
             onRemove={uploadProps.onRemove}
             onStartUpload={uploadProps.onStartUpload}
+            onCancel={uploadProps.onCancel}
             onDragOver={uploadProps.onDragOver}
             onDragLeave={uploadProps.onDragLeave}
             onDrop={uploadProps.onDrop}

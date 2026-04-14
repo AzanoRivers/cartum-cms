@@ -12,6 +12,7 @@ export interface MediaRecord {
   publicUrl:  string
   mimeType:   string
   sizeBytes:  number | null
+  name:       string | null
   nodeId:     string | null
   recordId:   string | null
   uploadedBy: string
@@ -35,7 +36,8 @@ export interface SaveMediaInput {
   key:       string
   publicUrl: string
   mimeType:  string
-  sizeBytes: number
+  sizeBytes: number | null
+  name?:     string
   nodeId?:   string
   recordId?: string
 }
@@ -79,9 +81,10 @@ export interface MediaMeta {
 export type VpsWarning = 'unreachable' | 'auth' | 'validation' | 'timeout' | 'partial'
 
 export interface UploadViaServerInput {
-  file:     ArrayBuffer
-  mimeType: string
-  nodeId?:  string
+  file:      ArrayBuffer
+  mimeType:  string
+  filename?: string
+  nodeId?:   string
 }
 
 export interface UploadViaServerResult {
@@ -100,5 +103,17 @@ export const ALLOWED_VIDEO_TYPES = [
   'video/mp4', 'video/webm', 'video/quicktime',
 ] as const
 
-export const MAX_IMAGE_SIZE_BYTES = 80 * 1024 * 1024   // 80 MB
-export const MAX_VIDEO_SIZE_BYTES = 500 * 1024 * 1024  // 500 MB
+export const MAX_IMAGE_SIZE_BYTES          = 80  * 1024 * 1024  //  80 MB
+export const MAX_VIDEO_SIZE_BYTES          = 500 * 1024 * 1024  // 500 MB
+export const VIDEO_CHUNK_MAX_BYTES         = 90  * 1024 * 1024  //  90 MB (Cloudflare R2 limit on VPS side)
+export const VIDEO_FALLBACK_WARNING_BYTES  = 100 * 1024 * 1024  // 100 MB — threshold for unoptimized upload warning
+
+/** Phase labels shown in the upload row during VPS video compression. */
+export type VideoUploadPhase = 'chunking' | 'processing' | 'finalizing'
+
+/** Shape returned by GET /api/v1/media/videos/status/{job_id} */
+export interface VideoJobStatusResponse {
+  status:       'queued' | 'processing' | 'done' | 'failed'
+  progress_pct: number
+  output_size?: number
+}

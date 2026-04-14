@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { uploadFileWithProgress } from '@/lib/media/upload'
 import { optimizeImage } from '@/lib/media/optimize'
 import { getUploadUrl, saveMediaRecord, listMediaAssetsPaged } from '@/lib/actions/media.actions'
+import { uploadVideoViaVps } from '@/lib/media/video-vps-upload'
 import type { MediaRecord, VpsWarning } from '@/types/media'
 import type { UploadFileStatus } from '@/components/ui/molecules/UploadFileRow'
 import type { MediaGalleryFilter } from '@/components/ui/molecules/MediaGalleryTabs'
@@ -13,6 +14,7 @@ import {
   ALLOWED_VIDEO_TYPES,
   MAX_IMAGE_SIZE_BYTES,
   MAX_VIDEO_SIZE_BYTES,
+  VIDEO_FALLBACK_WARNING_BYTES,
 } from '@/types/media'
 
 export type UploadLabels = {
@@ -23,20 +25,63 @@ export type UploadLabels = {
   vpsTimeout:     string
   vpsValidation:  string
   vpsPartial:     string
+  // Video VPS phase labels
+  videoSizeError:  string
+  videoChunking:   string
+  videoProcessing: string
+  videoFinalizing: string
+  videoVpsSkipped: string
 }
 
 export type UploadEntry = {
-  id:       string
-  name:     string
-  file:     File
-  status:   UploadFileStatus
-  progress: number
-  error?:   string
+  id:          string
+  name:        string
+  file:        File
+  status:      UploadFileStatus
+  progress:    number
+  error?:      string
+  /** Phase-specific label shown in the upload row during VPS video upload */
+  phaseLabel?: string
 }
 
 const ALLOWED_ALL = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES] as string[]
 
-export function useMediaGallery() {
+export type UseMediaGalleryConfig = {
+  /** Label shown in a toast when a video exceeds MAX_VIDEO_SIZE_BYTES.
+   *  Stored in a ref so that onDrop (which calls addFilesToQueue internally)
+   *  always has the latest localized string without causing re-renders. */
+  videoSizeErrorLabel?: string
+}
+
+export function useMediaGallery(config?: UseMediaGalleryConfig) {
+  // Keep the size-error label in a ref so the drag handler always has it
+  const videoSizeErrorLabelRef = useRef(config?.videoSizeErrorLabel ?? '')
+  videoSizeErrorLabelRef.current = config?.videoSizeErrorLabel ?? ''
+
+  // ── Video fallback warning modal ───────────────────────────────────────────
+  // Promise-resolver pattern: uploadEntry awaits user decision before continuing.
+  const [videoFallbackOpen, setVideoFallbackOpen] = useState(false)
+  const videoFallbackResolverRef = useRef<((confirmed: boolean) => void) | null>(null)
+
+  function askVideoFallback(): Promise<boolean> {
+    return new Promise((resolve) => {
+      videoFallbackResolverRef.current = resolve
+      setVideoFallbackOpen(true)
+    })
+  }
+
+  function confirmVideoFallback() {
+    videoFallbackResolverRef.current?.(true)
+    videoFallbackResolverRef.current = null
+    setVideoFallbackOpen(false)
+  }
+
+  function cancelVideoFallback() {
+    videoFallbackResolverRef.current?.(false)
+    videoFallbackResolverRef.current = null
+    setVideoFallbackOpen(false)
+  }
+
   // ── Pagination & filter ────────────────────────────────────────────────────
   const [filter,     setFilter]     = useState<MediaGalleryFilter>('image')
   const [page,       setPage]       = useState(1)
@@ -70,7 +115,10 @@ export function useMediaGallery() {
   // ── Upload queue ───────────────────────────────────────────────────────────
   const [queue,      setQueue]      = useState<UploadEntry[]>([])
   const [dragging,   setDragging]   = useState(false)
-
+  /** Keeps AbortControllers for active VPS video uploads, keyed by entry id. */
+  const uploadAbortControllers = useRef(new Map<string, AbortController>())
+  /** Tracks how many concurrent startUpload calls are in flight. */
+  const activeUploadCount = useRef(0)
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchPage = useCallback(async (
     f: MediaGalleryFilter,
@@ -123,12 +171,18 @@ export function useMediaGallery() {
   }
 
   // ── Upload queue helpers ───────────────────────────────────────────────────
-  function addFilesToQueue(files: FileList | File[]) {
+  function addFilesToQueue(files: FileList | File[], videoSizeErrorLabel?: string) {
+    // Caller may pass a label directly (button/input), or we fall back to the ref (drag-drop)
+    const sizeErrorLabel = videoSizeErrorLabel ?? videoSizeErrorLabelRef.current
     const entries: UploadEntry[] = []
     for (const file of Array.from(files)) {
       if (!ALLOWED_ALL.includes(file.type)) continue
-      const limit = file.type.startsWith('video/') ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES
-      if (file.size > limit) continue
+      const isVideo = file.type.startsWith('video/')
+      const limit   = isVideo ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES
+      if (file.size > limit) {
+        if (isVideo && sizeErrorLabel) toast.error(sizeErrorLabel)
+        continue
+      }
       entries.push({
         id:       crypto.randomUUID(),
         name:     file.name,
@@ -142,6 +196,21 @@ export function useMediaGallery() {
 
   function removeFromQueue(id: string) {
     setQueue((q) => q.filter((e) => e.id !== id))
+  }
+
+  /** Cancel an active VPS video upload. Aborts in-flight fetches and notifies the VPS. */
+  function cancelUpload(id: string) {
+    uploadAbortControllers.current.get(id)?.abort()
+    setQueue((q) => q.filter((e) => e.id !== id))
+  }
+
+  /** Cancel ALL active uploads and clear the entire queue. */
+  function cancelAllUploads() {
+    for (const controller of uploadAbortControllers.current.values()) {
+      controller.abort()
+    }
+    uploadAbortControllers.current.clear()
+    setQueue([])
   }
 
   function patchEntry(id: string, patch: Partial<UploadEntry>) {
@@ -243,6 +312,7 @@ export function useMediaGallery() {
         publicUrl,
         mimeType:  finalMime,
         sizeBytes: finalBlob.size,
+        name:      file.name,
       })
 
       patchEntry(id, { status: 'done', progress: 100 })
@@ -260,42 +330,110 @@ export function useMediaGallery() {
       }
 
     } else {
-      // ── Video: presigned PUT direct to R2 ──
-      const urlRes = await getUploadUrl({ filename: file.name, mimeType: file.type })
-      if (!urlRes.success) {
-        patchEntry(id, { status: 'error', error: labels.error })
-        return
+      // ── Video: warn before uploading any video larger than the recommended threshold ──
+      // This check runs regardless of whether VPS is configured, so the user is always
+      // informed before a large upload starts (VPS compression or direct R2).
+      if (file.size > VIDEO_FALLBACK_WARNING_BYTES) {
+        const confirmed = await askVideoFallback()
+        if (!confirmed) {
+          setQueue((q) => q.filter((e) => e.id !== id))
+          return
+        }
       }
-      const { uploadUrl, key, publicUrl } = urlRes.data
 
-      patchEntry(id, { status: 'uploading', progress: 0 })
+      // ── Video: VPS chunked pipeline (fallback to direct R2 on init rejection/no config) ──
+      patchEntry(id, { status: 'uploading', progress: 0, phaseLabel: labels.videoChunking })
+
+      const controller = new AbortController()
+      uploadAbortControllers.current.set(id, controller)
+
       try {
-        await uploadFileWithProgress(file, uploadUrl, file.type, (pct) => {
-          patchEntry(id, { progress: pct })
-        })
+        const result = await uploadVideoViaVps(
+          file,
+          {
+            chunking:   labels.videoChunking,
+            processing: labels.videoProcessing,
+            finalizing: labels.videoFinalizing,
+          },
+          {
+            onProgress:   (pct)   => patchEntry(id, { progress: pct }),
+            onPhaseLabel: (label) => patchEntry(id, { phaseLabel: label }),
+            onError:      ()      => { /* non-recoverable errors are thrown and caught below */ },
+            signal:       controller.signal,
+          },
+        )
+
+        if (result.cancelled) {
+          // cancelUpload() already removed the entry from the queue
+          return
+        }
+
+        if (result.skipped) {
+          // VPS not configured → silent fallback
+          // VPS rejected init (auth/validation/unreachable) → warn + fallback
+          if (result.vpsError) {
+            const warnMap = {
+              auth:        labels.vpsAuth,
+              validation:  labels.vpsValidation,
+              unreachable: labels.vpsUnreachable,
+            }
+            toast.warning(warnMap[result.vpsError])
+          }
+
+          // Direct presigned R2 upload (user already confirmed the size warning above)
+          patchEntry(id, { phaseLabel: undefined })
+          const urlRes = await getUploadUrl({ filename: file.name, mimeType: file.type })
+          if (!urlRes.success) {
+            patchEntry(id, { status: 'error', error: labels.error })
+            toast.error(labels.error)
+            return
+          }
+          const { uploadUrl, key, publicUrl } = urlRes.data
+
+          try {
+            await uploadFileWithProgress(file, uploadUrl, file.type, (pct) => {
+              patchEntry(id, { progress: pct })
+            })
+          } catch {
+            patchEntry(id, { status: 'error', error: labels.error })
+            toast.error(labels.error)
+            return
+          }
+
+          await saveMediaRecord({
+            key,
+            publicUrl,
+            mimeType:  file.type,
+            sizeBytes: file.size,
+            name:      file.name,
+          })
+        }
+
+        // VPS path: record was already saved server-side by the /complete route
+        patchEntry(id, { status: 'done', progress: 100, phaseLabel: undefined })
+        toast.success(labels.success)
+
       } catch {
-        patchEntry(id, { status: 'error', error: labels.error })
-        return
+        // Non-recoverable error mid-pipeline (chunk failure, VPS job failed, R2 write failed, etc.)
+        patchEntry(id, { status: 'error', error: labels.error, phaseLabel: undefined })
+        toast.error(labels.error)
+      } finally {
+        uploadAbortControllers.current.delete(id)
       }
-
-      await saveMediaRecord({
-        key,
-        publicUrl,
-        mimeType:  file.type,
-        sizeBytes: file.size,
-      })
-
-      patchEntry(id, { status: 'done', progress: 100 })
-      toast.success(labels.success)
     }
   }
 
   async function startUpload(entry: UploadEntry, labels: UploadLabels) {
+    activeUploadCount.current++
     await uploadEntry(entry, labels)
     // Show done/error state briefly so the user sees the checkmark before it disappears
     await new Promise((r) => setTimeout(r, 1800))
     setQueue((q) => q.filter((e) => e.id !== entry.id || e.status === 'error'))
-    fetchPage(filter, page, perPage, search)
+    activeUploadCount.current--
+    // Only refresh the grid when all concurrent uploads have finished
+    if (activeUploadCount.current === 0) {
+      fetchPage(filter, page, perPage, search)
+    }
   }
 
   // Auto-start pending entries one by one
@@ -320,11 +458,13 @@ export function useMediaGallery() {
     handleSearchInput,
     // upload
     queue, dragging, uploading,
-    addFilesToQueue, removeFromQueue, startUpload,
+    addFilesToQueue, removeFromQueue, startUpload, cancelUpload, cancelAllUploads,
     onDragOver, onDragLeave, onDrop,
     // selection
     selectedIds, selectionMode, toggleSelect, clearSelection, selectAll,
     // refresh
     refresh: () => fetchPage(filter, page, perPage, search),
+    // video fallback modal
+    videoFallbackOpen, confirmVideoFallback, cancelVideoFallback,
   }
 }

@@ -82,6 +82,7 @@ export function VideoUploadField({
         publicUrl,
         mimeType:  optimized.type || file.type,
         sizeBytes: optimized.size,
+        name:      file.name,
         nodeId,
       })
 

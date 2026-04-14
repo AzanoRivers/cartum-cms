@@ -66,6 +66,7 @@ export function ImageUploadField({
       const result = await uploadViaServer({
         file:     arrayBuffer,
         mimeType: compressed.type || file.type,
+        filename: file.name,
         nodeId,
       })
 

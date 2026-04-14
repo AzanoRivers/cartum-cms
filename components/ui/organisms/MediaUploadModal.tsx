@@ -16,6 +16,7 @@ export type MediaUploadModalProps = {
   onFiles:        (files: FileList) => void
   onRemove:       (id: string) => void
   onStartUpload:  (entry: UploadEntry) => void
+  onCancel?:      (id: string) => void
   onDragOver:     (e: React.DragEvent) => void
   onDragLeave:    () => void
   onDrop:         (e: React.DragEvent) => void
@@ -38,6 +39,7 @@ export function MediaUploadModal({
   onFiles,
   onRemove,
   onStartUpload,
+  onCancel,
   onDragOver,
   onDragLeave,
   onDrop,
@@ -97,6 +99,7 @@ export function MediaUploadModal({
             onFiles={onFiles}
             onRemove={onRemove}
             onStartUpload={onStartUpload}
+            onCancel={onCancel}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onDrop={onDrop}

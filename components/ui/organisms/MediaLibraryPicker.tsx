@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Eye } from 'lucide-react'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
+import { VideoQuickPreviewModal } from '@/components/ui/organisms/VideoQuickPreviewModal'
 import { useMediaLibrary } from '@/lib/hooks/useMediaLibrary'
 import { useUIStore } from '@/lib/stores/uiStore'
 import type { MediaRecord } from '@/types/media'
@@ -31,15 +33,17 @@ function AssetCard({
   multiMode,
   onSelect,
   onDoubleClick,
+  onPreview,
 }: {
   asset:         MediaRecord
   selected:      boolean
   multiMode:     boolean
   onSelect:      (a: MediaRecord) => void
   onDoubleClick: (a: MediaRecord) => void
+  onPreview?:    (a: MediaRecord) => void
 }) {
   const isImage = asset.mimeType.startsWith('image/')
-  const name    = asset.key.split('/').pop() ?? asset.key
+  const name    = asset.name ?? asset.key.split('/').pop() ?? asset.key
 
   return (
     <button
@@ -65,12 +69,17 @@ function AssetCard({
           loading="lazy"
         />
       ) : (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <polygon points="23 7 16 12 23 17 23 7" />
-            <rect x="1" y="5" width="15" height="14" rx="2" />
-          </svg>
-          <span className="font-mono text-[9px] px-1 truncate w-full text-center">{name}</span>
+        <div className="relative h-full w-full bg-black">
+          <video
+            src={`${asset.publicUrl}#t=5`}
+            preload="metadata"
+            muted
+            playsInline
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute bottom-0 inset-x-0 flex justify-center pb-1 pointer-events-none">
+            <span className="font-mono text-[9px] px-1 truncate w-full text-center text-white/70">{name}</span>
+          </div>
         </div>
       )}
 
@@ -87,6 +96,19 @@ function AssetCard({
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="20 6 9 17 4 12" />
           </svg>
+        </div>
+      )}
+
+      {selected && !multiMode && !isImage && (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={(e) => { e.stopPropagation(); onPreview?.(asset) }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onPreview?.(asset) } }}
+          className="absolute inset-0 z-10 flex items-center justify-center bg-black/30 hover:bg-black/50 transition-colors cursor-pointer"
+          aria-label="Preview video"
+        >
+          <Eye size={28} className="text-white drop-shadow-lg" />
         </div>
       )}
     </button>
@@ -115,6 +137,7 @@ export function MediaLibraryPicker({
   const { assets, isLoading, hasMore, sentinelRef, handleSearch } = useMediaLibrary(filter, open)
 
   const [selectedId, setSelectedId]       = useState<string | null>(null)
+  const [previewAsset, setPreviewAsset]   = useState<MediaRecord | null>(null)
   // Multi-select state
   const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set())
 
@@ -165,6 +188,7 @@ export function MediaLibraryPicker({
       setSelectedId(null)
       setSelectedIds(new Set())
       selectedRef.current = null
+      setPreviewAsset(null)
     }
   }, [open])
 
@@ -173,7 +197,7 @@ export function MediaLibraryPicker({
   const selectedAsset = assets.find((a) => a.id === selectedId) ?? null
   const multiCount    = selectedIds.size
 
-  return createPortal(
+  const picker = createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
@@ -235,6 +259,7 @@ export function MediaLibraryPicker({
                   multiMode={multiSelect}
                   onSelect={multiSelect ? handleMultiSelect : handleSingleSelect}
                   onDoubleClick={handleDoubleClick}
+                  onPreview={(a) => setPreviewAsset(a)}
                 />
               ))}
 
@@ -282,7 +307,7 @@ export function MediaLibraryPicker({
                 {selectedAsset ? (
                   <>
                     <span className="font-mono text-xs text-text truncate max-w-xs">
-                      {selectedAsset.key.split('/').pop()}
+                      {selectedAsset.name ?? selectedAsset.key.split('/').pop()}
                     </span>
                     <span className="font-mono text-[10px] text-muted">
                       {formatBytes(selectedAsset.sizeBytes)}
@@ -308,4 +333,16 @@ export function MediaLibraryPicker({
       </VHSTransition>
     </div>
   , document.body)
+
+  return (
+    <>
+      {picker}
+      <VideoQuickPreviewModal
+        open={previewAsset !== null}
+        url={previewAsset?.publicUrl ?? ''}
+        name={previewAsset ? (previewAsset.name ?? previewAsset.key.split('/').pop() ?? previewAsset.key) : ''}
+        onClose={() => setPreviewAsset(null)}
+      />
+    </>
+  )
 }

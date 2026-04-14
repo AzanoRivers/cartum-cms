@@ -9,6 +9,7 @@ export const media = pgTable('media', {
   publicUrl:   text('public_url').notNull(),
   mimeType:    text('mime_type').notNull(),
   sizeBytes:   integer('size_bytes'),
+  name:        text('name'),
   // nullable — informational only (node where asset was first uploaded from)
   nodeId:      uuid('node_id').references(() => nodes.id, { onDelete: 'set null' }),
   recordId:    uuid('record_id').references(() => records.id, { onDelete: 'set null' }),
