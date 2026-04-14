@@ -87,14 +87,23 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
             />
             <span className="font-mono text-xs font-medium text-text">{activeLabel}</span>
           </div>
-          <Icon
-            name={mobileOpen ? 'ChevronUp' : 'ChevronDown'}
-            size="sm"
-            className="text-muted"
-          />
+          <span
+            className="transition-transform duration-300 inline-flex"
+            style={{ transform: mobileOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          >
+            <Icon name="ChevronDown" size="sm" className="text-muted" />
+          </span>
         </button>
 
-        {mobileOpen && (
+        {/* Animated content — max-height slide */}
+        <div
+          style={{
+            maxHeight:  mobileOpen ? '320px' : '0px',
+            opacity:    mobileOpen ? 1 : 0,
+            overflow:   'hidden',
+            transition: 'max-height 300ms ease-out, opacity 200ms ease-out',
+          }}
+        >
           <div className="border-t border-border">
             {SECTION_IDS.map((id) => {
               const active = id === activeId
@@ -121,7 +130,7 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
               )
             })}
           </div>
-        )}
+        </div>
       </div>
     </>
   )

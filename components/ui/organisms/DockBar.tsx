@@ -59,11 +59,13 @@ export function DockBar() {
           onClick={goContent}
         />
       )}
-      <DockIcon
-        icon="CircleHelp"
-        tooltip={d?.dock.help ?? 'Help & Shortcuts'}
-        onClick={() => openHelp()}
-      />
+      {!isDocs && (
+        <DockIcon
+          icon="CircleHelp"
+          tooltip={d?.dock.help ?? 'Help & Shortcuts'}
+          onClick={() => openHelp()}
+        />
+      )}
       <DockIcon
         icon="Settings"
         tooltip={d?.dock.settings ?? 'Settings'}

@@ -499,7 +499,7 @@ export function DocsPage({ d }: DocsPageProps) {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
+    <div className="flex flex-1 flex-col overflow-hidden pt-9 md:flex-row md:pt-0">
       <DocsSidebar
         sections={d.sections}
         activeId={activeId}
