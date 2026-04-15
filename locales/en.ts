@@ -265,6 +265,8 @@ export const en = {
         endpointsTitle: 'Available endpoints',
         endpoints: {
           schema:      'List all nodes and their fields',
+          getNode:     'Get node metadata by UUID',
+          getField:    'Get field metadata by UUID',
           listRecords: 'List records (paginated)',
           getRecord:   'Get a single record by UUID',
           createRecord:'Create a new record',
@@ -313,6 +315,7 @@ export const en = {
         responseTitle:    'Response',
         fieldsTableTitle: 'Fields in each field object',
         fields: {
+          id:           { name: 'id',           type: 'string',  desc: 'Field UUID' },
           name:         { name: 'name',        type: 'string',  desc: 'Field name' },
           type:         { name: 'type',         type: 'string',  desc: 'Type: text, number, boolean, image, video, gallery, relation' },
           required:     { name: 'required',     type: 'boolean', desc: 'Whether the field is required when creating/updating' },
@@ -1055,7 +1058,7 @@ export type Dictionary = {
         tokenTitle: string; tokenStep1: string; tokenStep2: string; tokenStep3: string; tokenStep4: string; tokenStep5: string
         authTitle: string; authNote: string; baseUrlTitle: string; nodeNameTitle: string; nodeNameDesc: string
         endpointsTitle: string
-        endpoints: { schema: string; listRecords: string; getRecord: string; createRecord: string; putRecord: string; patchRecord: string; deleteRecord: string }
+        endpoints: { schema: string; getNode: string; getField: string; listRecords: string; getRecord: string; createRecord: string; putRecord: string; patchRecord: string; deleteRecord: string }
         endpointPermissions: { anyToken: string; read: string; create: string; update: string; delete: string }
         putVsPatchNote: string; canvasNote: string; queryParamsTitle: string
         params: {
@@ -1081,6 +1084,7 @@ export type Dictionary = {
         title: string; intro: string; endpointLabel: string; anyTokenNote: string
         responseTitle: string; fieldsTableTitle: string
         fields: {
+          id:           { name: string; type: string; desc: string }
           name:         { name: string; type: string; desc: string }
           type:         { name: string; type: string; desc: string }
           required:     { name: string; type: string; desc: string }

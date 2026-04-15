@@ -8,6 +8,7 @@ import {
 } from '@/lib/actions/api-tokens.actions'
 import { listRolesWithCount } from '@/lib/actions/settings.actions'
 import { useToast } from '@/lib/hooks/useToast'
+import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import type { Dictionary } from '@/locales/en'
 import type { ApiToken } from '@/types/api-tokens'
 
@@ -175,40 +176,42 @@ export function ApiTokensSection({ d }: ApiTokensSectionProps) {
 
       {/* Raw token modal */}
       {modal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-2xl space-y-4">
-            <p className="font-mono text-xs text-warning/80">{d.tokenOnceNotice}</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 overflow-x-auto rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-accent select-all break-all">
-                {modal.rawToken}
-              </code>
-              <button
-                onClick={handleCopy}
-                className="shrink-0 rounded-md border border-border px-3 py-2 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
-              >
-                {modal.copied ? d.copied : d.copyToken}
-              </button>
+        <div className="fixed inset-0 z-60 flex items-center justify-center">
+          <VHSTransition duration="fast" className="w-full max-w-md">
+            <div className="rounded-xl border border-border bg-surface p-6 shadow-2xl space-y-4">
+              <p className="font-mono text-xs text-warning/80">{d.tokenOnceNotice}</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 overflow-x-auto rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-accent select-all break-all">
+                  {modal.rawToken}
+                </code>
+                <button
+                  onClick={handleCopy}
+                  className="shrink-0 rounded-md border border-border px-3 py-2 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
+                >
+                  {modal.copied ? d.copied : d.copyToken}
+                </button>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  ref={checkRef}
+                  type="checkbox"
+                  checked={modal.copied}
+                  onChange={() => setModal((m) => m ? { ...m, copied: !m.copied } : null)}
+                  className="accent-primary"
+                />
+                <span className="font-mono text-xs text-text-muted">{d.confirmCopied}</span>
+              </label>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setModal(null)}
+                  disabled={!modal.copied}
+                  className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {d.close}
+                </button>
+              </div>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                ref={checkRef}
-                type="checkbox"
-                checked={modal.copied}
-                onChange={() => setModal((m) => m ? { ...m, copied: !m.copied } : null)}
-                className="accent-primary"
-              />
-              <span className="font-mono text-xs text-text-muted">{d.confirmCopied}</span>
-            </label>
-            <div className="flex justify-end">
-              <button
-                onClick={() => setModal(null)}
-                disabled={!modal.copied}
-                className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {d.close}
-              </button>
-            </div>
-          </div>
+          </VHSTransition>
         </div>
       )}
     </div>

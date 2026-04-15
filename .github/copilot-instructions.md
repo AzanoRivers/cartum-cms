@@ -63,6 +63,7 @@ The following skills are installed and active for this project:
 | `supabase-nextjs` | Supabase + Next.js integration patterns |
 | `bencium-innovative-ux-designer` | UX design principles for CMS interfaces |
 | `design-system` | Design system architecture |
+| `caveman` | Extremely concise, "caveman" style responses (max 1–2 lines) |
 
 ## Do NOT
 

@@ -1,6 +1,7 @@
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { rolePermissions, roleSectionPermissions, usersRoles } from '@/db/schema'
+import { getSetting } from '@/lib/settings/get-setting'
 import { rolesRepository } from '@/db/repositories/roles.repository'
 import { usersRepository } from '@/db/repositories/users.repository'
 import type {
@@ -99,6 +100,15 @@ async function canPerformByRole(
   nodeId:    string,
   operation: PermissionOperation,
 ): Promise<boolean> {
+  // Check wildcard permissions stored in app_settings
+  const wildcardRaw = await getSetting(`role_${roleId}_wildcard`)
+  if (wildcardRaw) {
+    try {
+      const wc = JSON.parse(wildcardRaw) as Record<string, boolean>
+      if (wc[operation]) return true
+    } catch { /* ignore malformed */ }
+  }
+
   const perms = await db
     .select()
     .from(rolePermissions)

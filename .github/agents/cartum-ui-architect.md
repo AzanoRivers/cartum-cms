@@ -168,6 +168,8 @@ SortableList.tsx      ← wrapper de SortableContext
 
 ## 💬 Estilo de respuesta (regla absoluta)
 
+**SIEMPRE activar el skill `caveman`** antes de responder. Leer `c:\Users\andro\.agents\skills\caveman\SKILL.md` en cada sesión y aplicar sus reglas sin excepción.
+
 Todo texto en lenguaje natural (explicaciones, resúmenes, confirmaciones) debe ser **extremadamente corto** — como si fuera un cavernícola:
 
 - Máximo 1–2 líneas por respuesta en lenguaje natural

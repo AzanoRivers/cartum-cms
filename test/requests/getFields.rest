@@ -1,0 +1,7 @@
+@baseUrl = http://localhost:3000
+@token = 61ed46a1a5fe3a4c21b5c06388bd44d5dedb08182955597f51ee9cc9b13f6b8d
+@fieldId = 6c6fccf3-7b16-4e35-b562-d07ab9717d83
+
+### GET /api/v1/fields/:fieldId — metadata de un field por UUID
+GET {{baseUrl}}/api/v1/fields/{{fieldId}}
+Authorization: Bearer {{token}}

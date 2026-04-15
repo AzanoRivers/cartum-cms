@@ -116,3 +116,4 @@ Cuando necesites reglas específicas, lee los archivos de referencia globales:
 | Supabase Postgres | `C:/Users/andro/.agents/skills/supabase-postgres-best-practices/references/` |
 | shadcn/ui | `C:/Users/andro/.agents/skills/shadcn-ui/references/` |
 | bencium UX | `C:/Users/andro/.agents/skills/bencium-innovative-ux-designer/` |
+| caveman | `C:/Users/andro/.agents/skills/caveman/SKILL.md` | 

@@ -87,6 +87,8 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
   const [sectionPerms, setSectionPerms] = useState<Partial<Record<SectionKey, boolean>>>({})
   const [isSavingSec, startSaveSec]     = useTransition()
 
+  const [wildcardActions, setWildcardActions] = useState<CrudKey[]>([])
+
   const [newRoleName, setNewRoleName]   = useState('')
   const [showCreate, setShowCreate]     = useState(false)
   const [isCreating, startCreate]       = useTransition()
@@ -106,6 +108,7 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
     if (!selectedId) return
     setPermsLoaded(false)
     setSectionPerms({})
+    setWildcardActions([])
 
     Promise.all([
       getPermissionsForRole(selectedId),
@@ -113,6 +116,7 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
     ]).then(([nodeRes, sectionRes]) => {
       if (nodeRes.success) {
         setPerms(nodeRes.data.permissions)
+        setWildcardActions(nodeRes.data.wildcardActions)
       }
       if (sectionRes.success) {
         const map: Partial<Record<SectionKey, boolean>> = {}
@@ -178,20 +182,29 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
     setPerms((prev) => prev.map((p) => ({ ...p, [key]: !allChecked })))
   }
 
+  function toggleWildcard(action: CrudKey) {
+    setWildcardActions((prev) =>
+      prev.includes(action) ? prev.filter((a) => a !== action) : [...prev, action],
+    )
+  }
+
   function handleSaveNodePerms() {
     if (!selectedId) return
     startSavePerms(async () => {
       const matrix: RolePermissionMatrix = {
         roleId: selectedId,
-        nodePermissions: perms.map((p) => ({
-          nodeId:  p.nodeId,
-          actions: [
-            ...(p.canRead   ? ['read'   as const] : []),
-            ...(p.canCreate ? ['create' as const] : []),
-            ...(p.canUpdate ? ['update' as const] : []),
-            ...(p.canDelete ? ['delete' as const] : []),
-          ],
-        })),
+        nodePermissions: [
+          { nodeId: '*', actions: wildcardActions },
+          ...perms.map((p) => ({
+            nodeId:  p.nodeId,
+            actions: [
+              ...(p.canRead   ? ['read'   as const] : []),
+              ...(p.canCreate ? ['create' as const] : []),
+              ...(p.canUpdate ? ['update' as const] : []),
+              ...(p.canDelete ? ['delete' as const] : []),
+            ],
+          })),
+        ],
       }
       const res = await saveRolePermissions(matrix)
       if (res.success) toast.success(d.permsSaved)
@@ -358,6 +371,20 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
                             </tr>
                           </thead>
                           <tbody>
+                            {/* Wildcard row — applies to all nodes */}
+                            <tr className="border-b border-border/60 bg-primary/5">
+                              <td className="px-3 py-1.5 font-mono text-xs text-primary/70 italic">{d.wildcardRow}</td>
+                              {CRUD_ACTIONS.map((a) => (
+                                <td key={a.key} className="px-2 py-1.5 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={wildcardActions.includes(a.key)}
+                                    onChange={() => toggleWildcard(a.key)}
+                                    className="accent-primary cursor-pointer"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
                             {perms.map((row) => (
                               <tr key={row.nodeId} className="border-b border-border/40 last:border-0 hover:bg-surface-2/30 transition-colors">
                                 <td className="px-3 py-1.5 font-mono text-xs text-text">{row.nodeName}</td>

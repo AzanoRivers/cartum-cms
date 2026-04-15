@@ -261,13 +261,15 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
         <Table
           headers={['Method', 'Route', 'Description', 'Permission']}
           rows={[
-            ['GET',    '/api/v1/schema',             s.endpoints.schema,      s.endpointPermissions.anyToken],
-            ['GET',    '/api/v1/{nodeName}',          s.endpoints.listRecords, s.endpointPermissions.read],
-            ['GET',    '/api/v1/{nodeName}/{id}',     s.endpoints.getRecord,   s.endpointPermissions.read],
-            ['POST',   '/api/v1/{nodeName}',          s.endpoints.createRecord,s.endpointPermissions.create],
-            ['PUT',    '/api/v1/{nodeName}/{id}',     s.endpoints.putRecord,   s.endpointPermissions.update],
-            ['PATCH',  '/api/v1/{nodeName}/{id}',     s.endpoints.patchRecord, s.endpointPermissions.update],
-            ['DELETE', '/api/v1/{nodeName}/{id}',     s.endpoints.deleteRecord,s.endpointPermissions.delete],
+            ['GET',    '/api/v1/schema',               s.endpoints.schema,      s.endpointPermissions.anyToken],
+            ['GET',    '/api/v1/nodes/{nodeId}',        s.endpoints.getNode,     s.endpointPermissions.anyToken],
+            ['GET',    '/api/v1/fields/{fieldId}',      s.endpoints.getField,    s.endpointPermissions.anyToken],
+            ['GET',    '/api/v1/{nodeName}',            s.endpoints.listRecords, s.endpointPermissions.read],
+            ['GET',    '/api/v1/{nodeName}/{id}',       s.endpoints.getRecord,   s.endpointPermissions.read],
+            ['POST',   '/api/v1/{nodeName}',            s.endpoints.createRecord,s.endpointPermissions.create],
+            ['PUT',    '/api/v1/{nodeName}/{id}',       s.endpoints.putRecord,   s.endpointPermissions.update],
+            ['PATCH',  '/api/v1/{nodeName}/{id}',       s.endpoints.patchRecord, s.endpointPermissions.update],
+            ['DELETE', '/api/v1/{nodeName}/{id}',       s.endpoints.deleteRecord,s.endpointPermissions.delete],
           ]}
         />
         <div className="mt-2 space-y-1">
@@ -428,22 +430,24 @@ function ApiSchemaSection({ d }: { d: DocsDict }) {
           code={`{
   "nodes": [
     {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "name": "Products",
       "slug": "products",
       "fields": [
-        { "name": "title",    "type": "text",     "required": true },
-        { "name": "price",    "type": "number",   "required": true },
-        { "name": "featured", "type": "boolean",  "required": false },
-        { "name": "cover",    "type": "image",    "required": false },
-        { "name": "category", "type": "relation", "required": false, "relatesTo": "categories" }
+        { "id": "f1e2d3c4-b5a6-7890-abcd-ef1234567890", "name": "title",    "type": "text",     "required": true },
+        { "id": "f2e3d4c5-b6a7-8901-bcde-f01234567891", "name": "price",    "type": "number",   "required": true },
+        { "id": "f3e4d5c6-b7a8-9012-cdef-012345678912", "name": "featured", "type": "boolean",  "required": false },
+        { "id": "f4e5d6c7-b8a9-0123-def0-123456789023", "name": "cover",    "type": "image",    "required": false },
+        { "id": "f5e6d7c8-b9a0-1234-ef01-234567890134", "name": "category", "type": "relation", "required": false, "relatesTo": "categories" }
       ]
     },
     {
+      "id": "b2c3d4e5-f6a7-8901-bcde-f01234567891",
       "name": "Categories",
       "slug": "categories",
       "fields": [
-        { "name": "name",  "type": "text", "required": true },
-        { "name": "color", "type": "text", "required": false }
+        { "id": "f6e7d8c9-b0a1-2345-f012-345678901245", "name": "name",  "type": "text", "required": true },
+        { "id": "f7e8d9c0-b1a2-3456-0123-456789012356", "name": "color", "type": "text", "required": false }
       ]
     }
   ]

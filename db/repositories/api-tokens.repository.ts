@@ -1,4 +1,4 @@
-import { desc, asc, eq, count } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { apiTokens } from '@/db/schema'
 import type { ApiToken } from '@/types/api-tokens'
@@ -54,8 +54,7 @@ async function create(input: {
 
 async function revoke(id: string): Promise<void> {
   await db
-    .update(apiTokens)
-    .set({ revokedAt: new Date() })
+    .delete(apiTokens)
     .where(eq(apiTokens.id, id))
 }
 

@@ -267,6 +267,8 @@ export const es: Dictionary = {
         endpointsTitle: 'Endpoints disponibles',
         endpoints: {
           schema:      'Listar todos los nodos con sus campos',
+          getNode:     'Metadata de un nodo por UUID',
+          getField:    'Metadata de un campo por UUID',
           listRecords: 'Listar records (paginado)',
           getRecord:   'Obtener un record por UUID',
           createRecord:'Crear un nuevo record',
@@ -315,6 +317,7 @@ export const es: Dictionary = {
         responseTitle:    'Respuesta',
         fieldsTableTitle: 'Campos en cada field object',
         fields: {
+          id:           { name: 'id',           type: 'string',  desc: 'UUID del campo' },
           name:         { name: 'name',        type: 'string',  desc: 'Nombre del campo' },
           type:         { name: 'type',         type: 'string',  desc: 'Tipo: text, number, boolean, image, video, gallery, relation' },
           required:     { name: 'required',     type: 'boolean', desc: 'Si el campo es obligatorio al crear/actualizar' },

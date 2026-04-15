@@ -107,7 +107,7 @@ export const nodeService = {
     const sibling = await nodesRepository.findSiblingByName(name, node.parentId)
     if (sibling && sibling.id !== id) throw new Error('NODE_NAME_TAKEN')
 
-    await nodesRepository.updateName(id, name)
+    await nodesRepository.updateName(id, name, node.parentId)
     return { ...node, name }
   },
 

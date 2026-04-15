@@ -1,0 +1,6 @@
+@baseUrl = http://localhost:3000
+@token = 61ed46a1a5fe3a4c21b5c06388bd44d5dedb08182955597f51ee9cc9b13f6b8d
+
+### GET /api/v1/schema — todos los nodos raíz con sus campos
+GET {{baseUrl}}/api/v1/schema
+Authorization: Bearer {{token}}

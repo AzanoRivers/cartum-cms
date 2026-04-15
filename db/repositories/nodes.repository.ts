@@ -148,11 +148,21 @@ async function updatePosition(
     .where(eq(nodes.id, id))
 }
 
-async function updateName(id: string, name: string): Promise<void> {
-  await db
+async function updateName(id: string, name: string, parentId: string | null): Promise<void> {
+  const updated = await db
     .update(nodes)
-    .set({ name, updatedAt: new Date() })
+    .set({
+      name,
+      ...(parentId === null && { slug: nodeNameToSlug(name) }),
+      updatedAt: new Date(),
+    })
     .where(eq(nodes.id, id))
+    .returning({ id: nodes.id, name: nodes.name })
+
+  console.log('[updateName] id=%s name=%s → rows affected: %d', id, name, updated.length)
+  if (updated.length === 0) {
+    console.warn('[updateName] WARNING: no rows updated — id may not exist in DB')
+  }
 }
 
 async function findByIds(ids: string[]): Promise<ContainerNode[]> {

@@ -188,6 +188,8 @@ Una vez configurado el schema en el tablero, la API está disponible en:
 
 ```
 GET    /api/v1/schema               → listar todos los nodos con sus campos
+GET    /api/v1/nodes/{nodeId}       → metadata de un nodo por UUID
+GET    /api/v1/fields/{fieldId}     → metadata de un campo por UUID
 GET    /api/v1/[nodeName]           → listar registros (paginado)
 GET    /api/v1/[nodeName]/[id]      → registro individual
 POST   /api/v1/[nodeName]           → crear registro
@@ -412,6 +414,8 @@ Once you define your schema on the board, the API is available at:
 
 ```
 GET    /api/v1/schema               → list all nodes with their fields
+GET    /api/v1/nodes/{nodeId}       → node metadata by UUID
+GET    /api/v1/fields/{fieldId}     → field metadata by UUID
 GET    /api/v1/[nodeName]           → list records (paginated)
 GET    /api/v1/[nodeName]/[id]      → single record
 POST   /api/v1/[nodeName]           → create record

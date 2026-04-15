@@ -36,6 +36,15 @@ export async function GET(req: Request) {
 
   const rootNodes = allContainers.filter((n) => n.parentId === null)
 
+  // Group child containers (non-root) by their parent id
+  const childContainersByParent = new Map<string, typeof allContainers>()
+  for (const container of allContainers) {
+    if (container.parentId === null) continue
+    const group = childContainersByParent.get(container.parentId) ?? []
+    group.push(container)
+    childContainersByParent.set(container.parentId, group)
+  }
+
   // All field nodes with their meta — single query for all roots
   const allFields = await db
     .select()
@@ -59,9 +68,11 @@ export async function GET(req: Request) {
     const fields = (fieldsByParent.get(node.id) ?? []).map((row) => {
       const meta = row.field_meta
       const field: Record<string, unknown> = {
+        id:       row.nodes.id,
         name:     row.nodes.name,
         type:     meta.fieldType as FieldType,
         required: meta.isRequired,
+        edit:     row.nodes.updatedAt,
       }
 
       if (meta.defaultValue !== null && meta.defaultValue !== undefined) {
@@ -76,10 +87,19 @@ export async function GET(req: Request) {
       return field
     })
 
+    const containers = (childContainersByParent.get(node.id) ?? []).map((c) => ({
+      id:   c.id,
+      name: c.name,
+      edit: c.updatedAt,
+    }))
+
     return {
-      name:   node.name,
+      id:         node.id,
+      name:       node.name,
       slug,
+      edit:       node.updatedAt,
       fields,
+      containers,
     }
   })
 
