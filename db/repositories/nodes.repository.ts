@@ -157,7 +157,7 @@ async function updateName(id: string, name: string, parentId: string | null): Pr
       updatedAt: new Date(),
     })
     .where(eq(nodes.id, id))
-    .returning({ id: nodes.id, name: nodes.name })
+    .returning()
 
   console.log('[updateName] id=%s name=%s → rows affected: %d', id, name, updated.length)
   if (updated.length === 0) {
