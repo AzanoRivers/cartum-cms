@@ -2,9 +2,8 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    // Video chunks can be up to 90 MB. Next.js 16 buffers request bodies
-    // for proxy compatibility with a 10 MB default — raise it to 100 MB.
-    proxyClientMaxBodySize: '100mb',
+    // Video chunks are 10 MB. Next.js 16 default buffer is 10 MB — raise slightly for multipart overhead.
+    proxyClientMaxBodySize: '15mb',
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',

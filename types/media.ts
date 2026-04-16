@@ -105,7 +105,7 @@ export const ALLOWED_VIDEO_TYPES = [
 
 export const MAX_IMAGE_SIZE_BYTES          = 80  * 1024 * 1024  //  80 MB
 export const MAX_VIDEO_SIZE_BYTES          = 500 * 1024 * 1024  // 500 MB
-export const VIDEO_CHUNK_MAX_BYTES         = 90  * 1024 * 1024  //  90 MB (Cloudflare R2 limit on VPS side)
+export const VIDEO_CHUNK_MAX_BYTES         = 10  * 1024 * 1024  //  10 MB — safe for most proxies (nginx default 1 MB raised)
 export const VIDEO_FALLBACK_WARNING_BYTES  = 100 * 1024 * 1024  // 100 MB — threshold for unoptimized upload warning
 
 /** Phase labels shown in the upload row during VPS video compression. */
