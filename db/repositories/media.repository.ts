@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, inArray, lt, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, ilike, inArray, lt, or, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { media } from '@/db/schema'
 import { DeleteObjectCommand } from '@aws-sdk/client-s3'
@@ -66,7 +66,10 @@ export const mediaRepository = {
       conditions.push(lt(media.createdAt, new Date(input.cursor)))
     }
     if (input.search) {
-      conditions.push(ilike(media.key, `%${input.search}%`))
+      conditions.push(or(
+        ilike(media.name, `%${input.search}%`),
+        ilike(media.key,  `%${input.search}%`),
+      )!)
     }
 
     const rows = await db
@@ -93,7 +96,10 @@ export const mediaRepository = {
 
     const conditions = [sql`${media.mimeType} LIKE ${typePrefix}`]
     if (input.search) {
-      conditions.push(ilike(media.key, `%${input.search}%`))
+      conditions.push(or(
+        ilike(media.name, `%${input.search}%`),
+        ilike(media.key,  `%${input.search}%`),
+      )!)
     }
     const where = and(...conditions)
 
