@@ -460,6 +460,9 @@ Los campos heredados de relaciones **no están marcados** como heredados — el 
 | EDITAR | `types/nodes.ts` | Añadir `ResolvedField`, `ResolvedContainer`, `ResolvedNodeContent`, `ResolverContext` |
 | EDITAR | `app/api/v1/schema/route.ts` | Usar `buildResolverContext` + `resolveNodeSchema` |
 | EDITAR | `app/api/v1/nodes/[nodeId]/route.ts` | Usar `resolveNodeSchema` para nodos container |
+| EDITAR | `locales/en.ts` | ⚠️ Ya editado — añadir sección `relations` a `cms.docs` + tipo en `Dictionary` |
+| EDITAR | `locales/es.ts` | ⚠️ Ya editado — añadir sección `relations` a `cms.docs` en español |
+| EDITAR | `components/ui/organisms/docs/DocsPage.tsx` | Añadir `RelationsSection` + registrar `'relations'` en `SectionId` y `sections` del sidebar |
 
 ---
 
@@ -528,3 +531,17 @@ Los campos heredados de relaciones **no están marcados** como heredados — el 
 - [ ] El endpoint sigue requiriendo `Authorization: Bearer <token>` válido.
 - [ ] CORS (`OPTIONS`) sigue funcionando.
 - [ ] El endpoint de records `GET /api/v1/{nodeName}` no se ve afectado por este cambio.
+
+### ✅ Documentación interna (Docs page + i18n)
+
+> ⚠️ Los cambios en `locales/en.ts` y `locales/es.ts` ya fueron aplicados manualmente. Verificar antes de implementar `DocsPage.tsx`.
+
+- [ ] `locales/en.ts` — sección `cms.docs.sections.relations` existe con valor `'Node Relations'`.
+- [ ] `locales/en.ts` — bloque `cms.docs.relations` existe con todas las keys: `title`, `intro`, `flatPrincipleTitle`, `flatPrincipleDesc`, `inheritanceTitle`, `inheritanceDesc`, `relationTypesTitle`, `types.oneToOne`, `types.oneToMany`, `types.manyToMany`, `multipleRelationsTitle`, `multipleRelationsDesc`, `antiCycleTitle`, `antiCycleDesc`, `consumingTitle`, `consumingSteps.step1-4`, `exampleTitle`, `exampleNote`.
+- [ ] `locales/es.ts` — equivalente en español con las mismas keys y valores traducidos.
+- [ ] El tipo `Dictionary` en `en.ts` incluye la forma correcta de `relations` en `cms.docs`.
+- [ ] `DocsPage.tsx` — `SectionId` incluye `'relations'`.
+- [ ] `DocsPage.tsx` — `renderSection()` tiene el case `'relations'` que renderiza `<RelationsSection d={d} />`.
+- [ ] `RelationsSection` muestra: principio plano, herencia padre→hijo, los 3 tipos de relación con descripción, múltiples relaciones, anti-ciclo, pasos de consumo, ejemplo de respuesta JSON.
+- [ ] La sección "Node Relations" aparece correctamente en el sidebar lateral de docs.
+- [ ] TypeScript no reporta errores en `DocsPage.tsx` ni en los locales al hacer build.

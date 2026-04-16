@@ -147,3 +147,67 @@ export interface NodeTree {
   node: ContainerNode
   children: (NodeTree | FieldNode)[]
 }
+
+// ── Schema resolver types ─────────────────────────────────────────────────────
+
+export interface NodeRow {
+  id:        string
+  name:      string
+  type:      string
+  slug:      string | null
+  parentId:  string | null
+  positionX: number
+  positionY: number
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface FieldMetaRow {
+  id:               string
+  nodeId:           string
+  fieldType:        string
+  isRequired:       boolean
+  defaultValue:     string | null
+  relationTargetId: string | null
+  config:           unknown
+}
+
+export interface NodeRelationRow {
+  id:           string
+  sourceNodeId: string
+  targetNodeId: string
+  relationType: string
+}
+
+export interface FieldWithMeta {
+  nodes:      NodeRow
+  field_meta: FieldMetaRow
+}
+
+export interface ResolvedField {
+  id:            string
+  name:          string
+  type:          FieldType
+  required:      boolean
+  edit:          Date
+  defaultValue?: string
+  relatesTo?:    string
+}
+
+export interface ResolvedContainer {
+  id:   string
+  name: string
+  edit: Date
+}
+
+export interface ResolvedNodeContent {
+  fields:     ResolvedField[]
+  containers: ResolvedContainer[]
+}
+
+export interface ResolverContext {
+  allNodes:         NodeRow[]
+  allFields:        FieldWithMeta[]
+  allRelations:     NodeRelationRow[]
+  containerSlugMap: Map<string, string>
+}

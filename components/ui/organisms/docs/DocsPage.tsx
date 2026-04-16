@@ -408,6 +408,93 @@ curl -X DELETE \\
   )
 }
 
+// ── Section: Node Relations ───────────────────────────────────────────────────
+
+function RelationsSection({ d }: { d: DocsDict }) {
+  const s = d.relations
+  return (
+    <div className="space-y-4">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      {/* Flat response principle */}
+      <div>
+        <SubHeading>{s.flatPrincipleTitle}</SubHeading>
+        <Prose>{s.flatPrincipleDesc}</Prose>
+      </div>
+
+      {/* Structural inheritance */}
+      <div>
+        <SubHeading>{s.inheritanceTitle}</SubHeading>
+        <Prose>{s.inheritanceDesc}</Prose>
+      </div>
+
+      {/* Relation types */}
+      <div>
+        <SubHeading>{s.relationTypesTitle}</SubHeading>
+        <div className="space-y-2">
+          {(['oneToOne', 'oneToMany', 'manyToMany'] as const).map((key) => (
+            <div key={key} className="rounded-md border border-border bg-surface-2/40 p-3">
+              <p className="font-mono text-xs font-semibold text-primary mb-1">
+                {s.types[key].label}
+              </p>
+              <p className="text-xs text-muted leading-5">{s.types[key].desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Multiple relations */}
+      <div>
+        <SubHeading>{s.multipleRelationsTitle}</SubHeading>
+        <Prose>{s.multipleRelationsDesc}</Prose>
+      </div>
+
+      {/* Anti-cycle */}
+      <div>
+        <SubHeading>{s.antiCycleTitle}</SubHeading>
+        <Prose>{s.antiCycleDesc}</Prose>
+      </div>
+
+      {/* How to consume */}
+      <div>
+        <SubHeading>{s.consumingTitle}</SubHeading>
+        <UL items={Object.values(s.consumingSteps)} />
+      </div>
+
+      {/* JSON example */}
+      <div>
+        <SubHeading>{s.exampleTitle}</SubHeading>
+        <Note>{s.exampleNote}</Note>
+        <div className="mt-2">
+          <DocsCodeBlock
+            language="json"
+            code={`{
+  "nodes": [
+    {
+      "id": "a1b2c3d4-...",
+      "name": "Blog Posts",
+      "slug": "blog-posts",
+      "edit": "2026-04-15T10:00:00Z",
+      "fields": [
+        { "id": "f1...", "name": "title",           "type": "text", "required": true,  "edit": "..." },
+        { "id": "f2...", "name": "body",             "type": "text", "required": true,  "edit": "..." },
+        { "id": "f3...", "name": "metaTitle",        "type": "text", "required": false, "edit": "..." },
+        { "id": "f4...", "name": "metaDescription",  "type": "text", "required": false, "edit": "..." }
+      ],
+      "containers": [
+        { "id": "seo-uuid-...", "name": "SEO", "edit": "..." }
+      ]
+    }
+  ]
+}`}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Section: API Schema ───────────────────────────────────────────────────────
 
 function ApiSchemaSection({ d }: { d: DocsDict }) {
@@ -484,6 +571,7 @@ type SectionId =
   | 'media'
   | 'apiForDevs'
   | 'apiSchema'
+  | 'relations'
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -499,6 +587,7 @@ export function DocsPage({ d }: DocsPageProps) {
       case 'media':          return <MediaSection d={d} />
       case 'apiForDevs':     return <ApiForDevsSection d={d} />
       case 'apiSchema':      return <ApiSchemaSection d={d} />
+      case 'relations':      return <RelationsSection d={d} />
     }
   }
 

@@ -167,6 +167,7 @@ export const en = {
         media:          'Media & Storage',
         apiForDevs:     'API for Developers',
         apiSchema:      'API: Schema Discovery',
+        relations:      'Node Relations',
       },
       gettingStarted: {
         title:         'Getting Started',
@@ -323,6 +324,42 @@ export const en = {
           relatesTo:    { name: 'relatesTo',    type: 'string',  desc: '(relation fields only) Slug of the related node' },
         },
         exampleLabel: 'cURL example',
+      },
+      relations: {
+        title: 'Node Relations',
+        intro: 'When nodes are connected in the board, the API automatically merges their schemas. Fields from related nodes appear flat in the response — no nesting, no extra requests.',
+        flatPrincipleTitle: 'Flat response principle',
+        flatPrincipleDesc:  'Every node always returns two keys: fields (all inherited fields merged flat) and containers (shallow references). Containers never expose their own content inline — fetch them separately by id.',
+        inheritanceTitle:   'Structural inheritance (parent → child)',
+        inheritanceDesc:    'A child node (nested inside a parent container) automatically sees all fields and containers from its direct parent. The parent itself is excluded from the list to avoid self-reference. Inheritance is one level deep only.',
+        relationTypesTitle: 'Relation types',
+        types: {
+          oneToOne: {
+            label: '1:1  —  One to One',
+            desc:  'Both nodes share each other\'s own direct fields. Non-transitive: if A↔B and B↔C, then A does not see C\'s fields.',
+          },
+          oneToMany: {
+            label: '1:n  —  One to Many',
+            desc:  'The source node injects its own direct fields into the target node and into every node reachable from the target via 1:1 chains. The source does not receive anything back.',
+          },
+          manyToMany: {
+            label: 'n:m  —  Many to Many',
+            desc:  'Both nodes share each other\'s fully resolved content (including all their own inherited fields). Child nodes of each side also inherit this via structural inheritance.',
+          },
+        },
+        multipleRelationsTitle: 'Multiple relations',
+        multipleRelationsDesc:  'A node can have multiple relations of different types simultaneously. The result is the deduplicated union of all inherited fields and containers.',
+        antiCycleTitle: 'Anti-cycle protection',
+        antiCycleDesc:  'The resolver tracks visited nodes per request. Circular relations (A↔B↔A) resolve safely without infinite loops.',
+        consumingTitle: 'How to consume',
+        consumingSteps: {
+          step1: 'Call GET /api/v1/schema to get all root nodes with their merged fields and container references.',
+          step2: 'Use the fields array directly — it already contains everything the node inherits.',
+          step3: 'For each item in containers, call GET /api/v1/schema/{id} to get its merged fields separately.',
+          step4: 'Never expect nested content inside containers — they are always shallow references.',
+        },
+        exampleTitle: 'Response example',
+        exampleNote:  'Blog Posts has a 1:1 relation with SEO node. The fields from SEO appear flat inside Blog Posts.',
       },
     },
     canvas: {
@@ -1023,6 +1060,7 @@ export type Dictionary = {
       sections: {
         gettingStarted: string; navigation: string; nodesAndFields: string
         content: string; media: string; apiForDevs: string; apiSchema: string
+        relations: string
       }
       gettingStarted: {
         title: string; intro: string; conceptsTitle: string
@@ -1092,6 +1130,22 @@ export type Dictionary = {
           relatesTo:    { name: string; type: string; desc: string }
         }
         exampleLabel: string
+      }
+      relations: {
+        title: string; intro: string
+        flatPrincipleTitle: string; flatPrincipleDesc: string
+        inheritanceTitle: string; inheritanceDesc: string
+        relationTypesTitle: string
+        types: {
+          oneToOne:   { label: string; desc: string }
+          oneToMany:  { label: string; desc: string }
+          manyToMany: { label: string; desc: string }
+        }
+        multipleRelationsTitle: string; multipleRelationsDesc: string
+        antiCycleTitle: string; antiCycleDesc: string
+        consumingTitle: string
+        consumingSteps: { step1: string; step2: string; step3: string; step4: string }
+        exampleTitle: string; exampleNote: string
       }
     }
     canvas: { ariaLabel: string; empty: string; emptyHint: string }

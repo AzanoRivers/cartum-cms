@@ -20,6 +20,7 @@ const SECTION_IDS = [
   'media',
   'apiForDevs',
   'apiSchema',
+  'relations',
 ] as const
 
 const SECTION_ICONS: Record<typeof SECTION_IDS[number], Parameters<typeof Icon>[0]['name']> = {
@@ -30,6 +31,7 @@ const SECTION_ICONS: Record<typeof SECTION_IDS[number], Parameters<typeof Icon>[
   media:          'Image',
   apiForDevs:     'Code',
   apiSchema:      'Network',
+  relations:      'GitMerge',
 }
 
 export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) {

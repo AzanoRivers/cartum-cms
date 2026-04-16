@@ -169,6 +169,7 @@ export const es: Dictionary = {
         media:          'Media y Almacenamiento',
         apiForDevs:     'API para Desarrolladores',
         apiSchema:      'API: Descubrimiento del Schema',
+        relations:      'Relaciones de Nodos',
       },
       gettingStarted: {
         title:         'Primeros pasos',
@@ -325,6 +326,42 @@ export const es: Dictionary = {
           relatesTo:    { name: 'relatesTo',    type: 'string',  desc: '(solo relation) Slug del nodo relacionado' },
         },
         exampleLabel: 'Ejemplo cURL',
+      },
+      relations: {
+        title: 'Relaciones de Nodos',
+        intro: 'Cuando los nodos están conectados en el board, la API combina automáticamente sus schemas. Los campos de los nodos relacionados aparecen planos en la respuesta — sin anidamiento, sin solicitudes extra.',
+        flatPrincipleTitle: 'Principio de respuesta plana',
+        flatPrincipleDesc:  'Cada nodo siempre devuelve dos llaves: fields (todos los campos heredados mezclados de forma plana) y containers (referencias simples). Los containers nunca exponen su contenido inline — consultálos por separado con su id.',
+        inheritanceTitle:   'Herencia estructural (padre → hijo)',
+        inheritanceDesc:    'Un nodo hijo (anidado dentro de un container padre) ve automáticamente todos los fields y containers de su padre directo. El padre mismo se excluye de la lista para evitar auto-referencia. La herencia es de solo un nivel.',
+        relationTypesTitle: 'Tipos de relación',
+        types: {
+          oneToOne: {
+            label: '1:1  —  Uno a Uno',
+            desc:  'Ambos nodos comparten los fields propios directos del otro. No es transitiva: si A↔B y B↔C, entonces A no ve los fields de C.',
+          },
+          oneToMany: {
+            label: '1:n  —  Uno a Muchos',
+            desc:  'El nodo fuente inyecta sus fields propios directos en el nodo destino y en todos los nodos alcanzables desde el destino vía cadenas 1:1. El fuente no recibe nada de vuelta.',
+          },
+          manyToMany: {
+            label: 'n:m  —  Muchos a Muchos',
+            desc:  'Ambos nodos comparten el contenido completamente resuelto del otro (incluyendo todo lo heredado). Los nodos hijos de cada lado también heredan esto vía herencia estructural.',
+          },
+        },
+        multipleRelationsTitle: 'Múltiples relaciones',
+        multipleRelationsDesc:  'Un nodo puede tener múltiples relaciones de distintos tipos simultáneamente. El resultado es la unión deduplicada de todos los fields y containers heredados.',
+        antiCycleTitle: 'Protección anti-ciclo',
+        antiCycleDesc:  'El resolver registra los nodos visitados por request. Las relaciones circulares (A↔B↔A) se resuelven sin bucles infinitos.',
+        consumingTitle: 'Cómo consumir',
+        consumingSteps: {
+          step1: 'Llama GET /api/v1/schema para obtener todos los nodos raíz con sus fields combinados y referencias de containers.',
+          step2: 'Usa el array fields directamente — ya contiene todo lo que el nodo hereda.',
+          step3: 'Para cada item en containers, llama GET /api/v1/schema/{id} para obtener sus fields por separado.',
+          step4: 'Nunca esperes contenido anidado dentro de containers — siempre son referencias simples.',
+        },
+        exampleTitle: 'Ejemplo de respuesta',
+        exampleNote:  'Blog Posts tiene una relación 1:1 con el nodo SEO. Los fields de SEO aparecen planos dentro de Blog Posts.',
       },
     },
     canvas: {

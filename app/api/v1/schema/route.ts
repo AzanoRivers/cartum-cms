@@ -1,10 +1,8 @@
-import { and, eq, isNull } from 'drizzle-orm'
-import { db } from '@/db'
-import { fieldMeta, nodes } from '@/db/schema'
 import { resolveApiAuth } from '@/lib/api/auth'
 import { corsHeaders } from '@/lib/api/utils'
+import { buildResolverContext } from '@/lib/services/node-schema-context'
+import { resolveNodeSchema } from '@/lib/services/node-schema-resolver'
 import { nodeNameToSlug } from '@/nodes/api-generator'
-import type { FieldType } from '@/types/nodes'
 
 function apiError(error: string, message: string, status: number) {
   return Response.json({ error, message }, { status, headers: corsHeaders() })
@@ -16,90 +14,27 @@ export async function OPTIONS() {
 
 /**
  * GET /api/v1/schema
- * Returns all root container nodes with their fields.
+ * Returns all root container nodes with their fully resolved schema.
+ * Fields include all inherited content (parent, 1:1, 1:n, n:m).
+ * Containers are shallow references only — never nested.
  * Any valid API token can call this endpoint (no node-level permission required).
  */
 export async function GET(req: Request) {
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
 
-  // All containers — needed both for root listing and slug resolution of relation targets
-  const allContainers = await db
-    .select()
-    .from(nodes)
-    .where(eq(nodes.type, 'container'))
-
-  // Map id → slug for relation resolution
-  const containerSlugMap = new Map(
-    allContainers.map((n) => [n.id, n.slug ?? nodeNameToSlug(n.name)]),
-  )
-
-  const rootNodes = allContainers.filter((n) => n.parentId === null)
-
-  // Group child containers (non-root) by their parent id
-  const childContainersByParent = new Map<string, typeof allContainers>()
-  for (const container of allContainers) {
-    if (container.parentId === null) continue
-    const group = childContainersByParent.get(container.parentId) ?? []
-    group.push(container)
-    childContainersByParent.set(container.parentId, group)
-  }
-
-  // All field nodes with their meta — single query for all roots
-  const allFields = await db
-    .select()
-    .from(nodes)
-    .innerJoin(fieldMeta, eq(fieldMeta.nodeId, nodes.id))
-    .where(eq(nodes.type, 'field'))
-
-  // Group fields by their parent container id
-  const fieldsByParent = new Map<string, typeof allFields>()
-  for (const row of allFields) {
-    const parentId = row.nodes.parentId
-    if (!parentId) continue
-    const group = fieldsByParent.get(parentId) ?? []
-    group.push(row)
-    fieldsByParent.set(parentId, group)
-  }
+  const ctx = await buildResolverContext()
+  const rootNodes = ctx.allNodes.filter((n) => n.type === 'container' && n.parentId === null)
 
   const schema = rootNodes.map((node) => {
-    const slug = node.slug ?? nodeNameToSlug(node.name)
-
-    const fields = (fieldsByParent.get(node.id) ?? []).map((row) => {
-      const meta = row.field_meta
-      const field: Record<string, unknown> = {
-        id:       row.nodes.id,
-        name:     row.nodes.name,
-        type:     meta.fieldType as FieldType,
-        required: meta.isRequired,
-        edit:     row.nodes.updatedAt,
-      }
-
-      if (meta.defaultValue !== null && meta.defaultValue !== undefined) {
-        field.defaultValue = meta.defaultValue
-      }
-
-      // For relation fields, resolve the target node slug instead of exposing raw UUID
-      if (meta.fieldType === 'relation' && meta.relationTargetId) {
-        field.relatesTo = containerSlugMap.get(meta.relationTargetId) ?? null
-      }
-
-      return field
-    })
-
-    const containers = (childContainersByParent.get(node.id) ?? []).map((c) => ({
-      id:   c.id,
-      name: c.name,
-      edit: c.updatedAt,
-    }))
-
+    const resolved = resolveNodeSchema(node.id, ctx)
     return {
       id:         node.id,
       name:       node.name,
-      slug,
+      slug:       node.slug ?? nodeNameToSlug(node.name),
       edit:       node.updatedAt,
-      fields,
-      containers,
+      fields:     resolved.fields,
+      containers: resolved.containers,
     }
   })
 
