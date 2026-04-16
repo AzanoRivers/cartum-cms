@@ -44,8 +44,9 @@ export type UploadEntry = {
   phaseLabel?: string
 }
 
-const ALLOWED_ALL   = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES] as string[]
-const MAX_QUEUE_SIZE = 15
+const ALLOWED_ALL          = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES] as string[]
+const MAX_QUEUE_SIZE        = 15
+const MAX_CONCURRENT_UPLOADS = 5
 
 export type UseMediaGalleryConfig = {
   /** Label shown in a toast when a video exceeds MAX_VIDEO_SIZE_BYTES. */
@@ -72,6 +73,36 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
   // Batch counters — accumulate across concurrent uploads, reset when all finish
   const batchSuccessCount = useRef(0)
   const batchErrorCount   = useRef(0)
+
+  // ── Upload semaphore (max MAX_CONCURRENT_UPLOADS at once) ─────────────────
+  type SlotWaiter = { resolve: () => void; reject: () => void }
+  const semaphoreSlots  = useRef(0)
+  const semaphoreQueue  = useRef<SlotWaiter[]>([])
+
+  function acquireSlot(): Promise<void> {
+    if (semaphoreSlots.current < MAX_CONCURRENT_UPLOADS) {
+      semaphoreSlots.current++
+      return Promise.resolve()
+    }
+    return new Promise<void>((resolve, reject) => {
+      semaphoreQueue.current.push({
+        resolve: () => { semaphoreSlots.current++; resolve() },
+        reject,
+      })
+    })
+  }
+
+  function releaseSlot() {
+    semaphoreSlots.current--
+    const next = semaphoreQueue.current.shift()
+    if (next) next.resolve()
+  }
+
+  function drainSemaphore() {
+    for (const waiter of semaphoreQueue.current) waiter.reject()
+    semaphoreQueue.current = []
+    semaphoreSlots.current = 0
+  }
 
   // ── Video fallback warning modal ───────────────────────────────────────────
   // Promise-resolver pattern: uploadEntry awaits user decision before continuing.
@@ -231,10 +262,17 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
 
   /** Cancel ALL active uploads and clear the entire queue. */
   function cancelAllUploads() {
+    // Reject all entries waiting for a semaphore slot
+    drainSemaphore()
+    // Abort in-flight uploads
     for (const controller of uploadAbortControllers.current.values()) {
       controller.abort()
     }
     uploadAbortControllers.current.clear()
+    // Reset counters so no stale batch toast fires
+    activeUploadCount.current = 0
+    batchSuccessCount.current = 0
+    batchErrorCount.current   = 0
     setQueue([])
   }
 
@@ -449,7 +487,19 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
 
   async function startUpload(entry: UploadEntry, labels: UploadLabels) {
     activeUploadCount.current++
+    // Wait for a free slot — rejects immediately if cancelAllUploads is called
+    try {
+      await acquireSlot()
+    } catch {
+      // Cancelled while waiting in the semaphore queue
+      activeUploadCount.current--
+      return
+    }
+
     const outcome = await uploadEntry(entry, labels)
+    // Release slot as soon as upload finishes so next entry starts immediately
+    releaseSlot()
+
     if (outcome === 'success') batchSuccessCount.current++
     if (outcome === 'error')   batchErrorCount.current++
     // Show done/error state briefly so the user sees the checkmark before it disappears
