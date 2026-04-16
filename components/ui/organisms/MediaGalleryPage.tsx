@@ -49,9 +49,12 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
     videoFallbackOpen, confirmVideoFallback, cancelVideoFallback,
   } = useMediaGallery({
     videoSizeErrorLabel:  g.videoSizeError,
-    queueLimitErrorLabel: g.queueLimitError,
+    imageLimitErrorLabel: g.imageLimitError,
+    videoLimitErrorLabel: g.videoLimitError,
     uploadSuccessBatch:   g.uploadedBatch,
     uploadErrorBatch:     g.uploadErrorBatch,
+    compressionBatch:     g.compressionBatch,
+    duplicateErrorLabel:  g.duplicateError,
   })
 
   async function handleDelete(asset: MediaRecord) {
@@ -185,6 +188,7 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
         uploadingLabel={g.uploading}
         errorLabel={g.uploadError}
         successLabel={g.uploadSuccess}
+        videoUploadWarning={g.videoUploadWarning}
       />
 
       {/* Preview modal */}
@@ -333,8 +337,9 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
             uploadBtnLabel:  g.uploadStart,
             optimizingLabel: g.optimizing,
             uploadingLabel:  g.uploading,
-            errorLabel:      g.uploadError,
-            successLabel:    g.uploadSuccess,
+            errorLabel:          g.uploadError,
+            successLabel:        g.uploadSuccess,
+            videoUploadWarning:  g.videoUploadWarning,
           }}
         />
 

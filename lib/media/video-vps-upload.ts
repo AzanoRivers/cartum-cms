@@ -48,12 +48,14 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   })
 }
 
-/** Fire-and-forget: tells VPS to clean up a partially uploaded job. */
+/** Fire-and-forget: tells VPS to clean up a partially uploaded job.
+ *  Uses keepalive:true so the request survives a tab close / beforeunload. */
 function cancelVpsUpload(uploadId: string): void {
   void fetch('/api/internal/media/videos/cancel', {
-    method:  'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ upload_id: uploadId }),
+    method:   'DELETE',
+    headers:  { 'Content-Type': 'application/json' },
+    body:     JSON.stringify({ upload_id: uploadId }),
+    keepalive: true,
   }).catch(() => { /* ignore — VPS may have already expired the job */ })
 }
 

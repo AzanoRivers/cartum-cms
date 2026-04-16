@@ -21,14 +21,15 @@ export type MediaUploadModalProps = {
   onDragLeave:    () => void
   onDrop:         (e: React.DragEvent) => void
   // labels
-  title:            string
-  dropHereLabel:    string
-  orClickLabel:     string
-  uploadBtnLabel:   string
-  optimizingLabel:  string
-  uploadingLabel:   string
-  errorLabel:       string
-  successLabel:     string
+  title:               string
+  dropHereLabel:       string
+  orClickLabel:        string
+  uploadBtnLabel:      string
+  optimizingLabel:     string
+  uploadingLabel:      string
+  errorLabel:          string
+  successLabel:        string
+  videoUploadWarning?: string
 }
 
 export function MediaUploadModal({
@@ -51,6 +52,7 @@ export function MediaUploadModal({
   uploadingLabel,
   errorLabel,
   successLabel,
+  videoUploadWarning,
 }: MediaUploadModalProps) {
   // ESC to close
   useEffect(() => {
@@ -110,6 +112,7 @@ export function MediaUploadModal({
             uploadingLabel={uploadingLabel}
             errorLabel={errorLabel}
             successLabel={successLabel}
+            videoUploadWarning={videoUploadWarning}
           />
         </div>
       </VHSTransition>

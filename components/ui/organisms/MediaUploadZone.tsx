@@ -16,13 +16,14 @@ export type MediaUploadZoneProps = {
   onDragLeave:    () => void
   onDrop:         (e: React.DragEvent) => void
   // labels
-  dropHereLabel:    string
-  orClickLabel:     string
-  uploadBtnLabel:   string
-  optimizingLabel:  string
-  uploadingLabel:   string
-  errorLabel:       string
-  successLabel:     string
+  dropHereLabel:       string
+  orClickLabel:        string
+  uploadBtnLabel:      string
+  optimizingLabel:     string
+  uploadingLabel:      string
+  errorLabel:          string
+  successLabel:        string
+  videoUploadWarning?: string
 }
 
 export function MediaUploadZone({
@@ -42,13 +43,15 @@ export function MediaUploadZone({
   uploadingLabel,
   errorLabel,
   successLabel,
+  videoUploadWarning,
 }: MediaUploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const pending   = queue.filter((e) => e.status === 'pending')
-  const active    = queue.filter((e) => e.status === 'optimizing' || e.status === 'uploading')
-  const finished  = queue.filter((e) => e.status === 'done' || e.status === 'error')
-  const allRows   = [...active, ...pending, ...finished]
+  const pending    = queue.filter((e) => e.status === 'pending')
+  const active     = queue.filter((e) => e.status === 'optimizing' || e.status === 'uploading')
+  const finished   = queue.filter((e) => e.status === 'done' || e.status === 'error')
+  const allRows    = [...active, ...pending, ...finished]
+  const hasVideos  = allRows.some((e) => e.file.type.startsWith('video/'))
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files) onFiles(e.target.files)
@@ -106,6 +109,8 @@ export function MediaUploadZone({
               status={entry.status}
               progress={entry.progress}
               error={entry.error}
+              fileSizeBytes={entry.file.size}
+              isVideo={entry.file.type.startsWith('video/')}
               onRemove={entry.status === 'pending' || entry.status === 'error'
                 ? () => onRemove(entry.id)
                 : undefined}
@@ -117,6 +122,16 @@ export function MediaUploadZone({
               phaseLabel={entry.phaseLabel}
             />
           ))}
+        </div>
+      )}
+
+      {/* Video upload warning */}
+      {hasVideos && videoUploadWarning && (
+        <div className="shrink-0 flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2.5">
+          <span className="mt-px shrink-0 text-sm leading-none text-warning">⚠</span>
+          <p className="font-mono text-[10px] leading-relaxed text-warning">
+            {videoUploadWarning}
+          </p>
         </div>
       )}
 

@@ -45,34 +45,49 @@ export type UploadEntry = {
 }
 
 const ALLOWED_ALL          = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES] as string[]
-const MAX_QUEUE_SIZE        = 15
+const MAX_IMAGE_QUEUE       = 25
+const MAX_VIDEO_QUEUE       = 5
 const MAX_CONCURRENT_UPLOADS = 5
 
 export type UseMediaGalleryConfig = {
   /** Label shown in a toast when a video exceeds MAX_VIDEO_SIZE_BYTES. */
   videoSizeErrorLabel?:   string
-  /** Label shown in a toast when the queue limit is reached. */
-  queueLimitErrorLabel?:  string
+  /** Label shown when the image queue limit is reached. */
+  imageLimitErrorLabel?:  string
+  /** Label shown when the video queue limit is reached. */
+  videoLimitErrorLabel?:  string
   /** Batch success toast — use {n} as placeholder for file count. */
   uploadSuccessBatch?:    string
   /** Batch error toast — use {n} as placeholder for file count. */
   uploadErrorBatch?:      string
+  /** Compression summary — use {pct} as placeholder for average % reduction. */
+  compressionBatch?:      string
+  /** Shown when a file already exists in the queue or gallery — use {names} as placeholder. */
+  duplicateErrorLabel?:   string
 }
 
 export function useMediaGallery(config?: UseMediaGalleryConfig) {
   // Keep labels in refs so drag handlers always have latest without re-renders
   const videoSizeErrorLabelRef  = useRef(config?.videoSizeErrorLabel ?? '')
   videoSizeErrorLabelRef.current  = config?.videoSizeErrorLabel ?? ''
-  const queueLimitErrorLabelRef = useRef(config?.queueLimitErrorLabel ?? '')
-  queueLimitErrorLabelRef.current = config?.queueLimitErrorLabel ?? ''
+  const imageLimitErrorLabelRef = useRef(config?.imageLimitErrorLabel ?? '')
+  imageLimitErrorLabelRef.current = config?.imageLimitErrorLabel ?? ''
+  const videoLimitErrorLabelRef = useRef(config?.videoLimitErrorLabel ?? '')
+  videoLimitErrorLabelRef.current = config?.videoLimitErrorLabel ?? ''
   const uploadSuccessBatchRef   = useRef(config?.uploadSuccessBatch ?? '')
   uploadSuccessBatchRef.current   = config?.uploadSuccessBatch ?? ''
   const uploadErrorBatchRef     = useRef(config?.uploadErrorBatch ?? '')
   uploadErrorBatchRef.current     = config?.uploadErrorBatch ?? ''
+  const compressionBatchRef     = useRef(config?.compressionBatch ?? '')
+  compressionBatchRef.current     = config?.compressionBatch ?? ''
+  const duplicateErrorLabelRef  = useRef(config?.duplicateErrorLabel ?? '')
+  duplicateErrorLabelRef.current  = config?.duplicateErrorLabel ?? ''
 
   // Batch counters — accumulate across concurrent uploads, reset when all finish
-  const batchSuccessCount = useRef(0)
-  const batchErrorCount   = useRef(0)
+  const batchSuccessCount     = useRef(0)
+  const batchErrorCount       = useRef(0)
+  const batchOriginalBytes    = useRef(0)
+  const batchCompressedBytes  = useRef(0)
 
   // ── Upload semaphore (max MAX_CONCURRENT_UPLOADS at once) ─────────────────
   type SlotWaiter = { resolve: () => void; reject: () => void }
@@ -103,6 +118,35 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
     semaphoreQueue.current = []
     semaphoreSlots.current = 0
   }
+
+  // ── Prevent tab close while uploads are active ────────────────────────────
+  useEffect(() => {
+    // beforeunload: solo muestra el diálogo. NO abortar aquí — si el usuario
+    // cancela el reload los uploads deben continuar intactos.
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (activeUploadCount.current > 0) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+
+    // pagehide: dispara SOLO cuando la página realmente se va (el usuario confirmó
+    // el reload/cierre). Aquí sí abortamos y notificamos al VPS con keepalive.
+    function handlePageHide() {
+      if (activeUploadCount.current > 0) {
+        for (const controller of uploadAbortControllers.current.values()) {
+          controller.abort()
+        }
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('pagehide', handlePageHide)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('pagehide', handlePageHide)
+    }
+  }, []) // uses refs only — no reactive deps needed
 
   // ── Video fallback warning modal ───────────────────────────────────────────
   // Promise-resolver pattern: uploadEntry awaits user decision before continuing.
@@ -219,34 +263,71 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
   // ── Upload queue helpers ───────────────────────────────────────────────────
   function addFilesToQueue(files: FileList | File[], videoSizeErrorLabel?: string) {
     // Caller may pass a label directly (button/input), or we fall back to the ref (drag-drop)
-    const sizeErrorLabel  = videoSizeErrorLabel ?? videoSizeErrorLabelRef.current
-    const limitErrorLabel = queueLimitErrorLabelRef.current
-    const entries: UploadEntry[] = []
+    const sizeErrorLabel = videoSizeErrorLabel ?? videoSizeErrorLabelRef.current
+    const imgLabel       = imageLimitErrorLabelRef.current
+    const vidLabel       = videoLimitErrorLabelRef.current
+    const dupLabel       = duplicateErrorLabelRef.current
+
+    // Build a case-insensitive set of names already in queue or gallery
+    const existingNames = new Set<string>()
+    for (const e of queue)   existingNames.add(e.name.toLowerCase())
+    for (const a of assets) {
+      const n = a.name ?? a.key.split('/').pop() ?? ''
+      if (n) existingNames.add(n.toLowerCase())
+    }
+
+    const newImages: UploadEntry[] = []
+    const newVideos: UploadEntry[] = []
+    const duplicateNames: string[] = []
+
     for (const file of Array.from(files)) {
       if (!ALLOWED_ALL.includes(file.type)) continue
+      if (existingNames.has(file.name.toLowerCase())) {
+        duplicateNames.push(file.name)
+        continue
+      }
       const isVideo = file.type.startsWith('video/')
-      const limit   = isVideo ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES
-      if (file.size > limit) {
+      const sizeLimit = isVideo ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES
+      if (file.size > sizeLimit) {
         if (isVideo && sizeErrorLabel) toast.error(sizeErrorLabel)
         continue
       }
-      entries.push({
-        id:       crypto.randomUUID(),
-        name:     file.name,
-        file,
-        status:   'pending',
-        progress: 0,
-      })
+      const entry: UploadEntry = { id: crypto.randomUUID(), name: file.name, file, status: 'pending', progress: 0 }
+      if (isVideo) newVideos.push(entry)
+      else         newImages.push(entry)
     }
-    if (entries.length === 0) return
+
+    if (duplicateNames.length > 0 && dupLabel) {
+      toast.warning(dupLabel.replace('{names}', duplicateNames.join(', ')))
+    }
+
+    if (newImages.length === 0 && newVideos.length === 0) return
+
+    const nameSort = (a: UploadEntry, b: UploadEntry) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true })
+
     setQueue((q) => {
-      const combined = [...q, ...entries]
-        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true }))
-      if (combined.length > MAX_QUEUE_SIZE) {
-        if (limitErrorLabel) toast.error(limitErrorLabel)
-        return combined.slice(0, MAX_QUEUE_SIZE)
-      }
-      return combined
+      const qImages = q.filter((e) => !e.file.type.startsWith('video/'))
+      const qVideos = q.filter((e) =>  e.file.type.startsWith('video/'))
+
+      const combinedImages = [...qImages, ...newImages].sort(nameSort)
+      const combinedVideos = [...qVideos, ...newVideos].sort(nameSort)
+
+      let droppedImages = 0
+      let droppedVideos = 0
+
+      const finalImages = combinedImages.length > MAX_IMAGE_QUEUE
+        ? (droppedImages = combinedImages.length - MAX_IMAGE_QUEUE, combinedImages.slice(0, MAX_IMAGE_QUEUE))
+        : combinedImages
+
+      const finalVideos = combinedVideos.length > MAX_VIDEO_QUEUE
+        ? (droppedVideos = combinedVideos.length - MAX_VIDEO_QUEUE, combinedVideos.slice(0, MAX_VIDEO_QUEUE))
+        : combinedVideos
+
+      if (droppedImages > 0 && imgLabel) toast.error(imgLabel)
+      if (droppedVideos > 0 && vidLabel) toast.error(vidLabel)
+
+      return [...finalImages, ...finalVideos].sort(nameSort)
     })
   }
 
@@ -270,9 +351,11 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
     }
     uploadAbortControllers.current.clear()
     // Reset counters so no stale batch toast fires
-    activeUploadCount.current = 0
-    batchSuccessCount.current = 0
-    batchErrorCount.current   = 0
+    activeUploadCount.current    = 0
+    batchSuccessCount.current    = 0
+    batchErrorCount.current      = 0
+    batchOriginalBytes.current   = 0
+    batchCompressedBytes.current = 0
     setQueue([])
   }
 
@@ -379,6 +462,8 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
       })
 
       patchEntry(id, { status: 'done', progress: 100 })
+      batchOriginalBytes.current   += file.size
+      batchCompressedBytes.current += finalBlob.size
 
       if (vpsWarning) {
         const vpsToasts: Record<VpsWarning, string> = {
@@ -473,6 +558,11 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
 
         // VPS path: record was already saved server-side by the /complete route
         patchEntry(id, { status: 'done', progress: 100, phaseLabel: undefined })
+        // Track compression ratio (VPS result carries compressed sizeBytes)
+        if (result.sizeBytes != null && result.sizeBytes > 0) {
+          batchOriginalBytes.current   += file.size
+          batchCompressedBytes.current += result.sizeBytes
+        }
         return 'success'
 
       } catch {
@@ -508,13 +598,22 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
     activeUploadCount.current--
     // Only when all concurrent uploads finish: show batch summary + refresh grid
     if (activeUploadCount.current === 0) {
-      const s = batchSuccessCount.current
-      const e = batchErrorCount.current
-      batchSuccessCount.current = 0
-      batchErrorCount.current   = 0
+      const s          = batchSuccessCount.current
+      const e          = batchErrorCount.current
+      const origBytes  = batchOriginalBytes.current
+      const compBytes  = batchCompressedBytes.current
+      batchSuccessCount.current    = 0
+      batchErrorCount.current      = 0
+      batchOriginalBytes.current   = 0
+      batchCompressedBytes.current = 0
       if (s > 0) {
         const tpl = uploadSuccessBatchRef.current
         toast.success(tpl ? tpl.replace('{n}', String(s)) : `${s} file(s) uploaded.`)
+      }
+      if (origBytes > 0 && compBytes > 0 && compBytes < origBytes) {
+        const pct    = Math.round((1 - compBytes / origBytes) * 100)
+        const cTpl   = compressionBatchRef.current
+        if (pct > 0 && cTpl) toast.info(cTpl.replace('{pct}', String(pct)))
       }
       if (e > 0) {
         const tpl = uploadErrorBatchRef.current

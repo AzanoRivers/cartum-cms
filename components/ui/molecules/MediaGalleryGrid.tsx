@@ -20,8 +20,9 @@ export type MediaGalleryGridUploadProps = {
   uploadBtnLabel: string
   optimizingLabel: string
   uploadingLabel:  string
-  errorLabel:      string
-  successLabel:    string
+  errorLabel:          string
+  successLabel:        string
+  videoUploadWarning?: string
 }
 
 export type MediaGalleryGridProps = {
@@ -93,6 +94,7 @@ export function MediaGalleryGrid({
             uploadingLabel={uploadProps.uploadingLabel}
             errorLabel={uploadProps.errorLabel}
             successLabel={uploadProps.successLabel}
+            videoUploadWarning={uploadProps.videoUploadWarning}
           />
         </div>
       )

@@ -16,6 +16,10 @@ export type UploadFileRowProps = {
   uploadingLabel:  string
   /** When set and status==='uploading', replaces the uploadingLabel prefix text */
   phaseLabel?:     string
+  /** Original file size in bytes — used to render the size badge. */
+  fileSizeBytes?:  number
+  /** True if the file is a video — changes the color thresholds. */
+  isVideo?:        boolean
 }
 
 function formatName(name: string) {
@@ -23,6 +27,33 @@ function formatName(name: string) {
   const ext  = name.split('.').pop() ?? ''
   const base = name.slice(0, 20)
   return `${base}…${ext ? `.${ext}` : ''}`
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+type BadgeColor = 'green' | 'yellow' | 'red' | 'neutral'
+
+function sizeColor(bytes: number, isVideo: boolean): BadgeColor {
+  const MB = 1024 * 1024
+  if (isVideo) {
+    if (bytes > 80 * MB) return 'red'
+    if (bytes > 40 * MB) return 'yellow'
+    return 'green'
+  }
+  if (bytes > 50 * MB) return 'red'
+  if (bytes > 5  * MB) return 'yellow'
+  if (bytes < 1.5 * MB) return 'green'
+  return 'neutral'
+}
+
+const BADGE_CLASSES: Record<BadgeColor, string> = {
+  green:   'text-success  bg-success/10  border-success/30',
+  yellow:  'text-yellow-400 bg-yellow-400/10 border-yellow-400/30',
+  red:     'text-danger   bg-danger/10   border-danger/30',
+  neutral: 'text-muted    bg-surface     border-border',
 }
 
 export function UploadFileRow({
@@ -35,8 +66,11 @@ export function UploadFileRow({
   optimizingLabel,
   uploadingLabel,
   phaseLabel,
+  fileSizeBytes,
+  isVideo = false,
 }: UploadFileRowProps) {
-  const showBar = status === 'uploading' || status === 'optimizing'
+  const showBar  = status === 'uploading' || status === 'optimizing'
+  const badgeColor = fileSizeBytes != null ? sizeColor(fileSizeBytes, isVideo) : null
 
   return (
     <div className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
@@ -52,7 +86,14 @@ export function UploadFileRow({
 
       {/* Name + progress bar */}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-mono text-[11px] text-text">{formatName(name)}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="truncate font-mono text-[11px] text-text">{formatName(name)}</p>
+          {badgeColor && fileSizeBytes != null && (
+            <span className={`shrink-0 rounded border px-1 py-px font-mono text-[9px] leading-none ${BADGE_CLASSES[badgeColor]}`}>
+              {formatBytes(fileSizeBytes)}
+            </span>
+          )}
+        </div>
         {showBar && (
           <div className="mt-1 h-0.5 w-full overflow-hidden rounded-full bg-border">
             <div
