@@ -623,6 +623,9 @@ export const en = {
         bulkDeletedPartial:  'Deleted {deleted} file(s). {failed} failed.',
         bulkDownloading:     'Preparing ZIP…',
         bulkDownloadSuccess: 'Downloaded {n} file(s).',
+        queueLimitError:  'You can upload up to 15 files at a time.',
+        uploadedBatch:    '{n} file(s) uploaded successfully.',
+        uploadErrorBatch: '{n} file(s) failed to upload.',
         // Video VPS upload phases
         videoSizeError:   'Video exceeds the 500 MB limit.',
         videoChunking:    'Uploading to VPS…',
@@ -1225,6 +1228,8 @@ export type Dictionary = {
         bulkDeleteCancel: string; bulkDeleting: string
         bulkDeletedSuccess: string; bulkDeletedPartial: string
         bulkDownloading: string; bulkDownloadSuccess: string
+        queueLimitError: string
+        uploadedBatch: string; uploadErrorBatch: string
         videoSizeError: string; videoChunking: string; videoProcessing: string
         videoFinalizing: string; videoVpsSkipped: string
         videoFallbackTitle: string; videoFallbackBody: string

@@ -62,7 +62,7 @@ export function MediaUploadZone({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 flex-1 min-h-0">
       {/* Drop zone */}
       <div
         onDragOver={onDragOver}
@@ -72,7 +72,7 @@ export function MediaUploadZone({
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed px-6 py-8 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+        className={`shrink-0 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed px-6 py-8 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
           dragging
             ? 'border-primary bg-primary/5 text-primary'
             : 'border-border bg-surface-2 text-muted hover:border-primary/40 hover:text-text'
@@ -98,7 +98,7 @@ export function MediaUploadZone({
 
       {/* Queue rows */}
       {allRows.length > 0 && (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5 pr-px">
           {allRows.map((entry) => (
             <UploadFileRow
               key={entry.id}
@@ -125,7 +125,7 @@ export function MediaUploadZone({
         <button
           type="button"
           onClick={startAll}
-          className="self-end rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          className="shrink-0 self-end rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         >
           {uploadBtnLabel} ({pending.length})
         </button>

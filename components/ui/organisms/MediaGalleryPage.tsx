@@ -47,7 +47,12 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
     selectedIds, selectionMode, toggleSelect, clearSelection,
     refresh,
     videoFallbackOpen, confirmVideoFallback, cancelVideoFallback,
-  } = useMediaGallery({ videoSizeErrorLabel: g.videoSizeError })
+  } = useMediaGallery({
+    videoSizeErrorLabel:  g.videoSizeError,
+    queueLimitErrorLabel: g.queueLimitError,
+    uploadSuccessBatch:   g.uploadedBatch,
+    uploadErrorBatch:     g.uploadErrorBatch,
+  })
 
   async function handleDelete(asset: MediaRecord) {
     await deleteMediaRecord(asset.id)

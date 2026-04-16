@@ -71,7 +71,7 @@ export function MediaUploadModal({
     >
       <VHSTransition
         duration="fast"
-        className="flex w-full sm:max-w-xl flex-col rounded-t-2xl sm:rounded-xl border border-border bg-surface shadow-2xl shadow-black/40 overflow-hidden"
+        className="flex w-full sm:max-w-xl flex-col rounded-t-2xl sm:rounded-xl border border-border bg-surface shadow-2xl shadow-black/40 overflow-hidden max-h-[90dvh] sm:max-h-[80vh]"
       >
         {/* Handle — mobile only */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
@@ -92,7 +92,7 @@ export function MediaUploadModal({
         </div>
 
         {/* Upload zone */}
-        <div className="p-5">
+        <div className="flex-1 min-h-0 p-5 flex flex-col overflow-hidden">
           <MediaUploadZone
             queue={queue}
             dragging={dragging}

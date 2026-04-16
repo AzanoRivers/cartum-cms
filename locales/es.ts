@@ -625,6 +625,9 @@ export const es: Dictionary = {
         bulkDeletedPartial:  '{deleted} eliminados. {failed} fallaron.',
         bulkDownloading:     'Preparando ZIP…',
         bulkDownloadSuccess: '{n} archivo(s) descargados.',
+        queueLimitError:  'Puedes subir hasta 15 archivos a la vez.',
+        uploadedBatch:    '{n} archivo(s) subido(s) correctamente.',
+        uploadErrorBatch: '{n} archivo(s) fallaron al subir.',
         // Fases de subida de video por VPS
         videoSizeError:   'El video supera el límite de 500 MB.',
         videoChunking:    'Subiendo al VPS…',

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, inArray, lt, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, ilike, inArray, lt, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { media } from '@/db/schema'
 import { DeleteObjectCommand } from '@aws-sdk/client-s3'
@@ -106,7 +106,7 @@ export const mediaRepository = {
       .select()
       .from(media)
       .where(where)
-      .orderBy(desc(media.createdAt))
+      .orderBy(asc(sql`COALESCE(${media.name}, ${media.key})`))
       .limit(perPage)
       .offset(offset)
 

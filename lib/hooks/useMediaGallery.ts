@@ -44,19 +44,34 @@ export type UploadEntry = {
   phaseLabel?: string
 }
 
-const ALLOWED_ALL = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES] as string[]
+const ALLOWED_ALL   = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES] as string[]
+const MAX_QUEUE_SIZE = 15
 
 export type UseMediaGalleryConfig = {
-  /** Label shown in a toast when a video exceeds MAX_VIDEO_SIZE_BYTES.
-   *  Stored in a ref so that onDrop (which calls addFilesToQueue internally)
-   *  always has the latest localized string without causing re-renders. */
-  videoSizeErrorLabel?: string
+  /** Label shown in a toast when a video exceeds MAX_VIDEO_SIZE_BYTES. */
+  videoSizeErrorLabel?:   string
+  /** Label shown in a toast when the queue limit is reached. */
+  queueLimitErrorLabel?:  string
+  /** Batch success toast — use {n} as placeholder for file count. */
+  uploadSuccessBatch?:    string
+  /** Batch error toast — use {n} as placeholder for file count. */
+  uploadErrorBatch?:      string
 }
 
 export function useMediaGallery(config?: UseMediaGalleryConfig) {
-  // Keep the size-error label in a ref so the drag handler always has it
-  const videoSizeErrorLabelRef = useRef(config?.videoSizeErrorLabel ?? '')
-  videoSizeErrorLabelRef.current = config?.videoSizeErrorLabel ?? ''
+  // Keep labels in refs so drag handlers always have latest without re-renders
+  const videoSizeErrorLabelRef  = useRef(config?.videoSizeErrorLabel ?? '')
+  videoSizeErrorLabelRef.current  = config?.videoSizeErrorLabel ?? ''
+  const queueLimitErrorLabelRef = useRef(config?.queueLimitErrorLabel ?? '')
+  queueLimitErrorLabelRef.current = config?.queueLimitErrorLabel ?? ''
+  const uploadSuccessBatchRef   = useRef(config?.uploadSuccessBatch ?? '')
+  uploadSuccessBatchRef.current   = config?.uploadSuccessBatch ?? ''
+  const uploadErrorBatchRef     = useRef(config?.uploadErrorBatch ?? '')
+  uploadErrorBatchRef.current     = config?.uploadErrorBatch ?? ''
+
+  // Batch counters — accumulate across concurrent uploads, reset when all finish
+  const batchSuccessCount = useRef(0)
+  const batchErrorCount   = useRef(0)
 
   // ── Video fallback warning modal ───────────────────────────────────────────
   // Promise-resolver pattern: uploadEntry awaits user decision before continuing.
@@ -173,7 +188,8 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
   // ── Upload queue helpers ───────────────────────────────────────────────────
   function addFilesToQueue(files: FileList | File[], videoSizeErrorLabel?: string) {
     // Caller may pass a label directly (button/input), or we fall back to the ref (drag-drop)
-    const sizeErrorLabel = videoSizeErrorLabel ?? videoSizeErrorLabelRef.current
+    const sizeErrorLabel  = videoSizeErrorLabel ?? videoSizeErrorLabelRef.current
+    const limitErrorLabel = queueLimitErrorLabelRef.current
     const entries: UploadEntry[] = []
     for (const file of Array.from(files)) {
       if (!ALLOWED_ALL.includes(file.type)) continue
@@ -191,7 +207,16 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         progress: 0,
       })
     }
-    if (entries.length > 0) setQueue((q) => [...q, ...entries])
+    if (entries.length === 0) return
+    setQueue((q) => {
+      const combined = [...q, ...entries]
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true }))
+      if (combined.length > MAX_QUEUE_SIZE) {
+        if (limitErrorLabel) toast.error(limitErrorLabel)
+        return combined.slice(0, MAX_QUEUE_SIZE)
+      }
+      return combined
+    })
   }
 
   function removeFromQueue(id: string) {
@@ -232,7 +257,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
   //   2. PUT to R2 directly from browser via XHR with progress
   //   3. saveMediaRecord → metadata only
   //
-  async function uploadEntry(entry: UploadEntry, labels: UploadLabels) {
+  async function uploadEntry(entry: UploadEntry, labels: UploadLabels): Promise<'success' | 'error' | 'cancelled'> {
     const { id, file } = entry
     const isImage = file.type.startsWith('image/')
 
@@ -291,7 +316,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
       const urlRes = await getUploadUrl({ filename: finalFilename, mimeType: finalMime })
       if (!urlRes.success) {
         patchEntry(id, { status: 'error', error: labels.error })
-        return
+        return 'error'
       }
       const { uploadUrl, key, publicUrl } = urlRes.data
 
@@ -303,7 +328,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         })
       } catch {
         patchEntry(id, { status: 'error', error: labels.error })
-        return
+        return 'error'
       }
 
       // ── Save metadata only (no bytes) ──
@@ -316,7 +341,6 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
       })
 
       patchEntry(id, { status: 'done', progress: 100 })
-      toast.success(labels.success)
 
       if (vpsWarning) {
         const vpsToasts: Record<VpsWarning, string> = {
@@ -329,6 +353,8 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         toast.warning(vpsToasts[vpsWarning])
       }
 
+      return 'success'
+
     } else {
       // ── Video: warn before uploading any video larger than the recommended threshold ──
       // This check runs regardless of whether VPS is configured, so the user is always
@@ -337,7 +363,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         const confirmed = await askVideoFallback()
         if (!confirmed) {
           setQueue((q) => q.filter((e) => e.id !== id))
-          return
+          return 'cancelled'
         }
       }
 
@@ -365,7 +391,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
 
         if (result.cancelled) {
           // cancelUpload() already removed the entry from the queue
-          return
+          return 'cancelled'
         }
 
         if (result.skipped) {
@@ -385,8 +411,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
           const urlRes = await getUploadUrl({ filename: file.name, mimeType: file.type })
           if (!urlRes.success) {
             patchEntry(id, { status: 'error', error: labels.error })
-            toast.error(labels.error)
-            return
+            return 'error'
           }
           const { uploadUrl, key, publicUrl } = urlRes.data
 
@@ -396,8 +421,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
             })
           } catch {
             patchEntry(id, { status: 'error', error: labels.error })
-            toast.error(labels.error)
-            return
+            return 'error'
           }
 
           await saveMediaRecord({
@@ -411,12 +435,12 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
 
         // VPS path: record was already saved server-side by the /complete route
         patchEntry(id, { status: 'done', progress: 100, phaseLabel: undefined })
-        toast.success(labels.success)
+        return 'success'
 
       } catch {
         // Non-recoverable error mid-pipeline (chunk failure, VPS job failed, R2 write failed, etc.)
         patchEntry(id, { status: 'error', error: labels.error, phaseLabel: undefined })
-        toast.error(labels.error)
+        return 'error'
       } finally {
         uploadAbortControllers.current.delete(id)
       }
@@ -425,13 +449,27 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
 
   async function startUpload(entry: UploadEntry, labels: UploadLabels) {
     activeUploadCount.current++
-    await uploadEntry(entry, labels)
+    const outcome = await uploadEntry(entry, labels)
+    if (outcome === 'success') batchSuccessCount.current++
+    if (outcome === 'error')   batchErrorCount.current++
     // Show done/error state briefly so the user sees the checkmark before it disappears
     await new Promise((r) => setTimeout(r, 1800))
     setQueue((q) => q.filter((e) => e.id !== entry.id || e.status === 'error'))
     activeUploadCount.current--
-    // Only refresh the grid when all concurrent uploads have finished
+    // Only when all concurrent uploads finish: show batch summary + refresh grid
     if (activeUploadCount.current === 0) {
+      const s = batchSuccessCount.current
+      const e = batchErrorCount.current
+      batchSuccessCount.current = 0
+      batchErrorCount.current   = 0
+      if (s > 0) {
+        const tpl = uploadSuccessBatchRef.current
+        toast.success(tpl ? tpl.replace('{n}', String(s)) : `${s} file(s) uploaded.`)
+      }
+      if (e > 0) {
+        const tpl = uploadErrorBatchRef.current
+        toast.error(tpl ? tpl.replace('{n}', String(e)) : `${e} file(s) failed.`)
+      }
       fetchPage(filter, page, perPage, search)
     }
   }
