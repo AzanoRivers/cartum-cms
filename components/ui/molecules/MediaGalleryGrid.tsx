@@ -23,6 +23,8 @@ export type MediaGalleryGridUploadProps = {
   errorLabel:          string
   successLabel:        string
   estimatedTimeLabel:  string
+  estimatedSecsUnit:   string
+  estimatedMinsUnit:   string
   videoUploadWarning?: string
   imageUploadWarning?: string
 }
@@ -97,6 +99,8 @@ export function MediaGalleryGrid({
             errorLabel={uploadProps.errorLabel}
             successLabel={uploadProps.successLabel}
             estimatedTimeLabel={uploadProps.estimatedTimeLabel}
+            estimatedSecsUnit={uploadProps.estimatedSecsUnit}
+            estimatedMinsUnit={uploadProps.estimatedMinsUnit}
             videoUploadWarning={uploadProps.videoUploadWarning}
             imageUploadWarning={uploadProps.imageUploadWarning}
           />

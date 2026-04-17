@@ -107,6 +107,7 @@ export const MAX_IMAGE_SIZE_BYTES          = 80  * 1024 * 1024  //  80 MB
 export const MAX_VIDEO_SIZE_BYTES          = 500 * 1024 * 1024  // 500 MB
 export const VIDEO_CHUNK_MAX_BYTES         = 10  * 1024 * 1024  //  10 MB — safe for most proxies (nginx default 1 MB raised)
 export const VIDEO_FALLBACK_WARNING_BYTES  = 100 * 1024 * 1024  // 100 MB — threshold for unoptimized upload warning
+export const IMAGE_FALLBACK_WARNING_BYTES  =   5 * 1024 * 1024  //   5 MB — warn when VPS unavailable and image is large
 
 /** Phase labels shown in the upload row during VPS video compression. */
 export type VideoUploadPhase = 'chunking' | 'processing' | 'finalizing'

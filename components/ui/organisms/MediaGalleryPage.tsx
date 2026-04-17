@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMediaGallery } from '@/lib/hooks/useMediaGallery'
 import { deleteMediaRecord, bulkDeleteMediaRecords } from '@/lib/actions/media.actions'
@@ -47,6 +47,7 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
     selectedIds, selectionMode, toggleSelect, clearSelection,
     refresh,
     videoFallbackOpen, confirmVideoFallback, cancelVideoFallback,
+    imageFallbackOpen, confirmImageFallback, cancelImageFallback,
   } = useMediaGallery({
     videoSizeErrorLabel:  g.videoSizeError,
     imageLimitErrorLabel: g.imageLimitError,
@@ -146,8 +147,9 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
         <button
           type="button"
           onClick={() => setShowUpload((v) => !v)}
-          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          className="group flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-mono text-xs font-semibold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-px active:translate-y-0 active:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 md:px-5 md:py-2.5 md:text-sm"
         >
+          <Upload size={14} className="shrink-0 md:w-4 md:h-4" />
           {g.uploadBtn}
         </button>
       </div>
@@ -189,6 +191,8 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
         errorLabel={g.uploadError}
         successLabel={g.uploadSuccess}
         estimatedTimeLabel={g.estimatedTimeLabel}
+        estimatedSecsUnit={g.estimatedSecsUnit}
+        estimatedMinsUnit={g.estimatedMinsUnit}
         videoUploadWarning={g.videoUploadWarning}
         imageUploadWarning={g.imageUploadWarning}
         cancelConfirmTitle={g.uploadCancelConfirmTitle}
@@ -294,6 +298,19 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
         }}
       />
 
+      {/* Image fallback warning modal (large image + no VPS) */}
+      <VideoFallbackModal
+        open={imageFallbackOpen}
+        onUpload={confirmImageFallback}
+        onCancel={cancelImageFallback}
+        labels={{
+          title:  g.imageFallbackTitle,
+          body:   g.imageFallbackBody,
+          upload: g.imageFallbackUpload,
+          cancel: g.imageFallbackCancel,
+        }}
+      />
+
       {/* Bulk delete confirmation modal */}
       <MediaBulkDeleteModal
         open={showBulkDelete}
@@ -346,6 +363,8 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
             errorLabel:          g.uploadError,
             successLabel:        g.uploadSuccess,
             estimatedTimeLabel:  g.estimatedTimeLabel,
+            estimatedSecsUnit:   g.estimatedSecsUnit,
+            estimatedMinsUnit:   g.estimatedMinsUnit,
             videoUploadWarning:  g.videoUploadWarning,
             imageUploadWarning:  g.imageUploadWarning,
           }}

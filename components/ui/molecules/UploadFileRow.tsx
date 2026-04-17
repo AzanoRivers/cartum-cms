@@ -43,15 +43,14 @@ function sizeColor(bytes: number, isVideo: boolean): BadgeColor {
     if (bytes > 40 * MB) return 'yellow'
     return 'green'
   }
-  if (bytes > 50 * MB) return 'red'
-  if (bytes > 5  * MB) return 'yellow'
-  if (bytes < 1.5 * MB) return 'green'
-  return 'neutral'
+  if (bytes > 5 * MB) return 'red'
+  if (bytes > 1 * MB) return 'yellow'
+  return 'green'
 }
 
 const BADGE_CLASSES: Record<BadgeColor, string> = {
   green:   'text-success  bg-success/10  border-success/30',
-  yellow:  'text-yellow-400 bg-yellow-400/10 border-yellow-400/30',
+  yellow:  'text-warning bg-warning/10 border-warning/30',
   red:     'text-danger   bg-danger/10   border-danger/30',
   neutral: 'text-muted    bg-surface     border-border',
 }

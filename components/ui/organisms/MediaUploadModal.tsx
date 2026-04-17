@@ -30,6 +30,8 @@ export type MediaUploadModalProps = {
   errorLabel:          string
   successLabel:        string
   estimatedTimeLabel:  string
+  estimatedSecsUnit:   string
+  estimatedMinsUnit:   string
   videoUploadWarning?: string
   imageUploadWarning?: string
   // close-confirmation labels (shown when active uploads exist)
@@ -60,6 +62,8 @@ export function MediaUploadModal({
   errorLabel,
   successLabel,
   estimatedTimeLabel,
+  estimatedSecsUnit,
+  estimatedMinsUnit,
   videoUploadWarning,
   imageUploadWarning,
   cancelConfirmTitle,
@@ -148,6 +152,8 @@ export function MediaUploadModal({
               errorLabel={errorLabel}
               successLabel={successLabel}
               estimatedTimeLabel={estimatedTimeLabel}
+              estimatedSecsUnit={estimatedSecsUnit}
+              estimatedMinsUnit={estimatedMinsUnit}
               videoUploadWarning={videoUploadWarning}
               imageUploadWarning={imageUploadWarning}
             />

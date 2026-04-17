@@ -17,6 +17,13 @@ function formatCountdown(secs: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+function formatEstimate(secs: number, secsUnit: string, minsUnit: string): string {
+  if (secs < 60) return `${secs} ${secsUnit}`
+  const m = Math.floor(secs / 60)
+  const s = secs % 60
+  return `${m}:${String(s).padStart(2, '0')} ${minsUnit}`
+}
+
 export type MediaUploadZoneProps = {
   queue:          UploadEntry[]
   dragging:       boolean
@@ -36,6 +43,8 @@ export type MediaUploadZoneProps = {
   errorLabel:          string
   successLabel:        string
   estimatedTimeLabel:  string
+  estimatedSecsUnit:   string
+  estimatedMinsUnit:   string
   videoUploadWarning?: string
   imageUploadWarning?: string
 }
@@ -58,6 +67,8 @@ export function MediaUploadZone({
   errorLabel,
   successLabel,
   estimatedTimeLabel,
+  estimatedSecsUnit,
+  estimatedMinsUnit,
   videoUploadWarning,
   imageUploadWarning,
 }: MediaUploadZoneProps) {
@@ -70,6 +81,16 @@ export function MediaUploadZone({
   const hasVideos = allRows.some((e) =>  e.file.type.startsWith('video/'))
   const hasImages = allRows.some((e) => !e.file.type.startsWith('video/'))
   const hasActive = active.length > 0
+
+  // Static pre-upload estimate shown below drop zone while files are pending
+  const pendingEstimateSecs = pending.length > 0 && !hasActive
+    ? Math.max(MIN_ESTIMATE_SECS, Math.ceil(
+        pending.reduce((sum, e) => {
+          const bps = e.file.type.startsWith('video/') ? VIDEO_BYTES_PER_SEC : IMAGE_BYTES_PER_SEC
+          return sum + e.file.size / bps
+        }, 0)
+      ))
+    : null
 
   // ── Countdown timer ────────────────────────────────────────────────────────
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
@@ -154,6 +175,17 @@ export function MediaUploadZone({
           <p className="font-mono text-xs">
             {dropHereLabel}{' '}
             <span className="text-primary">{orClickLabel}</span>
+          </p>
+        </div>
+      )}
+
+      {/* Pre-upload estimate — shown below drop zone while files are pending */}
+      {pendingEstimateSecs !== null && (
+        <div className="shrink-0 flex items-center justify-center gap-2 rounded-md border border-border bg-surface-2 px-4 py-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
+          <p className="font-mono text-[11px] text-muted">
+            {estimatedTimeLabel}{' '}
+            <span className="text-primary tabular-nums">{formatEstimate(pendingEstimateSecs, estimatedSecsUnit, estimatedMinsUnit)}</span>
           </p>
         </div>
       )}

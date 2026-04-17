@@ -16,6 +16,7 @@ import {
   MAX_IMAGE_SIZE_BYTES,
   MAX_VIDEO_SIZE_BYTES,
   VIDEO_FALLBACK_WARNING_BYTES,
+  IMAGE_FALLBACK_WARNING_BYTES,
 } from '@/types/media'
 
 export type UploadLabels = {
@@ -198,7 +199,6 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
   }, []) // uses refs only — no reactive deps needed
 
   // ── Video fallback warning modal ───────────────────────────────────────────
-  // Promise-resolver pattern: uploadEntry awaits user decision before continuing.
   const [videoFallbackOpen, setVideoFallbackOpen] = useState(false)
   const videoFallbackResolverRef = useRef<((confirmed: boolean) => void) | null>(null)
 
@@ -219,6 +219,29 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
     videoFallbackResolverRef.current?.(false)
     videoFallbackResolverRef.current = null
     setVideoFallbackOpen(false)
+  }
+
+  // ── Image fallback warning modal (large image + no VPS) ───────────────────
+  const [imageFallbackOpen, setImageFallbackOpen] = useState(false)
+  const imageFallbackResolverRef = useRef<((confirmed: boolean) => void) | null>(null)
+
+  function askImageFallback(): Promise<boolean> {
+    return new Promise((resolve) => {
+      imageFallbackResolverRef.current = resolve
+      setImageFallbackOpen(true)
+    })
+  }
+
+  function confirmImageFallback() {
+    imageFallbackResolverRef.current?.(true)
+    imageFallbackResolverRef.current = null
+    setImageFallbackOpen(false)
+  }
+
+  function cancelImageFallback() {
+    imageFallbackResolverRef.current?.(false)
+    imageFallbackResolverRef.current = null
+    setImageFallbackOpen(false)
   }
 
   // ── Pagination & filter ────────────────────────────────────────────────────
@@ -432,6 +455,15 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
     const isImage = file.type.startsWith('image/')
 
     if (isImage) {
+      // Warn before uploading a large image when VPS optimizer is not available
+      if (file.size > IMAGE_FALLBACK_WARNING_BYTES && !getVpsConfig()) {
+        const confirmed = await askImageFallback()
+        if (!confirmed) {
+          setQueue((q) => q.filter((e) => e.id !== id))
+          return 'cancelled'
+        }
+      }
+
       patchEntry(id, { status: 'optimizing', progress: 0 })
 
       // Yield one frame so React can paint the spinner before blocking the main thread
@@ -724,5 +756,6 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
     refresh: () => fetchPage(filter, page, perPage, search),
     // video fallback modal
     videoFallbackOpen, confirmVideoFallback, cancelVideoFallback,
+    imageFallbackOpen, confirmImageFallback, cancelImageFallback,
   }
 }

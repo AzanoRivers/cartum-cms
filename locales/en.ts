@@ -693,7 +693,13 @@
         videoFallbackBody:   'This video exceeds 100 MB, which is above the recommended limit. Large videos may cause slow load times even after compression. Consider using a smaller or pre-optimized file.',
         videoFallbackUpload: 'Upload anyway',
         videoFallbackCancel: 'Cancel',
+        imageFallbackTitle:  'Large image, no optimizer available',
+        imageFallbackBody:   'This image exceeds 5 MB and the Optimus optimizer is not configured. Uploading without optimization may result in slow load times. Consider compressing the image before uploading.',
+        imageFallbackUpload: 'Upload anyway',
+        imageFallbackCancel: 'Cancel',
         estimatedTimeLabel:   'Estimated optimization time',
+        estimatedSecsUnit:    'Seconds',
+        estimatedMinsUnit:    'Minutes',
         imageUploadWarning:   'Do not close or reload while images are being processed. Progress will be lost.',
         // Close confirmation when active uploads exist
         uploadCancelConfirmTitle: 'Cancel uploads?',
@@ -1320,7 +1326,10 @@ export type Dictionary = {
         videoFinalizing: string; videoVpsSkipped: string
         videoFallbackTitle: string; videoFallbackBody: string
         videoFallbackUpload: string; videoFallbackCancel: string
-        estimatedTimeLabel: string; imageUploadWarning: string
+        imageFallbackTitle: string; imageFallbackBody: string
+        imageFallbackUpload: string; imageFallbackCancel: string
+        estimatedTimeLabel: string; estimatedSecsUnit: string; estimatedMinsUnit: string
+        imageUploadWarning: string
         uploadCancelConfirmTitle: string; uploadCancelConfirmDesc: string
         uploadCancelConfirmYes: string; uploadCancelConfirmNo: string
       }
