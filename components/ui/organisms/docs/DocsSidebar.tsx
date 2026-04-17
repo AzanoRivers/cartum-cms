@@ -12,23 +12,22 @@ export type DocsSidebarProps = {
   onSelect: (id: string) => void
 }
 
-const SECTION_IDS = [
-  'gettingStarted',
-  'navigation',
-  'nodesAndFields',
-  'content',
-  'media',
-  'apiForDevs',
-  'apiSchema',
-  'relations',
-] as const
+const TOP_IDS  = ['gettingStarted', 'navigation', 'nodesAndFields', 'content', 'relationsGuide'] as const
+const DEV_IDS  = ['nodesAndFieldsDev', 'media', 'apiForDevs', 'apiSchema', 'relations'] as const
+const ALL_IDS  = [...TOP_IDS, ...DEV_IDS] as const
 
-const SECTION_ICONS: Record<typeof SECTION_IDS[number], Parameters<typeof Icon>[0]['name']> = {
+type SectionId = typeof ALL_IDS[number]
+
+const DEV_SET = new Set<string>(DEV_IDS)
+
+const ICONS: Record<SectionId, Parameters<typeof Icon>[0]['name']> = {
   gettingStarted: 'Rocket',
   navigation:     'Compass',
   nodesAndFields: 'Boxes',
   content:        'FileText',
-  media:          'Image',
+  relationsGuide:    'Link',
+  nodesAndFieldsDev: 'Database',
+  media:             'Image',
   apiForDevs:     'Code',
   apiSchema:      'Network',
   relations:      'GitMerge',
@@ -36,6 +35,7 @@ const SECTION_ICONS: Record<typeof SECTION_IDS[number], Parameters<typeof Icon>[
 
 export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [devOpen, setDevOpen]       = useState(false)
 
   const activeLabel = sections[activeId as keyof DocsSections] ?? ''
 
@@ -47,7 +47,9 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
         className="hidden md:flex w-52 shrink-0 flex-col border-r border-border bg-surface overflow-y-auto"
       >
         <div className="py-3">
-          {SECTION_IDS.map((id) => {
+
+          {/* Top sections — flat */}
+          {TOP_IDS.map((id) => {
             const active = id === activeId
             return (
               <button
@@ -60,17 +62,63 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
                     : 'border-l-2 border-transparent text-muted hover:text-text hover:bg-surface-2',
                 ].join(' ')}
               >
-                <Icon
-                  name={SECTION_ICONS[id]}
-                  size="sm"
-                  className={active ? 'text-primary' : 'text-muted'}
-                />
-                <span className="font-mono text-xs leading-4">
-                  {sections[id as keyof DocsSections]}
-                </span>
+                <Icon name={ICONS[id]} size="sm" className={active ? 'text-primary' : 'text-muted'} />
+                <span className="font-mono text-xs leading-4">{sections[id]}</span>
               </button>
             )
           })}
+
+          {/* Developer accordion group */}
+          <div className="mt-1">
+
+            {/* Group trigger */}
+            <button
+              onClick={() => setDevOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-2 cursor-pointer group"
+            >
+              <div className="flex items-center gap-2">
+                <Icon name="Terminal" size="sm" className="text-muted group-hover:text-text transition-colors" />
+                <span className="font-mono text-[10px] uppercase tracking-widest text-muted group-hover:text-text transition-colors">
+                  Developer
+                </span>
+              </div>
+              <span
+                className="inline-flex transition-transform duration-300"
+                style={{ transform: devOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              >
+                <Icon name="ChevronDown" size="sm" className="text-muted group-hover:text-text transition-colors" />
+              </span>
+            </button>
+
+            {/* Animated content */}
+            <div
+              style={{
+                maxHeight:  devOpen ? '300px' : '0px',
+                overflow:   'hidden',
+                transition: 'max-height 300ms ease-out',
+              }}
+            >
+              {DEV_IDS.map((id) => {
+                const active = id === activeId
+                return (
+                  <button
+                    key={id}
+                    onClick={() => onSelect(id)}
+                    className={[
+                      'w-full flex items-center gap-2.5 pl-6 pr-4 py-2 text-left transition-colors cursor-pointer',
+                      active
+                        ? 'border-l-2 border-primary bg-primary/10 text-primary'
+                        : 'border-l-2 border-transparent text-muted hover:text-text hover:bg-surface-2',
+                    ].join(' ')}
+                  >
+                    <Icon name={ICONS[id]} size="sm" className={active ? 'text-primary' : 'text-muted'} />
+                    <span className="font-mono text-xs leading-4">{sections[id]}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
         </div>
       </nav>
 
@@ -83,7 +131,7 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
         >
           <div className="flex items-center gap-2">
             <Icon
-              name={SECTION_ICONS[activeId as typeof SECTION_IDS[number]] ?? 'FileText'}
+              name={ICONS[activeId as SectionId] ?? 'FileText'}
               size="sm"
               className="text-primary"
             />
@@ -97,17 +145,19 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
           </span>
         </button>
 
-        {/* Animated content — max-height slide */}
+        {/* Animated content */}
         <div
           style={{
-            maxHeight:  mobileOpen ? '320px' : '0px',
+            maxHeight:  mobileOpen ? '400px' : '0px',
             opacity:    mobileOpen ? 1 : 0,
             overflow:   'hidden',
             transition: 'max-height 300ms ease-out, opacity 200ms ease-out',
           }}
         >
           <div className="border-t border-border">
-            {SECTION_IDS.map((id) => {
+
+            {/* Top sections */}
+            {TOP_IDS.map((id) => {
               const active = id === activeId
               return (
                 <button
@@ -115,22 +165,39 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
                   onClick={() => { onSelect(id); setMobileOpen(false) }}
                   className={[
                     'w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors cursor-pointer',
-                    active
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted hover:text-text hover:bg-surface-2',
+                    active ? 'bg-primary/10 text-primary' : 'text-muted hover:text-text hover:bg-surface-2',
                   ].join(' ')}
                 >
-                  <Icon
-                    name={SECTION_ICONS[id]}
-                    size="sm"
-                    className={active ? 'text-primary' : 'text-muted'}
-                  />
-                  <span className="font-mono text-xs">
-                    {sections[id as keyof DocsSections]}
-                  </span>
+                  <Icon name={ICONS[id]} size="sm" className={active ? 'text-primary' : 'text-muted'} />
+                  <span className="font-mono text-xs">{sections[id]}</span>
                 </button>
               )
             })}
+
+            {/* Developer group label */}
+            <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+              <Icon name="Terminal" size="sm" className="text-muted/60" />
+              <span className="font-mono text-[10px] uppercase tracking-widest text-muted/60">Developer</span>
+            </div>
+
+            {/* Dev sections */}
+            {DEV_IDS.map((id) => {
+              const active = id === activeId
+              return (
+                <button
+                  key={id}
+                  onClick={() => { onSelect(id); setMobileOpen(false) }}
+                  className={[
+                    'w-full flex items-center gap-2.5 pl-6 pr-4 py-2.5 text-left transition-colors cursor-pointer',
+                    active ? 'bg-primary/10 text-primary' : 'text-muted hover:text-text hover:bg-surface-2',
+                  ].join(' ')}
+                >
+                  <Icon name={ICONS[id]} size="sm" className={active ? 'text-primary' : 'text-muted'} />
+                  <span className="font-mono text-xs">{sections[id]}</span>
+                </button>
+              )
+            })}
+
           </div>
         </div>
       </div>

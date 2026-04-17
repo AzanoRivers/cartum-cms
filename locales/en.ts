@@ -1,4 +1,4 @@
-export const en = {
+﻿export const en = {
   setup: {
     stepLabels: ['Language', 'System Check', 'Admin Account', 'Theme', 'Project', 'Initializing', 'Ready'],
     layout: {
@@ -127,7 +127,7 @@ export const en = {
       settings:      'Settings',
       home:          'Home',
       content:       'Content',
-      create:        'Create node',
+      create:        'Create deck',
       backToBuilder: 'Back to Builder',
       help:          'Help & Shortcuts',
     },
@@ -142,14 +142,14 @@ export const en = {
       shortcuts: {
         goHome:       { keys: 'G → H', description: 'Go to Board' },
         goContent:    { keys: 'G → C', description: 'Go to Content' },
-        newNode:      { keys: 'G → N', description: 'Create new node' },
+        newNode:      { keys: 'G → N', description: 'Create new deck' },
         openSettings: { keys: 'G → ,', description: 'Open Settings' },
         closeOverlay: { keys: 'Esc',   description: 'Close any open panel' },
       },
       gestures: {
-        singleTap:   { icon: '1×', description: 'Tap once: select the node and reveal its connection ports' },
-        doubleTap:   { icon: '2×', description: 'Tap twice: enter the node (open container or edit field)' },
-        longPress:   { icon: '⏱',  description: 'Hold and move: drag the node to reposition it' },
+        singleTap:   { icon: '1x', description: 'Tap once: select the deck and reveal its connection ports' },
+        doubleTap:   { icon: '2x', description: 'Tap twice: open the deck or edit an attribute' },
+        longPress:   { icon: '⏱',  description: 'Hold and move: drag the deck to reposition it' },
         portDrag:    { icon: '⊙',  description: 'Tap a port dot, then drag to draw a connection' },
         pinch:       { icon: '⟺',  description: 'Two-finger pinch: zoom in or out' },
         panCanvas:   { icon: '↕',  description: 'Drag on empty space: pan the canvas' },
@@ -162,79 +162,124 @@ export const en = {
       sections: {
         gettingStarted: 'Getting Started',
         navigation:     'Navigation',
-        nodesAndFields: 'Nodes & Fields',
+        nodesAndFields: 'Decks & Cards',
         content:        'Content',
+        relationsGuide: 'Relations',
         media:          'Media & Storage',
         apiForDevs:     'API for Developers',
         apiSchema:      'API: Schema Discovery',
-        relations:      'Node Relations',
+        relations:          'Node Relations',
+        nodesAndFieldsDev:  'Nodes & Fields',
       },
       gettingStarted: {
         title:         'Getting Started',
         intro:         'Cartum is a serverless-first headless CMS with visual data modeling.',
         conceptsTitle: 'Core concepts',
         concepts: {
-          node:       'Node: a database table / model',
-          field:      'Field: a column (text, number, boolean, image, video, gallery, relation)',
-          record:     'Record: a row of data',
-          connection: 'Connection: a relationship between nodes (foreign key)',
+          node:       'Deck: a group of cards of the same type',
+          field:      'Attribute: a piece of data on each card (text, number, toggle, image...)',
+          record:     'Card: a single entry in a deck',
+          connection: 'Link: a connection between two decks',
         },
         flowTitle: 'Basic workflow',
-        flow:      'Create node → add fields → go to Content → create records',
+        flow:      'Create a deck, add attributes, go to Content, add cards',
       },
       navigation: {
         title:          'Navigation',
         dockTitle:      'DockBar',
-        dockDesc:       'The icon sidebar on the left: Home (board), Content, Create node, Settings, Help.',
+        dockDesc:       'The icon sidebar on the left: Home (board), Content, Create deck, Settings, Help.',
         boardLabel:     'Board',
-        boardDesc:      'Infinite visual canvas of nodes and connections.',
+        boardDesc:      'Infinite visual canvas of decks and links.',
         contentLabel:   'Content',
-        contentDesc:    'Record list per node.',
+        contentDesc:    'Card list per deck.',
         shortcutsTitle: 'Keyboard shortcuts (desktop)',
         shortcuts: {
           goHome:       'Go to Board',
           goContent:    'Go to Content',
-          newNode:      'Create new node',
+          newNode:      'Create new deck',
           openSettings: 'Open Settings',
           closeOverlay: 'Close any open panel',
         },
         gesturesTitle: 'Touch gestures (mobile)',
         gestures: {
-          singleTap: 'Tap once: select node and show ports',
-          doubleTap: 'Tap twice: enter the node',
-          longPress:  'Hold and drag: move node',
+          singleTap: 'Tap once: select the deck and show ports',
+          doubleTap: 'Tap twice: open the deck',
+          longPress:  'Hold and drag: move the deck',
           pinch:      'Two-finger pinch: zoom',
           pan:        'Drag on empty space: pan',
         },
       },
       nodesAndFields: {
-        title:                'Nodes & Fields',
-        createContainerTitle: 'Creating a container node',
-        createContainerDesc:  'Click + in the dock → choose Container → enter a name.',
-        createFieldTitle:     'Creating a field',
-        createFieldDesc:      'Double-click a container → click + inside → choose type → enter name.',
-        fieldTypesTitle:      'Field types',
-        fieldTypes: {
-          text:     'text: string, with optional multiline and max length',
-          number:   'number: integer or decimal, optional range',
-          boolean:  'boolean: true/false with custom labels',
-          image:    'image: uploads to R2, auto-optimized via Optimus VPS',
-          video:    'video: chunked upload, compressed via Optimus VPS',
-          gallery:  'gallery: multiple images (configurable max)',
-          relation: 'relation: foreign key to another container node',
+        title:        'Decks & Cards',
+        deckTitle:    'Create a deck',
+        deckDesc:     'A deck holds cards of the same type. Click + in the dock → Container → give it a name. That deck appears on the board, ready to receive cards.',
+        cardAttrTitle: 'Card attributes',
+        cardAttrDesc:  'Every card in a deck shares the same attributes - the pieces of information you define. Double-click a deck → click + inside → choose a type → enter a name.',
+        attrTypesTitle: 'Attribute types',
+        attrTypes: {
+          text:     'Text - a name, description, or any written content.',
+          number:   'Number - a price, quantity, rating, or any numeric value.',
+          toggle:   'Toggle - a yes / no switch (e.g. published, featured).',
+          image:    'Image - a single photo or illustration.',
+          video:    'Video - a clip uploaded and compressed automatically.',
+          gallery:  'Gallery - a collection of images.',
+          relation: 'Link - points to a card in another deck.',
         },
-        connectionsTitle: 'Connections',
-        connectionsDesc:  'Drag from the port of a relation field to another container to draw a relationship.',
+        note: 'The order you add attributes is the order they appear when editing a card. You can rearrange them at any time.',
+      },
+      nodesAndFieldsDev: {
+        title:      'Nodes & Fields',
+        intro:      'A node maps to a PostgreSQL table. Records are stored as JSONB payloads. Each node gets a slug derived from its name, which becomes the route segment in the REST API (/api/v1/{slug}).',
+        nodeTitle:  'Node',
+        nodeDesc:   'Name → auto-slugified (spaces → hyphens, lowercased). The slug is immutable once the first record is created. System fields added automatically: id (UUID v4), createdAt, updatedAt.',
+        fieldTitle: 'Field',
+        fieldDesc:  'A field defines a typed key in the JSONB payload. The field name is slugified to camelCase and becomes the JSON key in API responses. Renaming a field changes its key - update API consumers accordingly.',
+        fieldNamingTitle: 'Field naming',
+        fieldNamingDesc:  'Use camelCase (e.g. blogPost, maxWidth). Spaces are auto-converted. Avoid reserved names: id, createdAt, updatedAt.',
+        fieldTypesTitle:  'Field types',
+        fieldTypes: {
+          text:     'text - string. Options: multiline (textarea), maxLength (integer).',
+          number:   'number - float. Options: integer-only flag, min / max range.',
+          boolean:  'boolean - Options: custom true/false labels, default value.',
+          image:    'image - { key, url }. Uploaded to R2, compressed to WebP via Optimus VPS.',
+          video:    'video - { key, url, mimeType, sizeBytes }. Chunked upload → VPS MP4 compression → R2.',
+          gallery:  'gallery - Array<{ key, url }>. Configurable max items.',
+          relation: 'relation - UUID string. FK to a record in the target node. Expanded via ?include= in the API.',
+        },
+        requiredTitle: 'Required flag',
+        requiredDesc:  'Enforced at record create / update via the REST API and the CMS editor. Application-layer validation - no database-level NOT NULL constraint.',
+        note:          'No schema migration on field rename or delete. Existing records retain the old key in their JSONB payload until re-saved. Plan field names before creating records in production.',
       },
       content: {
         title:          'Content Editing',
         step1:          'Go to Content from the dock.',
-        step2:          'Select the node to edit.',
-        newRecord:      'New Record: create a record with all container fields.',
-        editRecord:     'Edit Record: modify existing values.',
-        deleteRecord:   'Delete Record: remove with confirmation.',
-        validationNote: 'Validation: required fields and number ranges are enforced.',
-        mediaNote:      'Image/video fields: upload a file or select from the Media Library.',
+        step2:          'Select a deck.',
+        newRecord:      'New Card: add a new card with all the deck attributes.',
+        editRecord:     'Edit Card: update an existing card.',
+        deleteRecord:   'Delete Card: remove with confirmation.',
+        validationNote: 'Validation: required attributes and number ranges are enforced.',
+        mediaNote:      'Image/video attributes: upload a file or select from the Media Library.',
+      },
+      relationsGuide: {
+        title:        'Relations',
+        intro:        'The Cartum board is like a poker table: you can place as many decks on it as you need. Each deck is a node, and each card inside a deck is a record. Relations are the thread that connects a card in one deck to a card in another.',
+        whatTitle:    'What is a deck and what is a card?',
+        whatDesc:     'A deck groups cards of the same type. If you run a music business, you might have an Artists deck and an Albums deck. Each card in Artists represents one artist (name, photo, genre). Each card in Albums represents one album (title, year, cover). Without a relation, both decks sit separately on the table - their cards know nothing about each other.',
+        whyTitle:     'Why would I connect them?',
+        whyItems: {
+          a: 'Albums → Artists: each album knows who recorded it.',
+          b: 'Products → Categories: each product knows which category it belongs to.',
+          c: 'Orders → Customer and → Product at the same time: one card can point to several decks simultaneously.',
+        },
+        exampleTitle: 'The play: linking Albums to Artists',
+        exampleDesc:  'Open the Albums deck on the board and add a Relation field called "artist". A thread appears on that field - drag it to the Artists deck and drop. The line is drawn on the table. Now when you edit the "Thriller" card, you see a picker to choose "Michael Jackson" from your Artists deck. Save - and that card knows its artist. If you later fix the spelling of "Michael Jackson" in the Artists deck, the change is reflected in every album that references him, without touching anything else.',
+        howTitle:     'How do I create a relation?',
+        how1:         'On the board, open the deck you want to connect from (e.g. Albums).',
+        how2:         'Add a new field and choose the type Relation.',
+        how3:         'Drag the thread that appears on that field to the target deck (e.g. Artists) and drop. The connection is ready.',
+        contentTitle: 'How do I use it when editing content?',
+        contentDesc:  'When you open a card that has a relation field, you\'ll see a picker to choose a card from the linked deck. Select it and save. No database knowledge required - it works just like filling in any other field.',
+        note:         'A relation never duplicates cards: it only stores a link. If you change a card in the target deck, the change appears automatically in every card that references it.',
       },
       media: {
         title:         'Media & Storage',
@@ -248,6 +293,13 @@ export const en = {
         limitImages:   'Images: max 10 MB',
         limitVideos:   'Videos: max 500 MB (warning above 100 MB)',
         configNote:    'Configure storage at Settings → Storage (R2 + Optimus VPS URL and API key).',
+        vpsTitle:      'Direct VPS upload',
+        vpsIntro:      'When MEDIA_VPS_URL and MEDIA_VPS_KEY are set, the browser sends media bytes directly to the VPS - no Vercel bandwidth is consumed.',
+        vpsItem1:      'A 2-hour session token is fetched from Vercel on page load and auto-renewed in the background before it expires.',
+        vpsItem2:      'Images: the compression call goes directly to the VPS using X-Session-Token.',
+        vpsItem3:      'Videos: init, chunks, finalize and status polling all go directly to the VPS.',
+        vpsItem4:      'Video final step (VPS → R2 save) still runs on Vercel - it requires server-side credentials.',
+        vpsTtlNote:    'Token lifetime (default 2 h) is configured on the VPS at app/core/security.py → _SESSION_TTL.',
       },
       apiForDevs: {
         title:        'API for Developers',
@@ -327,23 +379,23 @@ export const en = {
       },
       relations: {
         title: 'Node Relations',
-        intro: 'When nodes are connected in the board, the API automatically merges their schemas. Fields from related nodes appear flat in the response — no nesting, no extra requests.',
+        intro: 'When nodes are connected in the board, the API automatically merges their schemas. Fields from related nodes appear flat in the response - no nesting, no extra requests.',
         flatPrincipleTitle: 'Flat response principle',
-        flatPrincipleDesc:  'Every node always returns two keys: fields (all inherited fields merged flat) and containers (shallow references). Containers never expose their own content inline — fetch them separately by id.',
+        flatPrincipleDesc:  'Every node always returns two keys: fields (all inherited fields merged flat) and containers (shallow references). Containers never expose their own content inline - fetch them separately by id.',
         inheritanceTitle:   'Structural inheritance (parent → child)',
         inheritanceDesc:    'A child node (nested inside a parent container) automatically sees all fields and containers from its direct parent. The parent itself is excluded from the list to avoid self-reference. Inheritance is one level deep only.',
         relationTypesTitle: 'Relation types',
         types: {
           oneToOne: {
-            label: '1:1  —  One to One',
+            label: '1:1  -  One to One',
             desc:  'Both nodes share each other\'s own direct fields. Non-transitive: if A↔B and B↔C, then A does not see C\'s fields.',
           },
           oneToMany: {
-            label: '1:n  —  One to Many',
+            label: '1:n  -  One to Many',
             desc:  'The source node injects its own direct fields into the target node and into every node reachable from the target via 1:1 chains. The source does not receive anything back.',
           },
           manyToMany: {
-            label: 'n:m  —  Many to Many',
+            label: 'n:m  -  Many to Many',
             desc:  'Both nodes share each other\'s fully resolved content (including all their own inherited fields). Child nodes of each side also inherit this via structural inheritance.',
           },
         },
@@ -354,22 +406,22 @@ export const en = {
         consumingTitle: 'How to consume',
         consumingSteps: {
           step1: 'Call GET /api/v1/schema to get all root nodes with their merged fields and container references.',
-          step2: 'Use the fields array directly — it already contains everything the node inherits.',
+          step2: 'Use the fields array directly - it already contains everything the node inherits.',
           step3: 'For each item in containers, call GET /api/v1/schema/{id} to get its merged fields separately.',
-          step4: 'Never expect nested content inside containers — they are always shallow references.',
+          step4: 'Never expect nested content inside containers - they are always shallow references.',
         },
         exampleTitle: 'Response example',
         exampleNote:  'Blog Posts has a 1:1 relation with SEO node. The fields from SEO appear flat inside Blog Posts.',
       },
     },
     canvas: {
-      ariaLabel: 'Node canvas',
-      empty:     'No nodes yet.',
-      emptyHint: 'Use + to create your first container.',
+      ariaLabel: 'Deck board',
+      empty:     'No decks yet.',
+      emptyHint: 'Use + to create your first deck.',
     },
     nodeCard: {
-      fields:      'fields',
-      records:     'records',
+      fields:      'attributes',
+      records:     'cards',
       connections: 'connections',
       required:    '*',
       types: {
@@ -383,21 +435,21 @@ export const en = {
       },
     },
     creation: {
-      ariaLabel:      'Create node',
-      titleTypeSelect: 'Create node',
-      titleFieldType:  'Select field type',
-      titleName:       'Name your node',
-      containerLabel:  'Container',
-      containerDesc:   'Database table / model',
-      fieldLabel:      'Field',
-      fieldDesc:       'Column / attribute',
-      nodeName:        'Node name',
-      placeholder:     'e.g. blog_posts',
+      ariaLabel:       'Create deck',
+      titleTypeSelect: 'Create',
+      titleFieldType:  'Select card type',
+      titleName:       'Name your deck',
+      containerLabel:  'Deck',
+      containerDesc:   'Groups cards of the same type',
+      fieldLabel:      'Card',
+      fieldDesc:       'Defines a property for each card',
+      nodeName:        'Deck name',
+      placeholder:     'e.g. products',
       back:            'Back',
       create:          'Create',
       errors: {
         nameRequired: 'Name is required.',
-        nameTaken:    'A node with this name already exists here.',
+        nameTaken:    'A deck with this name already exists.',
       },
     },
     fieldTypePicker: {
@@ -410,15 +462,15 @@ export const en = {
       gallery:  'Gallery',
     },
     fieldEdit: {
-      ariaLabel:        'Edit field',
-      title:            'Edit field',
+      ariaLabel:        'Edit attribute',
+      title:            'Edit attribute',
       name:             'Name',
-      requiredToggle:   'Required field',
-      fieldType:        'Field type',
+      requiredToggle:   'Required',
+      fieldType:        'Attribute type',
       cancel:           'Cancel',
       save:             'Save',
       saving:           'Saving…',
-      typeChangeBlocked: 'This field has existing records. Delete all records first to change the type.',
+      typeChangeBlocked: 'This attribute already has cards. Delete all cards from this deck first to change the type.',
       text: {
         multiline:               'Multiline (textarea)',
         maxLength:               'Max length (optional)',
@@ -451,26 +503,26 @@ export const en = {
       storage: {
         notConfiguredImages: 'Storage is not configured. Images can be added in Settings → Storage.',
         notConfiguredVideos: 'Storage is not configured. Videos can be added in Settings → Storage.',
-        configuredImages:    'Storage configured. Images will be uploaded and optimized automatically in records.',
-        configuredVideos:    'Storage configured. Videos will be uploaded and optimized automatically in records.',
+        configuredImages:    'Storage configured. Images will be uploaded and optimized automatically in cards.',
+        configuredVideos:    'Storage configured. Videos will be uploaded and optimized automatically in cards.',
         imageFormats:        'Accepted formats: WebP, JPEG (auto-optimized)',
         videoFormats:        'Accepted formats: MP4, WebM (auto-optimized)',
-        goToContent:         'Upload files in a new record',
+        goToContent:         'Upload files in a new card',
       },
       relation: {
-        targetLabel:       'Target container',
-        targetPlaceholder: 'Select a container',
+        targetLabel:       'Target deck',
+        targetPlaceholder: 'Select a deck',
         relationType:      'Relation type',
       },
       errors: {
         nameRequired:     'Name is required.',
         nameInvalid:      'Name contains invalid characters.',
-        nameTaken:        'A node with this name already exists here.',
-        relTargetRequired: 'Please select a relation target.',
+        nameTaken:        'An attribute with this name already exists.',
+        relTargetRequired: 'Please select a target deck.',
         unknown:          'Unknown error.',
       },
       accordion: {
-        typeSection:    'Field type',
+        typeSection:    'Attribute type',
         contentSection: 'Content',
       },
       mediaContent: {
@@ -483,7 +535,7 @@ export const en = {
         changeMedia:   'Change',
         removeMedia:   'Remove',
         confirmRemove: 'Confirm?',
-        otherTypesMsg: 'This field\'s content is edited in the node\'s records.',
+        otherTypesMsg: 'This attribute is edited in the deck\'s cards.',
         uploading:     'Uploading…',
         optimizing:    'Optimizing…',
         uploadError:   'Upload failed.',
@@ -506,41 +558,41 @@ export const en = {
       },
     },
     mobileList: {
-      empty:           'No nodes yet.',
-      emptyHint:       'Use + to create your first container.',
-      fieldsSeparator: 'Fields',
+      empty:           'No decks yet.',
+      emptyHint:       'Use + to create your first deck.',
+      fieldsSeparator: 'Attributes',
     },
     content: {
       title:         'Content',
       backToContent: 'Back to Content',
       index: {
         emptyOwn: 'No content areas have been assigned to your account.',
-        records:  'records',
-        browse:   'Browse records',
+        records:  'cards',
+        browse:   'Browse cards',
       },
       list: {
-        newRecord:       'New record',
+        newRecord:       'New card',
         search:          'Search…',
-        noResults:       'No records found.',
-        empty:           'No records yet.',
+        noResults:       'No cards found.',
+        empty:           'No cards yet.',
         createdAt:       'Created',
         editAriaLabel:   'Edit',
         deleteAriaLabel: 'Delete',
-        confirmDelete:   'Delete this record?',
+        confirmDelete:   'Delete this card?',
         confirmYes:      'Delete',
         confirmNo:       'Cancel',
       },
       form: {
-        newTitle: 'New record',
-        editTitle: 'Edit record',
+        newTitle: 'New card',
+        editTitle: 'Edit card',
         save:     'Save',
         saving:   'Saving…',
         discard:  'Discard',
         errors: {
-          required:      'This field is required.',
+          required:      'This attribute is required.',
           invalidNumber: 'Must be a valid number.',
           numberRange:   'Value is out of the allowed range.',
-          relRequired:   'Please select a related record.',
+          relRequired:   'Please select a linked card.',
           unknown:       'Unknown error.',
         },
       },
@@ -577,8 +629,8 @@ export const en = {
         loadingMore:          'Loading more…',
       },
       relation: {
-        placeholder: 'Select a record',
-        noOptions:   'No records found.',
+        placeholder: 'Select a card',
+        noOptions:   'No cards found.',
       },
       mediaGallery: {
         title:           'Media Gallery',
@@ -647,12 +699,12 @@ export const en = {
       canvasMenu: {
         back:    'Go back',
         forward: 'Go forward',
-        fitAll:  'Center nodes',
+        fitAll:  'Center decks',
       },
       contextMenu: {
         rename:     'Rename',
         duplicate: 'Duplicate',
-        deleteNode: 'Delete node',
+        deleteNode: 'Delete deck',
       },
       deleteDialog: {
         title:                  'Delete "{name}"?',
@@ -662,25 +714,25 @@ export const en = {
         confirm:                'Confirm delete',
         confirmDanger:          'Yes, delete anyway',
         deleting:               'Deleting…',
-        factorChildren:         '{count} field(s) inside this node',
-        factorConnections:      '{count} connection(s) to other nodes',
-        factorRecordsContainer: '{count} record(s) stored in this node',
-        factorRecordsField:     '{count} record(s) in parent node will lose this field',
-        factorRelations:        '{count} relation field(s) pointing here',
+        factorChildren:         '{count} attribute(s) in this deck',
+        factorConnections:      '{count} link(s) to other decks',
+        factorRecordsContainer: '{count} card(s) in this deck',
+        factorRecordsField:     '{count} card(s) will lose this attribute',
+        factorRelations:        '{count} link(s) pointing to this deck',
       },
       toast: {
-        duplicateSuccess: 'Node duplicated successfully.',
-        duplicateError:   'Could not duplicate node.',
-        deleteSuccess:    'Node deleted.',
-        deleteError:      'Could not delete node.',
-        checkRiskError:   'Could not check node dependencies. Please try again.',
-        renameSuccess:    'Node renamed.',
-        renameError:      'Could not rename node.',
+        duplicateSuccess: 'Deck duplicated.',
+        duplicateError:   'Could not duplicate deck.',
+        deleteSuccess:    'Deck deleted.',
+        deleteError:      'Could not delete deck.',
+        checkRiskError:   'Could not check deck dependencies. Please try again.',
+        renameSuccess:    'Deck renamed.',
+        renameError:      'Could not rename deck.',
       },
       renameDialog: {
-        title:       'Rename node',
-        label:       'Node name',
-        placeholder: 'my_node_name',
+        title:       'Rename deck',
+        label:       'Deck name',
+        placeholder: 'my_deck_name',
         cancel:      'Cancel',
         save:        'Save',
         saving:      'Saving…',
@@ -688,7 +740,7 @@ export const en = {
     },
     notFound: {
       title:    'Page not found',
-      message:  "The node or page you're looking for doesn't exist, was deleted, or the URL is invalid.",
+      message:  "The deck or page you're looking for doesn't exist, was deleted, or the URL is invalid.",
       back:     'Back to board',
     },
   },
@@ -741,7 +793,7 @@ export const en = {
       mediaVpsKey:             'Optimization server API key',
       showKey:                 'Show',
       hideKey:                 'Hide',
-      apiDocsLink:             'API Docs ↗',
+      apiDocsLink:             'API Docs �-',
       testConnection:          'Test connection',
       testing:                 'Testing...',
       testOk:                  'Connected · {latencyMs}ms',
@@ -1066,8 +1118,8 @@ export type Dictionary = {
       sidebarAriaLabel: string
       sections: {
         gettingStarted: string; navigation: string; nodesAndFields: string
-        content: string; media: string; apiForDevs: string; apiSchema: string
-        relations: string
+        content: string; relationsGuide: string
+        media: string; apiForDevs: string; apiSchema: string; relations: string; nodesAndFieldsDev: string
       }
       gettingStarted: {
         title: string; intro: string; conceptsTitle: string
@@ -1083,20 +1135,42 @@ export type Dictionary = {
         gestures: { singleTap: string; doubleTap: string; longPress: string; pinch: string; pan: string }
       }
       nodesAndFields: {
-        title: string; createContainerTitle: string; createContainerDesc: string
-        createFieldTitle: string; createFieldDesc: string; fieldTypesTitle: string
+        title: string; deckTitle: string; deckDesc: string
+        cardAttrTitle: string; cardAttrDesc: string; attrTypesTitle: string
+        attrTypes: { text: string; number: string; toggle: string; image: string; video: string; gallery: string; relation: string }
+        note: string
+      }
+      nodesAndFieldsDev: {
+        title: string; intro: string
+        nodeTitle: string; nodeDesc: string
+        fieldTitle: string; fieldDesc: string
+        fieldNamingTitle: string; fieldNamingDesc: string
+        fieldTypesTitle: string
         fieldTypes: { text: string; number: string; boolean: string; image: string; video: string; gallery: string; relation: string }
-        connectionsTitle: string; connectionsDesc: string
+        requiredTitle: string; requiredDesc: string
+        note: string
       }
       content: {
         title: string; step1: string; step2: string
         newRecord: string; editRecord: string; deleteRecord: string
         validationNote: string; mediaNote: string
       }
+      relationsGuide: {
+        title: string; intro: string
+        whatTitle: string; whatDesc: string
+        whyTitle: string; whyItems: { a: string; b: string; c: string }
+        exampleTitle: string; exampleDesc: string
+        howTitle: string; how1: string; how2: string; how3: string
+        contentTitle: string; contentDesc: string
+        note: string
+      }
       media: {
         title: string; galleryTitle: string; galleryDesc: string
         optimTitle: string; optimImages: string; optimVideos: string; optimFallback: string
         limitsTitle: string; limitImages: string; limitVideos: string; configNote: string
+        vpsTitle: string; vpsIntro: string
+        vpsItem1: string; vpsItem2: string; vpsItem3: string; vpsItem4: string
+        vpsTtlNote: string
       }
       apiForDevs: {
         title: string; intro: string

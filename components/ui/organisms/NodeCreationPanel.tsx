@@ -11,13 +11,12 @@ import { createContainerNode, createFieldNode } from '@/lib/actions/nodes.action
 import type { FieldType } from '@/types/nodes'
 
 const FIELD_TYPES: { type: FieldType; label: string; icon: string }[] = [
-  { type: 'text',     label: 'Text',     icon: 'ALargeSmall' },
-  { type: 'number',   label: 'Number',   icon: 'Hash' },
-  { type: 'boolean',  label: 'Boolean',  icon: 'ToggleLeft' },
-  { type: 'image',    label: 'Image',    icon: 'Image' },
-  { type: 'video',    label: 'Video',    icon: 'Video' },
-  { type: 'gallery',  label: 'Gallery',  icon: 'LayoutGrid' },
-  { type: 'relation', label: 'Relation', icon: 'Link' },
+  { type: 'text',    label: 'Text',    icon: 'ALargeSmall' },
+  { type: 'number',  label: 'Number',  icon: 'Hash' },
+  { type: 'boolean', label: 'Boolean', icon: 'ToggleLeft' },
+  { type: 'image',   label: 'Image',   icon: 'Image' },
+  { type: 'video',   label: 'Video',   icon: 'Video' },
+  { type: 'gallery', label: 'Gallery', icon: 'LayoutGrid' },
 ]
 
 export type NodeCreationPanelProps = {
@@ -171,7 +170,7 @@ export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
               onClick={handleSelectContainer}
               className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 text-left hover:border-primary hover:bg-surface transition-all cursor-pointer"
             >
-              <Icon name="Hexagon" size="md" className="text-primary" />
+              <Icon name="Layers" size="md" className="text-primary" />
               <div>
                 <div className="font-mono text-sm text-text">{d?.creation.containerLabel ?? 'Container'}</div>
                 <div className="text-xs text-muted">{d?.creation.containerDesc ?? 'Database table / model'}</div>

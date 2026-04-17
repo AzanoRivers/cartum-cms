@@ -6,6 +6,7 @@ import { uploadFileWithProgress } from '@/lib/media/upload'
 import { optimizeImage } from '@/lib/media/optimize'
 import { getUploadUrl, saveMediaRecord, listMediaAssetsPaged } from '@/lib/actions/media.actions'
 import { uploadVideoViaVps } from '@/lib/media/video-vps-upload'
+import type { VpsDirectConfig } from '@/lib/media/video-vps-upload'
 import type { MediaRecord, VpsWarning } from '@/types/media'
 import type { UploadFileStatus } from '@/components/ui/molecules/UploadFileRow'
 import type { MediaGalleryFilter } from '@/components/ui/molecules/MediaGalleryTabs'
@@ -82,6 +83,54 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
   compressionBatchRef.current     = config?.compressionBatch ?? ''
   const duplicateErrorLabelRef  = useRef(config?.duplicateErrorLabel ?? '')
   duplicateErrorLabelRef.current  = config?.duplicateErrorLabel ?? ''
+
+  // ── VPS session (short-lived token for browser → VPS direct calls) ────────
+  const vpsSessionRef    = useRef<(VpsDirectConfig & { expiresAt: number }) | null>(null)
+  const vpsRefreshTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    let destroyed = false
+
+    async function fetchVpsSession(): Promise<void> {
+      try {
+        const res = await fetch('/api/internal/media/vps-session')
+        if (!res.ok || destroyed) return
+        const data: { skipped?: boolean; vpsUrl?: string; token?: string; expiresIn?: number } = await res.json()
+        if (data.skipped || !data.token || !data.vpsUrl) return
+
+        const expiresIn = data.expiresIn ?? 7200   // seconds
+        vpsSessionRef.current = {
+          url:       data.vpsUrl,
+          token:     data.token,
+          expiresAt: Date.now() + expiresIn * 1000,
+        }
+
+        // Schedule a refresh at 90 % of the TTL so the token is always fresh.
+        // e.g. 2 h token → refresh after 1 h 48 min.
+        const refreshIn = Math.floor(expiresIn * 0.9) * 1000
+        if (vpsRefreshTimer.current) clearTimeout(vpsRefreshTimer.current)
+        vpsRefreshTimer.current = setTimeout(() => {
+          if (!destroyed) void fetchVpsSession()
+        }, refreshIn)
+      } catch {
+        // VPS unreachable — uploads fall back to Vercel proxy
+      }
+    }
+
+    void fetchVpsSession()
+
+    return () => {
+      destroyed = true
+      if (vpsRefreshTimer.current) clearTimeout(vpsRefreshTimer.current)
+    }
+  }, [])
+
+  /** Returns a VpsDirectConfig when the session is valid, undefined otherwise. */
+  function getVpsConfig(): VpsDirectConfig | undefined {
+    const s = vpsSessionRef.current
+    if (!s || Date.now() >= s.expiresAt) return undefined
+    return { url: s.url, token: s.token }
+  }
 
   // Batch counters — accumulate across concurrent uploads, reset when all finish
   const batchSuccessCount     = useRef(0)
@@ -404,10 +453,20 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         const controller = new AbortController()
         const timeoutId  = setTimeout(() => controller.abort(), 30_000)
 
-        const proxyRes = await fetch('/api/internal/media/compress', {
-          method: 'POST',
-          body:   form,
-          signal: controller.signal,
+        // Use VPS directly when a session is available (avoids Vercel bandwidth)
+        const imgVpsConfig    = getVpsConfig()
+        const compressUrl     = imgVpsConfig
+          ? `${imgVpsConfig.url}/api/v1/media/images/compress?out=webp`
+          : '/api/internal/media/compress'
+        const compressHeaders: HeadersInit = imgVpsConfig
+          ? { 'X-Session-Token': imgVpsConfig.token }
+          : {}
+
+        const proxyRes = await fetch(compressUrl, {
+          method:  'POST',
+          headers: compressHeaders,
+          body:    form,
+          signal:  controller.signal,
         }).finally(() => clearTimeout(timeoutId))
 
         const skipped = proxyRes.headers.get('X-Vps-Skipped')
@@ -510,6 +569,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
             onError:      ()      => { /* non-recoverable errors are thrown and caught below */ },
             signal:       controller.signal,
           },
+          getVpsConfig(),
         )
 
         if (result.cancelled) {

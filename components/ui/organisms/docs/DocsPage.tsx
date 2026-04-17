@@ -169,21 +169,57 @@ function NodesAndFieldsSection({ d }: { d: DocsDict }) {
     <div className="space-y-4">
       <SectionHeading>{s.title}</SectionHeading>
       <div>
-        <SubHeading>{s.createContainerTitle}</SubHeading>
-        <Prose>{s.createContainerDesc}</Prose>
+        <SubHeading>{s.deckTitle}</SubHeading>
+        <Prose>{s.deckDesc}</Prose>
       </div>
       <div>
-        <SubHeading>{s.createFieldTitle}</SubHeading>
-        <Prose>{s.createFieldDesc}</Prose>
+        <SubHeading>{s.cardAttrTitle}</SubHeading>
+        <Prose>{s.cardAttrDesc}</Prose>
       </div>
+      <div>
+        <SubHeading>{s.attrTypesTitle}</SubHeading>
+        <UL items={Object.values(s.attrTypes)} />
+      </div>
+      <Note>{s.note}</Note>
+    </div>
+  )
+}
+
+// ── Section: Nodes & Fields (Developer) ───────────────────────────────────────
+
+function NodesAndFieldsDevSection({ d }: { d: DocsDict }) {
+  const s = d.nodesAndFieldsDev
+  return (
+    <div className="space-y-4">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      <div>
+        <SubHeading>{s.nodeTitle}</SubHeading>
+        <Prose>{s.nodeDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.fieldTitle}</SubHeading>
+        <Prose>{s.fieldDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.fieldNamingTitle}</SubHeading>
+        <Prose>{s.fieldNamingDesc}</Prose>
+      </div>
+
       <div>
         <SubHeading>{s.fieldTypesTitle}</SubHeading>
         <UL items={Object.values(s.fieldTypes)} />
       </div>
+
       <div>
-        <SubHeading>{s.connectionsTitle}</SubHeading>
-        <Prose>{s.connectionsDesc}</Prose>
+        <SubHeading>{s.requiredTitle}</SubHeading>
+        <Prose>{s.requiredDesc}</Prose>
       </div>
+
+      <Note>{s.note}</Note>
     </div>
   )
 }
@@ -198,6 +234,45 @@ function ContentSection({ d }: { d: DocsDict }) {
       <UL items={[s.step1, s.step2, s.newRecord, s.editRecord, s.deleteRecord]} />
       <Note>{s.validationNote}</Note>
       <Note>{s.mediaNote}</Note>
+    </div>
+  )
+}
+
+// ── Section: Relations Guide (client-facing) ──────────────────────────────────
+
+function RelationsGuideSection({ d }: { d: DocsDict }) {
+  const s = d.relationsGuide
+  return (
+    <div className="space-y-4">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      <div>
+        <SubHeading>{s.whatTitle}</SubHeading>
+        <Prose>{s.whatDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.whyTitle}</SubHeading>
+        <UL items={[s.whyItems.a, s.whyItems.b, s.whyItems.c]} />
+      </div>
+
+      <div>
+        <SubHeading>{s.exampleTitle}</SubHeading>
+        <Prose>{s.exampleDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.howTitle}</SubHeading>
+        <UL items={[s.how1, s.how2, s.how3]} />
+      </div>
+
+      <div>
+        <SubHeading>{s.contentTitle}</SubHeading>
+        <Prose>{s.contentDesc}</Prose>
+      </div>
+
+      <Note>{s.note}</Note>
     </div>
   )
 }
@@ -222,6 +297,16 @@ function MediaSection({ d }: { d: DocsDict }) {
         <UL items={[s.limitImages, s.limitVideos]} />
       </div>
       <Note>{s.configNote}</Note>
+      <div>
+        <SubHeading>{s.vpsTitle}</SubHeading>
+        <Prose>{s.vpsIntro}</Prose>
+        <div className="mt-2">
+          <UL items={[s.vpsItem1, s.vpsItem2, s.vpsItem3, s.vpsItem4]} />
+        </div>
+        <div className="mt-2">
+          <Note>{s.vpsTtlNote}</Note>
+        </div>
+      </div>
     </div>
   )
 }
@@ -568,6 +653,8 @@ type SectionId =
   | 'navigation'
   | 'nodesAndFields'
   | 'content'
+  | 'relationsGuide'
+  | 'nodesAndFieldsDev'
   | 'media'
   | 'apiForDevs'
   | 'apiSchema'
@@ -584,7 +671,9 @@ export function DocsPage({ d }: DocsPageProps) {
       case 'navigation':     return <NavigationSection d={d} />
       case 'nodesAndFields': return <NodesAndFieldsSection d={d} />
       case 'content':        return <ContentSection d={d} />
-      case 'media':          return <MediaSection d={d} />
+      case 'relationsGuide':    return <RelationsGuideSection d={d} />
+      case 'nodesAndFieldsDev': return <NodesAndFieldsDevSection d={d} />
+      case 'media':             return <MediaSection d={d} />
       case 'apiForDevs':     return <ApiForDevsSection d={d} />
       case 'apiSchema':      return <ApiSchemaSection d={d} />
       case 'relations':      return <RelationsSection d={d} />

@@ -103,43 +103,47 @@ function NodeCardInner({
     return (
       <>
         {isNavigating && createPortal(<FullscreenLoader />, document.body)}
-      <article
-        onClick={handleClick}
-        className={`${baseClasses} ${stateClasses} min-w-52`}
-        aria-selected={selected}
-      >
-        {/* Connector ports — visible on group-hover or when showPorts is true */}
-        {onPortDragStart && PORT_SIDES.map((side) => (
-          <ConnectorPort
-            key={side}
-            nodeId={node.id}
-            side={side}
-            onDragStart={onPortDragStart}
-            alwaysVisible={showPorts}
-          />
-        ))}
+        <article
+          onClick={handleClick}
+          className={`${baseClasses} ${stateClasses} min-w-52`}
+          aria-selected={selected}
+        >
+          {/* Top accent stripe */}
+          <div className="absolute inset-x-0 top-0 h-0.75 bg-primary/60 rounded-t-[7px]" />
 
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Icon name="Hexagon" size="md" className="text-primary shrink-0" />
-            <span className="font-mono text-sm text-text truncate">{node.name}</span>
+          {/* Connector ports — visible on group-hover or when showPorts is true */}
+          {onPortDragStart && PORT_SIDES.map((side) => (
+            <ConnectorPort
+              key={side}
+              nodeId={node.id}
+              side={side}
+              onDragStart={onPortDragStart}
+              alwaysVisible={showPorts}
+            />
+          ))}
+
+          {/* Header: icon + name */}
+          <div className="flex items-center gap-2 min-w-0 pb-2 mb-2 border-b border-border/60">
+            <Icon name="Layers" size="md" className="text-primary shrink-0" />
+            <span className="font-mono text-sm font-medium text-text truncate">{node.name}</span>
           </div>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {fieldCount > 0 && (
-            <Badge variant="muted" size="sm">{fieldCount} {d?.nodeCard.fields ?? 'fields'}</Badge>
-          )}
-          {recordCount > 0 && (
-            <Badge variant="muted" size="sm">{recordCount} {d?.nodeCard.records ?? 'records'}</Badge>
-          )}
-          {connectionCount > 0 && (
-            <Badge variant="primary" size="sm">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent mr-1" />
-              {connectionCount} {d?.nodeCard.connections ?? 'connections'}
-            </Badge>
-          )}
-        </div>
-      </article>
+
+          {/* Badges */}
+          <div className="flex flex-wrap gap-1.5 min-h-5">
+            {fieldCount > 0 && (
+              <Badge variant="muted" size="sm">{fieldCount} {d?.nodeCard.fields ?? 'fields'}</Badge>
+            )}
+            {recordCount > 0 && (
+              <Badge variant="muted" size="sm">{recordCount} {d?.nodeCard.records ?? 'records'}</Badge>
+            )}
+            {connectionCount > 0 && (
+              <Badge variant="primary" size="sm">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent mr-1" />
+                {connectionCount} {d?.nodeCard.connections ?? 'connections'}
+              </Badge>
+            )}
+          </div>
+        </article>
       </>
     )
   }
