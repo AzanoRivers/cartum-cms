@@ -35,6 +35,8 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
   const [showUpload,       setShowUpload]       = useState(false)
   const [previewAsset,     setPreviewAsset]     = useState<MediaRecord | null>(null)
   const [showBulkDelete,   setShowBulkDelete]   = useState(false)
+  const [gridDragging,     setGridDragging]     = useState(false)
+  const gridDragCounter = useRef(0)
 
   const {
     assets, total, totalPages, loading,
@@ -114,6 +116,32 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
   }
 
   const searchRef = useRef<HTMLInputElement>(null)
+
+  function handleGridDragEnter(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    gridDragCounter.current += 1
+    setGridDragging(true)
+  }
+  function handleGridDragOver(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+  }
+  function handleGridDragLeave() {
+    gridDragCounter.current -= 1
+    if (gridDragCounter.current <= 0) {
+      gridDragCounter.current = 0
+      setGridDragging(false)
+    }
+  }
+  function handleGridDrop(e: React.DragEvent) {
+    e.preventDefault()
+    gridDragCounter.current = 0
+    setGridDragging(false)
+    if (!e.dataTransfer.files.length) return
+    addFilesToQueue(e.dataTransfer.files, g.videoSizeError)
+    setShowUpload(true)
+  }
 
   const bulkBarLabels = {
     placeholder: g.bulkPlaceholder,
@@ -322,7 +350,21 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
 
       {/* Grid + bottom pagination wrapped in VHSTransition, re-fires on tab change */}
       <VHSTransition trigger={filter} duration="normal">
-        <MediaGalleryGrid
+        {/* Grid drop zone wrapper with drag overlay */}
+        <div
+          className="relative"
+          onDragEnter={handleGridDragEnter}
+          onDragOver={handleGridDragOver}
+          onDragLeave={handleGridDragLeave}
+          onDrop={handleGridDrop}
+        >
+          {gridDragging && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-primary bg-primary/5 backdrop-blur-[1px]">
+              <Upload size={28} className="text-primary opacity-80" />
+              <p className="font-mono text-sm font-medium text-primary">{g.dropHere}</p>
+            </div>
+          )}
+          <MediaGalleryGrid
           assets={assets}
           loading={loading}
           onSelect={(asset) => { if (!selectionMode) setPreviewAsset(asset) }}
@@ -368,7 +410,8 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
             videoUploadWarning:  g.videoUploadWarning,
             imageUploadWarning:  g.imageUploadWarning,
           }}
-        />
+          />
+        </div>
 
         {/* Pagination — bottom */}
         {!loading && total > 0 && (

@@ -217,6 +217,18 @@ export async function listMediaAssets(
 
 // -----------------------------------------------------------------------
 // listMediaAssetsPaged — offset-based pager for the Media Gallery page
+// getMediaFileNames — returns all existing filenames (lowercase) for duplicate checking
+// -----------------------------------------------------------------------
+export async function getMediaFileNames(): Promise<ActionResult<string[]>> {
+  try {
+    await requireSession()
+    const names = await mediaRepository.getAllFileNames()
+    return { success: true, data: names }
+  } catch {
+    return { success: false, error: 'Failed to load media names.' }
+  }
+}
+
 // -----------------------------------------------------------------------
 export async function listMediaAssetsPaged(
   input: ListMediaAssetsPagedInput,

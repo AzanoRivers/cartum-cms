@@ -124,6 +124,11 @@ export const mediaRepository = {
     }
   },
 
+  async getAllFileNames(): Promise<string[]> {
+    const rows = await db.select({ key: media.key, name: media.name }).from(media)
+    return rows.map((r) => (r.name ?? r.key.split('/').pop() ?? '').toLowerCase()).filter(Boolean)
+  },
+
   async delete(id: string): Promise<void> {
     const [row] = await db.select().from(media).where(eq(media.id, id)).limit(1)
     if (!row) throw new Error('MEDIA_NOT_FOUND')

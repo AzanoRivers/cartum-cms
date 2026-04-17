@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { uploadFileWithProgress } from '@/lib/media/upload'
 import { optimizeImage } from '@/lib/media/optimize'
-import { getUploadUrl, saveMediaRecord, listMediaAssetsPaged } from '@/lib/actions/media.actions'
+import { getUploadUrl, saveMediaRecord, listMediaAssetsPaged, getMediaFileNames } from '@/lib/actions/media.actions'
 import { uploadVideoViaVps } from '@/lib/media/video-vps-upload'
 import type { VpsDirectConfig } from '@/lib/media/video-vps-upload'
 import type { MediaRecord, VpsWarning } from '@/types/media'
@@ -84,6 +84,17 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
   compressionBatchRef.current     = config?.compressionBatch ?? ''
   const duplicateErrorLabelRef  = useRef(config?.duplicateErrorLabel ?? '')
   duplicateErrorLabelRef.current  = config?.duplicateErrorLabel ?? ''
+
+  // ── All-names cache — cross-tab duplicate detection ───────────────────────
+  // Loaded once on mount, updated after each upload/delete via refresh().
+  const allNamesRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    getMediaFileNames().then((res) => {
+      if (res.success) allNamesRef.current = new Set(res.data)
+    })
+  }, [])
+  // ──────────────────────────────────────────────────────────────────────────
 
   // ── VPS session (short-lived token for browser → VPS direct calls) ────────
   const vpsSessionRef    = useRef<(VpsDirectConfig & { expiresAt: number }) | null>(null)
@@ -341,12 +352,9 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
     const dupLabel       = duplicateErrorLabelRef.current
 
     // Build a case-insensitive set of names already in queue or gallery
-    const existingNames = new Set<string>()
-    for (const e of queue)   existingNames.add(e.name.toLowerCase())
-    for (const a of assets) {
-      const n = a.name ?? a.key.split('/').pop() ?? ''
-      if (n) existingNames.add(n.toLowerCase())
-    }
+    // Merge server-side names (all types) with current queue — cross-tab duplicate detection
+    const existingNames = new Set<string>(allNamesRef.current)
+    for (const e of queue) existingNames.add(e.name.toLowerCase())
 
     const newImages: UploadEntry[] = []
     const newVideos: UploadEntry[] = []
@@ -753,7 +761,10 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
     // selection
     selectedIds, selectionMode, toggleSelect, clearSelection, selectAll,
     // refresh
-    refresh: () => fetchPage(filter, page, perPage, search),
+    refresh: () => {
+      fetchPage(filter, page, perPage, search)
+      getMediaFileNames().then((res) => { if (res.success) allNamesRef.current = new Set(res.data) })
+    },
     // video fallback modal
     videoFallbackOpen, confirmVideoFallback, cancelVideoFallback,
     imageFallbackOpen, confirmImageFallback, cancelImageFallback,
