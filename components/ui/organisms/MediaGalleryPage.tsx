@@ -189,6 +189,10 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
         errorLabel={g.uploadError}
         successLabel={g.uploadSuccess}
         videoUploadWarning={g.videoUploadWarning}
+        cancelConfirmTitle={g.uploadCancelConfirmTitle}
+        cancelConfirmDesc={g.uploadCancelConfirmDesc}
+        cancelConfirmYes={g.uploadCancelConfirmYes}
+        cancelConfirmNo={g.uploadCancelConfirmNo}
       />
 
       {/* Preview modal */}

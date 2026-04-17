@@ -695,6 +695,10 @@ export const es: Dictionary = {
         videoFallbackBody:   'Este video supera los 100 MB, que es el límite recomendado. Los videos grandes pueden causar tiempos de carga lentos incluso después de la compresión. Considera usar un archivo más pequeño u optimizado previamente.',
         videoFallbackUpload: 'Subir de todas formas',
         videoFallbackCancel: 'Cancelar',
+        uploadCancelConfirmTitle: '¿Cancelar subidas?',
+        uploadCancelConfirmDesc:  'Cerrar cancelará las optimizaciones de video activas. No se subirá nada.',
+        uploadCancelConfirmYes:   'Sí, cerrar',
+        uploadCancelConfirmNo:    'Seguir subiendo',
       },
     },
     board: {
