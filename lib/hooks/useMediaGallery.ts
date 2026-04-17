@@ -447,7 +447,8 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
 
       try {
         const form = new FormData()
-        form.append('file', tier1File, file.name)
+        // VPS endpoint expects "files" (list field), whether called directly or via proxy
+        form.append('files', tier1File, file.name)
 
         // 30s timeout — Optimus can be slow but shouldn't exceed this for single images
         const controller = new AbortController()
@@ -469,20 +470,30 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
           signal:  controller.signal,
         }).finally(() => clearTimeout(timeoutId))
 
+        // Vercel proxy translates VPS errors to X-Vps-Warning headers.
+        // For direct VPS calls, map HTTP status codes ourselves.
         const skipped = proxyRes.headers.get('X-Vps-Skipped')
-        const warnHdr = proxyRes.headers.get('X-Vps-Warning') as VpsWarning | null
         const ct      = proxyRes.headers.get('Content-Type') ?? ''
+        let warnHdr   = proxyRes.headers.get('X-Vps-Warning') as VpsWarning | null
 
-        if (!skipped && ct.startsWith('image/')) {
+        if (!warnHdr && imgVpsConfig && !proxyRes.ok && proxyRes.status !== 206) {
+          const statusMap: Partial<Record<number, VpsWarning>> = {
+            401: 'auth', 408: 'timeout', 422: 'validation',
+          }
+          warnHdr = statusMap[proxyRes.status] ?? 'unreachable'
+        }
+
+        if (!skipped && (proxyRes.ok || proxyRes.status === 206) && ct.startsWith('image/')) {
           // Optimus returned optimized bytes
           finalBlob = await proxyRes.blob()
           finalMime = 'image/webp'
-          if (warnHdr) vpsWarning = warnHdr
+          if (proxyRes.status === 206) vpsWarning = 'partial'
+          else if (warnHdr) vpsWarning = warnHdr
         } else if (warnHdr) {
           // Optimus returned a warning, use Tier 1 result as-is
           vpsWarning = warnHdr
         }
-        // skipped → use Tier 1 result silently
+        // skipped or unrecognized → use Tier 1 result silently
       } catch {
         // Network error reaching proxy — use Tier 1 result silently
       }
