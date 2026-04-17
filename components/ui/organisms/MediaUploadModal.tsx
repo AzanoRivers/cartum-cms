@@ -29,8 +29,10 @@ export type MediaUploadModalProps = {
   uploadingLabel:      string
   errorLabel:          string
   successLabel:        string
+  estimatedTimeLabel:  string
   videoUploadWarning?: string
-  // close-confirmation labels (shown when active video uploads exist)
+  imageUploadWarning?: string
+  // close-confirmation labels (shown when active uploads exist)
   cancelConfirmTitle:  string
   cancelConfirmDesc:   string
   cancelConfirmYes:    string
@@ -57,7 +59,9 @@ export function MediaUploadModal({
   uploadingLabel,
   errorLabel,
   successLabel,
+  estimatedTimeLabel,
   videoUploadWarning,
+  imageUploadWarning,
   cancelConfirmTitle,
   cancelConfirmDesc,
   cancelConfirmYes,
@@ -143,7 +147,9 @@ export function MediaUploadModal({
               uploadingLabel={uploadingLabel}
               errorLabel={errorLabel}
               successLabel={successLabel}
+              estimatedTimeLabel={estimatedTimeLabel}
               videoUploadWarning={videoUploadWarning}
+              imageUploadWarning={imageUploadWarning}
             />
           </div>
         </VHSTransition>

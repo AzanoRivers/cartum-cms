@@ -188,7 +188,9 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
         uploadingLabel={g.uploading}
         errorLabel={g.uploadError}
         successLabel={g.uploadSuccess}
+        estimatedTimeLabel={g.estimatedTimeLabel}
         videoUploadWarning={g.videoUploadWarning}
+        imageUploadWarning={g.imageUploadWarning}
         cancelConfirmTitle={g.uploadCancelConfirmTitle}
         cancelConfirmDesc={g.uploadCancelConfirmDesc}
         cancelConfirmYes={g.uploadCancelConfirmYes}
@@ -343,7 +345,9 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
             uploadingLabel:  g.uploading,
             errorLabel:          g.uploadError,
             successLabel:        g.uploadSuccess,
+            estimatedTimeLabel:  g.estimatedTimeLabel,
             videoUploadWarning:  g.videoUploadWarning,
+            imageUploadWarning:  g.imageUploadWarning,
           }}
         />
 
