@@ -25,6 +25,7 @@
 - [Variables de entorno](#variables-de-entorno)
 - [Instalación y arranque local](#instalación-y-arranque-local)
 - [Notas de configuración](#notas-de-configuración)
+- [VPS de media](#vps-de-media)
 - [Despliegue en Vercel](#despliegue-en-vercel)
 - [Despliegue en Cloudflare Pages](#despliegue-en-cloudflare-pages)
 - [API REST](#api-rest)
@@ -159,6 +160,16 @@ Abre [http://localhost:3000](http://localhost:3000), el wizard de configuración
 
 ---
 
+### VPS de media
+
+Cuando se configura `MEDIA_VPS_URL` y `MEDIA_VPS_KEY`, el browser llama al VPS **directamente** para comprimir imágenes y subir chunks de video — los bytes nunca pasan por Vercel. Solo el handshake de autenticación y los metadatos finales van por Vercel.
+
+El hook obtiene un token de sesión de 2 horas al cargar la página y lo renueva automáticamente en background antes de que venza. Si el VPS no está disponible, las subidas caen sin error al proxy interno de Vercel.
+
+> Guía completa: [docs/media-vps.md](docs/media-vps.md)
+
+---
+
 ### Despliegue en Vercel
 
 1. Importa el repositorio en [vercel.com](https://vercel.com)
@@ -275,6 +286,7 @@ Los códigos van de errores fatales (el servidor no arranca) a advertencias (el 
 - [Environment Variables](#environment-variables)
 - [Local Setup](#local-setup)
 - [Configuration Notes](#configuration-notes)
+- [VPS media optimizer](#vps-media-optimizer)
 - [Deploy to Vercel](#deploy-to-vercel)
 - [Deploy to Cloudflare Pages](#deploy-to-cloudflare-pages)
 - [REST API](#rest-api)
@@ -384,6 +396,16 @@ pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000), the setup wizard will guide you through the rest.
+
+---
+
+### VPS media optimizer
+
+When `MEDIA_VPS_URL` and `MEDIA_VPS_KEY` are configured, the browser calls the VPS **directly** to compress images and upload video chunks — media bytes never pass through Vercel. Only the authentication handshake and final metadata go through Vercel.
+
+The hook fetches a 2-hour session token on page load and automatically renews it in the background before it expires. If the VPS is unavailable, uploads fall back silently to the internal Vercel proxy.
+
+> Full guide: [docs/media-vps.md](docs/media-vps.md)
 
 ---
 

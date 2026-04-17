@@ -326,6 +326,10 @@ build.log
 
 # Claude Code — skills locales (dependencias del entorno de desarrollo)
 .claude/skills/
+settings.local.json
+**/settings.local.json
+.claude/settings.local.json
+
 
 # GODOT
 .import/
