@@ -502,7 +502,9 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
             }),
             onDragOver,
             onDragLeave,
-            onDrop,
+            // stopPropagation prevents the drop event from bubbling to the outer
+            // grid container's handleGridDrop, which would call addFilesToQueue twice.
+            onDrop: (e) => { e.stopPropagation(); onDrop(e) },
             dropHereLabel:   g.dropHere,
             orClickLabel:    g.orClick,
             uploadBtnLabel:  g.uploadStart,
