@@ -252,8 +252,8 @@ export async function uploadVideoViaVps(
   onProgress(50)
 
   let outputSize: number | undefined
-  const POLL_INTERVAL_MS = 8000
-  const MAX_POLLS        = 225   // 30 min cap (8 s × 225)
+  const POLL_INTERVAL_MS = 15000
+  const MAX_POLLS        = 120   // 30 min cap (15 s × 120)
 
   for (let poll = 0; poll < MAX_POLLS; poll++) {
     await sleep(POLL_INTERVAL_MS, signal)
