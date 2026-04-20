@@ -667,6 +667,8 @@
         uploadError:     'Upload failed.',
         deleteLabel:     'Delete',
         confirmDelete:   'Sure?',
+        deleteSuccess:   'File deleted.',
+        deleteError:     'Could not delete file.',
         copyUrlLabel:    'Copy URL',
         copiedLabel:     'Copied!',
         ofLabel:         'of',
@@ -1364,7 +1366,7 @@ export type Dictionary = {
         uploadBtn: string; emptyImages: string; emptyVideos: string; emptySearch: string
         dropHere: string; orClick: string; uploadStart: string
         optimizing: string; uploading: string; uploadSuccess: string; uploadError: string
-        deleteLabel: string; confirmDelete: string; copyUrlLabel: string; copiedLabel: string
+        deleteLabel: string; confirmDelete: string; deleteSuccess: string; deleteError: string; copyUrlLabel: string; copiedLabel: string
         ofLabel: string; perPageLabel: string
         vpsUnreachable: string; vpsAuth: string; vpsTimeout: string
         vpsValidation: string; vpsPartial: string; vpsQueueFull: string

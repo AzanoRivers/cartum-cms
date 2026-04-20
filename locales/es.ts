@@ -669,6 +669,8 @@ export const es: Dictionary = {
         uploadError:       'Error al subir.',
         deleteLabel:       'Eliminar',
         confirmDelete:     '¿Seguro?',
+        deleteSuccess:     'Archivo eliminado.',
+        deleteError:       'No se pudo eliminar el archivo.',
         copyUrlLabel:      'Copiar URL',
         copiedLabel:       '¡Copiado!',
         ofLabel:           'de',

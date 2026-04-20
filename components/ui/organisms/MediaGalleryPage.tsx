@@ -151,7 +151,12 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
     : undefined
 
   async function handleDelete(asset: MediaRecord) {
-    await deleteMediaRecord(asset.id)
+    const res = await deleteMediaRecord(asset.id)
+    if (res.success) {
+      toast.success(g.deleteSuccess)
+    } else {
+      toast.error(g.deleteError)
+    }
     refresh()
     void refreshSummary()
   }
