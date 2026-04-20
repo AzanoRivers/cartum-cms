@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream'
 import { randomUUID } from 'node:crypto'
 import { type NextRequest, NextResponse } from 'next/server'
-import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { auth } from '@/auth'
 import { getSetting } from '@/lib/settings/get-setting'
 import { getR2Client } from '@/lib/media/r2-client'
@@ -12,16 +12,15 @@ import { mediaRepository } from '@/db/repositories/media.repository'
 /**
  * POST /api/internal/media/videos/complete
  *
- * Final step of the video VPS pipeline:
- *   1. Download the compressed video from Optimus VPS (streaming)
- *   2. Stream it directly to Cloudflare R2 via PutObjectCommand
- *   3. Insert the media_records DB row
- *   4. Return { key, publicUrl, mimeType, sizeBytes }
+ * Final step of the VPS video pipeline. Supports two modes:
  *
- * Body: { job_id: string, filename: string, mime_type: string, output_size?: number }
+ * Fast path — VPS uploaded directly to R2 (destination_url was provided):
+ *   Body: { key, publicUrl, filename, mime_type, sizeBytes? }
+ *   Action: HeadObject to verify the R2 object exists, then insert DB record.
  *
- * Note: runs server-side only. Video bytes never go through a Server Action.
- * output_size (from the status poll) is used as ContentLength for the streaming PUT.
+ * Legacy path — Vercel downloads from VPS then uploads to storage:
+ *   Body: { job_id, filename, mime_type, output_size? }
+ *   Action: stream compressed video from VPS → R2/Blob, insert DB record.
  */
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -30,13 +29,64 @@ export async function POST(req: NextRequest) {
   }
   const userId = session.user.id as string
 
-  let body: { job_id?: string; filename?: string; mime_type?: string; output_size?: number }
+  let body: {
+    // Fast path
+    key?:       string
+    publicUrl?: string
+    sizeBytes?: number
+    // Shared
+    filename?:  string
+    mime_type?: string
+    // Legacy path
+    job_id?:      string
+    output_size?: number
+  }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
+  // ── Fast path: VPS pushed directly to R2 ─────────────────────────────────
+  if (body.key && body.publicUrl) {
+    const { key, publicUrl, filename, mime_type, sizeBytes } = body
+
+    if (!filename || !mime_type) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 422 })
+    }
+
+    let r2Config: Awaited<ReturnType<typeof getR2Client>>
+    try {
+      r2Config = await getR2Client()
+    } catch {
+      return NextResponse.json({ error: 'STORAGE_NOT_CONFIGURED' }, { status: 503 })
+    }
+
+    // Verify the object actually landed in R2
+    try {
+      await r2Config.client.send(new HeadObjectCommand({ Bucket: r2Config.bucket, Key: key }))
+    } catch {
+      return NextResponse.json({ error: 'R2_OBJECT_NOT_FOUND' }, { status: 404 })
+    }
+
+    try {
+      await mediaRepository.create({
+        key:             key!,
+        publicUrl:       publicUrl!,
+        mimeType:        mime_type,
+        sizeBytes:       sizeBytes ?? null,
+        name:            filename,
+        uploadedBy:      userId,
+        storageProvider: 'r2',
+      })
+    } catch {
+      return NextResponse.json({ error: 'DB_SAVE_FAILED' }, { status: 500 })
+    }
+
+    return NextResponse.json({ key, publicUrl, mimeType: mime_type, sizeBytes: sizeBytes ?? null })
+  }
+
+  // ── Legacy path: download from VPS → upload to storage ───────────────────
   const { job_id, filename, mime_type, output_size } = body
 
   if (!job_id || !filename || !mime_type) {
@@ -64,13 +114,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'VPS_DOWNLOAD_FAILED', vpsStatus: vpsRes.status }, { status: 502 })
   }
 
-  // Determine actual size: prefer Content-Length from VPS, fall back to client hint
   const contentLengthHeader = vpsRes.headers.get('content-length')
   const sizeBytes = contentLengthHeader
     ? parseInt(contentLengthHeader, 10)
     : (output_size ?? undefined)
 
-  // Determine mime type from VPS Content-Type if available
   const vtContentType = vpsRes.headers.get('content-type')
   const finalMime = (vtContentType && vtContentType.startsWith('video/'))
     ? vtContentType.split(';')[0].trim()
@@ -82,7 +130,6 @@ export async function POST(req: NextRequest) {
 
   // ── 2. Upload to storage (Blob or R2) ─────────────────────────────────────
   if (provider === 'blob') {
-    // Blob requires buffering — no streaming put via SDK
     let videoBuffer: Buffer
     try {
       videoBuffer = Buffer.from(await vpsRes.arrayBuffer())
@@ -128,8 +175,6 @@ export async function POST(req: NextRequest) {
   }
 
   const { client, bucket, publicUrl: r2BaseUrl } = r2Config
-
-  // Convert Web ReadableStream to Node.js Readable for the AWS SDK
   const nodeReadable = Readable.fromWeb(vpsRes.body as import('stream/web').ReadableStream)
 
   try {

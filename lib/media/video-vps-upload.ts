@@ -114,11 +114,15 @@ function sliceIntoChunks(file: File, chunkSize: number): Blob[] {
 
 /**
  * Full VPS video upload pipeline:
- *   init → chunks (sequential) → finalize → poll status → complete
+ *   [presign] → init → chunks (sequential) → finalize → poll status → complete
  *
- * When `vpsConfig` is provided the browser calls the VPS directly,
- * bypassing Vercel entirely for all phases except the final "complete" step
- * (which needs Vercel to access R2 credentials and write to the DB).
+ * When `vpsConfig` is provided the browser calls the VPS directly for all
+ * upload phases.  Before init, it fetches a presigned R2 PUT URL from Vercel
+ * and passes it as `destination_url` so the VPS can push the compressed file
+ * straight to R2 — bypassing Vercel for video bytes entirely.
+ *
+ * In proxy mode (no vpsConfig), the init Vercel handler generates the presigned
+ * URL internally and returns key/publicUrl alongside upload_id.
  *
  * Returns `{ skipped: true }` when the VPS is not configured so the caller
  * can transparently fall back to a direct R2 presigned-URL upload.
@@ -147,8 +151,42 @@ export async function uploadVideoViaVps(
 
   async function _runUpload(): Promise<VideoVpsResult> {
 
+  // ── Phase 0: Presign (direct-VPS mode only) ────────────────────────────────
+  // In direct mode the browser calls VPS init, so Vercel's init handler can't
+  // generate the presigned URL.  We fetch it here first and pass it along.
+  let r2Key:       string | undefined
+  let r2PublicUrl: string | undefined
+  let destinationUrl: string | undefined
+
+  if (vpsConfig) {
+    try {
+      const presignRes = await fetch(
+        `/api/internal/media/videos/presign?filename=${encodeURIComponent(file.name)}`,
+        { signal },
+      )
+      if (presignRes.ok) {
+        const pd    = await presignRes.json()
+        r2Key       = pd.key       as string
+        r2PublicUrl = pd.publicUrl as string
+        destinationUrl = pd.presignedUrl as string
+      }
+    } catch {
+      // Presign failed (e.g. R2 not configured) — proceed without destination_url.
+      // VPS keeps the file; Vercel's legacy download path is used as fallback.
+    }
+  }
+
   // ── Phase 1: Init ──────────────────────────────────────────────────────────
   const totalChunks = Math.max(1, Math.ceil(file.size / VIDEO_CHUNK_MAX_BYTES))
+
+  const initBody: Record<string, unknown> = {
+    filename:     file.name,
+    total_size:   file.size,
+    total_chunks: totalChunks,
+  }
+  if (vpsConfig && destinationUrl) {
+    initBody.destination_url = destinationUrl
+  }
 
   let initRes: Response
   try {
@@ -158,11 +196,7 @@ export async function uploadVideoViaVps(
         method:  'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders(vpsConfig) },
         signal,
-        body:    JSON.stringify({
-          filename:     file.name,
-          total_size:   file.size,
-          total_chunks: totalChunks,
-        }),
+        body:    JSON.stringify(initBody),
       },
     )
   } catch (err) {
@@ -189,11 +223,17 @@ export async function uploadVideoViaVps(
   uploadId = initData.upload_id as string
   if (!uploadId) throw new Error('VPS_INIT_NO_ID')
 
+  // Proxy mode: Vercel's init handler may return key/publicUrl when R2 is active
+  if (!vpsConfig && initData.key) {
+    r2Key       = initData.key       as string
+    r2PublicUrl = initData.publicUrl as string
+  }
+
   // ── Phase 2: Chunk upload (0–50 %) ────────────────────────────────────────
   onPhaseLabel(labels.chunking)
   onProgress(0)
 
-  const chunks = sliceIntoChunks(file, VIDEO_CHUNK_MAX_BYTES)
+  const chunks   = sliceIntoChunks(file, VIDEO_CHUNK_MAX_BYTES)
   const chunkUrl = vpsOrProxy(vpsConfig, '/videos/upload/chunk', '/api/internal/media/videos/chunk')
 
   for (let i = 0; i < totalChunks; i++) {
@@ -245,6 +285,9 @@ export async function uploadVideoViaVps(
   onProgress(50)
 
   let outputSize: number | undefined
+  // True when the VPS set file_deleted=true — means it uploaded directly to R2
+  let r2DirectSuccess = false
+
   const POLL_INTERVAL_MS = 15000
   const MAX_POLLS        = 120   // 30 min cap (15 s × 120)
 
@@ -262,11 +305,12 @@ export async function uploadVideoViaVps(
     })
     if (!statusRes.ok) continue  // transient error — keep polling
 
-    const { status, progress_pct, output_size } = await statusRes.json()
+    const { status, progress_pct, output_size, file_deleted } = await statusRes.json()
 
     if (output_size) outputSize = output_size
 
     if (status === 'done') {
+      r2DirectSuccess = !!file_deleted  // VPS pushed to R2 when true
       onProgress(90)
       break
     }
@@ -279,22 +323,40 @@ export async function uploadVideoViaVps(
     onProgress(50 + Math.round(vpsPct * 0.4))
   }
 
-  // ── Phase 5: Complete — VPS download → R2 → DB (90–100 %) ─────────────────
-  // Always goes through Vercel: needs R2 credentials and DB access.
+  // ── Phase 5: Complete (90–100 %) ──────────────────────────────────────────
   onPhaseLabel(labels.finalizing)
   onProgress(92)
 
-  const completeRes = await fetch('/api/internal/media/videos/complete', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    signal,
-    body:    JSON.stringify({
-      job_id:      jobId,
-      filename:    file.name,
-      mime_type:   file.type,
-      output_size: outputSize,
-    }),
-  })
+  let completeRes: Response
+
+  if (r2DirectSuccess && r2Key && r2PublicUrl) {
+    // Fast path: VPS already pushed to R2 — just verify + save DB record
+    completeRes = await fetch('/api/internal/media/videos/complete', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal,
+      body:    JSON.stringify({
+        key:       r2Key,
+        publicUrl: r2PublicUrl,
+        filename:  file.name,
+        mime_type: file.type,
+        sizeBytes: outputSize,
+      }),
+    })
+  } else {
+    // Legacy path: Vercel downloads from VPS → uploads to storage → saves DB
+    completeRes = await fetch('/api/internal/media/videos/complete', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal,
+      body:    JSON.stringify({
+        job_id:      jobId,
+        filename:    file.name,
+        mime_type:   file.type,
+        output_size: outputSize,
+      }),
+    })
+  }
 
   if (!completeRes.ok) throw new Error('VPS_COMPLETE_FAILED')
 
