@@ -203,7 +203,7 @@ export function MediaUploadZone({
 
       {/* Queue rows — grid trick: gridTemplateRows 0fr↔1fr is transitionable */}
       <div
-        className="upload-rows-wrapper"
+        className="upload-rows-wrapper min-h-0"
         style={{ gridTemplateRows: allRows.length > 0 ? '1fr' : '0fr' }}
       >
         {/* contain:layout isolates recalcs from propagating up the tree */}

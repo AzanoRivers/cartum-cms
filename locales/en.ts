@@ -163,6 +163,7 @@
       docsButton: 'Documentation',
     },
     docs: {
+      title:     'Docs',
       breadcrumb: 'Docs',
       sidebarAriaLabel: 'Documentation navigation',
       sections: {
@@ -728,6 +729,7 @@
       },
     },
     board: {
+      title: 'Board',
       canvasMenu: {
         back:    'Go back',
         forward: 'Go forward',
@@ -1176,6 +1178,7 @@ export type Dictionary = {
       docsButton: string
     }
     docs: {
+      title: string
       breadcrumb: string
       sidebarAriaLabel: string
       sections: {
@@ -1388,6 +1391,7 @@ export type Dictionary = {
       }
     }
     board: {
+      title: string
       canvasMenu: { back: string; forward: string; fitAll: string }
       contextMenu: { rename: string; duplicate: string; deleteNode: string }
       deleteDialog: {

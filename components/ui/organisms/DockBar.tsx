@@ -64,11 +64,13 @@ export function DockBar() {
       */}
       <div
         ref={iconsSectionRef}
-        className="dock-icons-section flex items-center gap-1 overflow-hidden"
+        className="dock-icons-section flex items-center gap-1"
         style={{
-          maxWidth: collapsed ? '0px' : '320px',
-          opacity:  collapsed ? 0 : 1,
-          clipPath: collapsed ? 'inset(0 0 0 100%)' : 'inset(0 0 0 0%)',
+          maxWidth:      collapsed ? '0px' : '320px',
+          opacity:       collapsed ? 0 : 1,
+          clipPath:      collapsed ? 'inset(-100px 0 0 100%)' : 'inset(-100px 0 0 -100px)',
+          overflow:      collapsed ? 'hidden' : 'visible',
+          pointerEvents: collapsed ? 'none' : undefined,
         }}
       >
         {canAccessBuilder && (

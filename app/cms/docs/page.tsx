@@ -5,6 +5,15 @@ import type { SupportedLocale } from '@/types/project'
 import { BreadcrumbSetter } from '@/components/ui/molecules/BreadcrumbSetter'
 import { DocsPage } from '@/components/ui/organisms/docs/DocsPage'
 
+export async function generateMetadata() {
+  const [proj] = await db
+    .select({ defaultLocale: project.defaultLocale })
+    .from(project)
+    .limit(1)
+  const locale = (proj?.defaultLocale ?? 'en') as SupportedLocale
+  return { title: getDictionary(locale).cms.docs.title }
+}
+
 export default async function CmsDocsPage() {
   const [proj] = await db
     .select({ defaultLocale: project.defaultLocale })

@@ -5,8 +5,16 @@ import { nodeService } from '@/lib/services/nodes.service'
 import { connectionsService } from '@/lib/services/connections.service'
 import { rolesService } from '@/lib/services/roles.service'
 import { auth } from '@/auth'
+import { db } from '@/db'
+import { project } from '@/db/schema'
+import { getDictionary } from '@/locales'
+import type { SupportedLocale } from '@/types/project'
 
-export const metadata = { title: 'Board' }
+export async function generateMetadata() {
+  const [proj] = await db.select({ defaultLocale: project.defaultLocale }).from(project).limit(1)
+  const locale = (proj?.defaultLocale ?? 'en') as SupportedLocale
+  return { title: getDictionary(locale).cms.board.title }
+}
 
 export default async function BoardPage() {
   const session = await auth()

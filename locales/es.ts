@@ -165,6 +165,7 @@ export const es: Dictionary = {
       docsButton: 'Documentación',
     },
     docs: {
+      title:     'Guía',
       breadcrumb: 'Docs',
       sidebarAriaLabel: 'Navegación de documentación',
       sections: {
@@ -729,6 +730,7 @@ export const es: Dictionary = {
       },
     },
     board: {
+      title: 'Tablero',
       canvasMenu: {
         back:    'Ir atrás',
         forward: 'Ir adelante',
