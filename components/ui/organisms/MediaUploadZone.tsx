@@ -6,10 +6,10 @@ import { UploadFileRow } from '@/components/ui/molecules/UploadFileRow'
 import type { UploadEntry } from '@/lib/hooks/useMediaGallery'
 
 // Empirical throughput: video ~100 KB/s through full VPS pipeline (12–24 MB samples)
-// Image: client compression + VPS proxy + R2 — much faster
-const VIDEO_BYTES_PER_SEC = 100_000
-const IMAGE_BYTES_PER_SEC = 800_000
-const MIN_ESTIMATE_SECS   = 30
+const VIDEO_BYTES_PER_SEC  = 100_000
+const IMAGE_BYTES_PER_SEC  = 150_000  // client compression is slow
+const IMAGE_OVERHEAD_SECS  = 1.5      // per-file init cost (decoder + encoder startup)
+const MIN_ESTIMATE_SECS    = 30
 
 function formatCountdown(secs: number): string {
   const m = Math.floor(secs / 60)
@@ -86,8 +86,10 @@ export function MediaUploadZone({
   const pendingEstimateSecs = pending.length > 0 && !hasActive
     ? Math.max(MIN_ESTIMATE_SECS, Math.ceil(
         pending.reduce((sum, e) => {
-          const bps = e.file.type.startsWith('video/') ? VIDEO_BYTES_PER_SEC : IMAGE_BYTES_PER_SEC
-          return sum + e.file.size / bps
+          const isVideo = e.file.type.startsWith('video/')
+          const bps     = isVideo ? VIDEO_BYTES_PER_SEC : IMAGE_BYTES_PER_SEC
+          const overhead = isVideo ? 0 : IMAGE_OVERHEAD_SECS
+          return sum + overhead + e.file.size / bps
         }, 0)
       ))
     : null
@@ -107,10 +109,10 @@ export function MediaUploadZone({
         MIN_ESTIMATE_SECS,
         Math.ceil(
           queueRef.current.reduce((sum, e) => {
-            const bps = e.file.type.startsWith('video/')
-              ? VIDEO_BYTES_PER_SEC
-              : IMAGE_BYTES_PER_SEC
-            return sum + e.file.size / bps
+            const isVideo  = e.file.type.startsWith('video/')
+            const bps      = isVideo ? VIDEO_BYTES_PER_SEC : IMAGE_BYTES_PER_SEC
+            const overhead = isVideo ? 0 : IMAGE_OVERHEAD_SECS
+            return sum + overhead + e.file.size / bps
           }, 0),
         ),
       )
@@ -206,9 +208,8 @@ export function MediaUploadZone({
         className="upload-rows-wrapper min-h-0"
         style={{ gridTemplateRows: allRows.length > 0 ? '1fr' : '0fr' }}
       >
-        {/* contain:layout isolates recalcs from propagating up the tree */}
-        <div className="overflow-hidden min-h-0 contain-[layout]">
-          <div className="flex flex-col gap-1.5 pr-px overflow-y-auto max-h-[min(20rem,40vh)] py-px">
+        <div className="overflow-y-auto min-h-0 max-h-[min(20rem,40vh)]">
+          <div className="flex flex-col gap-1.5 pr-px py-px">
             {allRows.map((entry, i) => (
               <div
                 key={entry.id}
