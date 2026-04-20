@@ -40,7 +40,7 @@ export function ThemeClient({ dict, layoutDict, currentTheme }: Props) {
     // Sync localStorage so the beforeInteractive hydration script reflects the
     // selected theme correctly on first load after login.
     try { localStorage.setItem(THEME_KEY, selected) } catch { /* sandboxed */ }
-    router.push('/setup/project')
+    router.push('/setup/initializing')
   }
 
   // Label lookup from locale dict
