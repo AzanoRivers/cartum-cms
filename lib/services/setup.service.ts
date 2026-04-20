@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { usersRepository } from '@/db/repositories/users.repository'
 import { db } from '@/db'
-import { project, roles } from '@/db/schema'
+import { project, roles, roleSectionPermissions } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import type { SupportedLocale } from '@/types/project'
 import { ROLE_ADMIN, ROLE_EDITOR, ROLE_VIEWER, ROLE_RESTRICTED } from '@/types/roles'
@@ -55,12 +55,26 @@ export async function createProjectService(input: CreateProjectInput): Promise<v
 
 // ── Initialize Schema ─────────────────────────────────────────────────────────
 
+const SECTIONS = [
+  'project', 'appearance', 'account', 'email', 'storage',
+  'users', 'roles', 'api', 'db', 'info',
+] as const
+
+type SectionKey = typeof SECTIONS[number]
+
 const DEFAULT_ROLES = [
-  { name: ROLE_ADMIN,      description: 'Full access to all nodes and records' },
-  { name: ROLE_EDITOR,     description: 'Can create and update records, cannot delete nodes' },
-  { name: ROLE_VIEWER,     description: 'Read-only access to all records' },
+  { name: ROLE_ADMIN,      description: 'Full access. Can manage users, roles, content, and settings.' },
+  { name: ROLE_EDITOR,     description: 'Content editor. Can create and update records in assigned nodes.' },
+  { name: ROLE_VIEWER,     description: 'Read-only. Can view records without modifying them.' },
   { name: ROLE_RESTRICTED, description: 'Suspended access. Cannot log in to the CMS.' },
-]
+] as const
+
+const SECTION_PERMISSIONS: Record<string, Partial<Record<SectionKey, boolean>>> = {
+  [ROLE_ADMIN]:      { project: true, appearance: true, account: true, email: true, storage: true, users: true, roles: true, api: true, db: true, info: true },
+  [ROLE_EDITOR]:     { appearance: true, account: true, info: true },
+  [ROLE_VIEWER]:     { appearance: true, account: true, info: true },
+  [ROLE_RESTRICTED]: {},
+}
 
 export async function initializeSchemaService(): Promise<void> {
   const [projectRow] = await db.select().from(project).limit(1)
@@ -68,15 +82,27 @@ export async function initializeSchemaService(): Promise<void> {
     throw new Error('Project must be created before initializing.')
   }
 
+  // Create default roles (idempotent)
   for (const role of DEFAULT_ROLES) {
-    const existing = await db
-      .select()
-      .from(roles)
-      .where(eq(roles.name, role.name))
-      .limit(1)
+    await db.insert(roles).values(role).onConflictDoNothing()
+  }
 
-    if (existing.length === 0) {
-      await db.insert(roles).values(role)
+  // Seed section permissions for each default role (idempotent)
+  const defaultRoleNames = DEFAULT_ROLES.map((r) => r.name)
+  const allRoles = await db.select().from(roles)
+  const defaultRoles = allRoles.filter((r) => defaultRoleNames.includes(r.name as typeof defaultRoleNames[number]))
+
+  for (const role of defaultRoles) {
+    const permsForRole = SECTION_PERMISSIONS[role.name] ?? {}
+    for (const section of SECTIONS) {
+      const canAccess = permsForRole[section] === true
+      await db
+        .insert(roleSectionPermissions)
+        .values({ roleId: role.id, section, canAccess })
+        .onConflictDoUpdate({
+          target: [roleSectionPermissions.roleId, roleSectionPermissions.section],
+          set:    { canAccess },
+        })
     }
   }
 }
