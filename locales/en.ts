@@ -12,6 +12,10 @@
       schema:         'Schema integrity',
       storageLabel:   'Storage (R2)',
       storageWarning: 'Not configured. You can set it up later in Settings.',
+      blobLabel:      'Storage (Vercel Blob)',
+      blobWarning:    'Not configured. You can set it up later in Settings.',
+      optimusLabel:   'Media optimization (Optimus)',
+      optimusWarning: 'Not configured. Image/video compression will use client-side fallback.',
       allOk:          'All systems nominal',
       continue: 'Continue',
       fixFirst: 'Fix this first',
@@ -1090,6 +1094,8 @@ export type Dictionary = {
     systemCheck: {
       title: string; subtitle: string; db: string; env: string
       schema: string; storageLabel: string; storageWarning: string
+      blobLabel: string; blobWarning: string
+      optimusLabel: string; optimusWarning: string
       allOk: string; continue: string; fixFirst: string
     }
     locale: { title: string; subtitle: string; continue: string }

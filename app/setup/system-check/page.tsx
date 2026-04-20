@@ -39,12 +39,28 @@ async function runChecks(dict: SysCheckDict): Promise<CheckResult[]> {
     results.push({ label: dict.schema, ok: false })
   }
 
-  // Storage — always shown; warning only when not configured
+  // Storage R2 — always shown; warning only when not configured
   const r2Configured = Boolean(process.env.R2_ENDPOINT)
   results.push({
     label:   dict.storageLabel,
     ok:      true,
     warning: r2Configured ? undefined : dict.storageWarning,
+  })
+
+  // Storage Blob — always shown; warning only when not configured
+  const blobConfigured = Boolean(process.env.BLOB_READ_WRITE_TOKEN)
+  results.push({
+    label:   dict.blobLabel,
+    ok:      true,
+    warning: blobConfigured ? undefined : dict.blobWarning,
+  })
+
+  // Optimus VPS media optimization — always shown; warning only when not configured
+  const optimusConfigured = Boolean(process.env.MEDIA_VPS_URL)
+  results.push({
+    label:   dict.optimusLabel,
+    ok:      true,
+    warning: optimusConfigured ? undefined : dict.optimusWarning,
   })
 
   return results
