@@ -1,11 +1,11 @@
 import { db } from '@/db'
-import { users, project } from '@/db/schema'
+import { users, project, roles } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 
 /**
- * Returns true if both a super admin AND a project row exist.
- * After the credentials step, a super admin exists but no project yet —
- * so setup is NOT considered complete until the project step also runs.
+ * Returns true only when super admin, project, AND default roles all exist.
+ * Roles are seeded in /setup/initializing — this prevents the middleware from
+ * redirecting away from that page before initializeSchema() has a chance to run.
  */
 export async function checkSetupComplete(): Promise<boolean> {
   const [adminRow] = await db
@@ -19,5 +19,11 @@ export async function checkSetupComplete(): Promise<boolean> {
     .select({ id: project.id })
     .from(project)
     .limit(1)
-  return projectRow != null
+  if (!projectRow) return false
+
+  const [roleRow] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .limit(1)
+  return roleRow != null
 }
