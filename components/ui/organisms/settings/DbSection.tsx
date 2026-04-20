@@ -5,7 +5,7 @@ import { Download, Upload, Trash2, Archive } from 'lucide-react'
 import { Spinner } from '@/components/ui/atoms/Spinner'
 import { DangerResetDialog } from '@/components/ui/molecules/DangerResetDialog'
 import { exportDatabaseAction, importDatabaseAction, resetCmsAction } from '@/lib/actions/db.actions'
-import { useRouter } from 'next/navigation'
+import { signOut } from 'next-auth/react'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { toast } from 'sonner'
 import type { Dictionary } from '@/locales/en'
@@ -16,7 +16,6 @@ export type DbSectionProps = {
 }
 
 export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
-  const router  = useRouter()
   const setGlobalLoading = useUIStore((s) => s.setGlobalLoading)
 
   const [isExporting,       startExport]       = useTransition()
@@ -148,7 +147,9 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
         creationPanelOpen: false,
         editingFieldId:   null,
       })
-      router.replace('/setup/locale')
+      // signOut posts to /api/auth/signout → browser receives expired Set-Cookie headers
+      // guaranteeing the stale JWT is cleared before the next session begins
+      await signOut({ callbackUrl: '/setup/locale' })
     })
   }
 
