@@ -371,21 +371,12 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
     const vidLabel       = videoLimitErrorLabelRef.current
     const dupLabel       = duplicateErrorLabelRef.current
 
-    // Build a case-insensitive set of names already in queue or gallery
-    // Merge server-side names (all types) with current queue — cross-tab duplicate detection
-    const existingNames = new Set<string>(allNamesRef.current)
-    for (const e of queue) existingNames.add(e.name.toLowerCase())
-
-    const newImages: UploadEntry[] = []
-    const newVideos: UploadEntry[] = []
-    const duplicateNames: string[] = []
+    // Pre-validate files — type, size, Blob/VPS checks don't depend on queue state
+    const candidates: { entry: UploadEntry; isVideo: boolean }[] = []
 
     for (const file of Array.from(files)) {
       if (!ALLOWED_ALL.includes(file.type)) continue
-      if (existingNames.has(file.name.toLowerCase())) {
-        duplicateNames.push(file.name)
-        continue
-      }
+
       const isVideo = file.type.startsWith('video/')
 
       // Blob + no VPS + video > 50 MB: reject before queue entry
@@ -399,21 +390,45 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         if (isVideo && sizeErrorLabel) toast.error(sizeErrorLabel)
         continue
       }
-      const entry: UploadEntry = { id: crypto.randomUUID(), name: file.name, file, status: 'pending', progress: 0 }
-      if (isVideo) newVideos.push(entry)
-      else         newImages.push(entry)
+
+      candidates.push({
+        entry: { id: crypto.randomUUID(), name: file.name, file, status: 'pending', progress: 0 },
+        isVideo,
+      })
     }
 
-    if (duplicateNames.length > 0 && dupLabel) {
-      toast.warning(dupLabel.replace('{names}', duplicateNames.join(', ')))
-    }
-
-    if (newImages.length === 0 && newVideos.length === 0) return
+    if (candidates.length === 0) return
 
     const nameSort = (a: UploadEntry, b: UploadEntry) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true })
 
     setQueue((q) => {
+      // Build existingNames from the actual current state `q`, not the stale closure `queue`.
+      // This prevents duplicates when addFilesToQueue is called multiple times before React
+      // flushes the previous setQueue update (e.g. two rapid file-input events).
+      const existingNames = new Set<string>(allNamesRef.current)
+      for (const e of q) existingNames.add(e.name.toLowerCase())
+
+      const newImages: UploadEntry[] = []
+      const newVideos: UploadEntry[] = []
+      const dupNames:  string[]      = []
+
+      for (const { entry, isVideo } of candidates) {
+        if (existingNames.has(entry.name.toLowerCase())) {
+          dupNames.push(entry.name)
+          continue
+        }
+        if (isVideo) newVideos.push(entry)
+        else         newImages.push(entry)
+      }
+
+      // Defer toasts — setQueue callbacks run inside React reconciliation
+      if (dupNames.length > 0 && dupLabel) {
+        setTimeout(() => toast.warning(dupLabel.replace('{names}', dupNames.join(', '))), 0)
+      }
+
+      if (newImages.length === 0 && newVideos.length === 0) return q
+
       const qImages = q.filter((e) => !e.file.type.startsWith('video/'))
       const qVideos = q.filter((e) =>  e.file.type.startsWith('video/'))
 
@@ -431,8 +446,8 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         ? (droppedVideos = combinedVideos.length - MAX_VIDEO_QUEUE, combinedVideos.slice(0, MAX_VIDEO_QUEUE))
         : combinedVideos
 
-      if (droppedImages > 0 && imgLabel) toast.error(imgLabel)
-      if (droppedVideos > 0 && vidLabel) toast.error(vidLabel)
+      if (droppedImages > 0 && imgLabel) setTimeout(() => toast.error(imgLabel), 0)
+      if (droppedVideos > 0 && vidLabel) setTimeout(() => toast.error(vidLabel), 0)
 
       return [...finalImages, ...finalVideos].sort(nameSort)
     })
