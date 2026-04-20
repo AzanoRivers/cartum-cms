@@ -78,7 +78,7 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
 
       // 3. Build and download ZIP entirely in browser
       const zipped = zipSync(files, { level: 0 }) // level 0 = store-only, fastest (media already compressed)
-      const zipBlob = new Blob([zipped], { type: 'application/zip' })
+      const zipBlob = new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' })
       const url     = URL.createObjectURL(zipBlob)
       const a       = document.createElement('a')
       a.href        = url
