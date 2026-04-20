@@ -134,6 +134,8 @@
       create:        'Create deck',
       backToBuilder: 'Back to Builder',
       help:          'Help & Shortcuts',
+      collapse:      'Collapse dock',
+      expand:        'Expand dock',
     },
     help: {
       title:              'Help',
@@ -647,7 +649,7 @@
         noOptions:   'No cards found.',
       },
       mediaGallery: {
-        title:           'Media Gallery',
+        title:           'Gallery',
         tabImages:       'Images',
         tabVideos:       'Videos',
         searchPlaceholder: 'Search…',
@@ -1152,7 +1154,7 @@ export type Dictionary = {
   }
   cms: {
     topBar: { account: string; logOut: string; userMenuAriaLabel: string }
-    dock:   { settings: string; home: string; content: string; create: string; backToBuilder: string; help: string }
+    dock:   { settings: string; home: string; content: string; create: string; backToBuilder: string; help: string; collapse: string; expand: string }
     help: {
       title: string; shortcutsTitle: string; gesturesTitle: string; close: string
       categoryNav: string; categoryPanels: string; categoryGestures: string

@@ -10,7 +10,12 @@ import { BreadcrumbSetter } from '@/components/ui/molecules/BreadcrumbSetter'
 import { MediaGalleryPage } from '@/components/ui/organisms/MediaGalleryPage'
 import type { SupportedLocale } from '@/types/project'
 
-export const metadata = { title: 'Media Gallery' }
+export async function generateMetadata() {
+  const [proj] = await db.select({ defaultLocale: project.defaultLocale }).from(project).limit(1)
+  const locale = (proj?.defaultLocale ?? 'en') as SupportedLocale
+  const d = getDictionary(locale).cms
+  return { title: d.content.mediaGallery.title }
+}
 
 export default async function ContentPage() {
   const session = await auth()

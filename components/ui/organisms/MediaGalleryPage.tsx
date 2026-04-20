@@ -258,8 +258,8 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
   })()
 
   return (
-    <div className="w-full min-h-full">
-      <div className="flex flex-col gap-4 p-4 pt-12 md:pt-6 md:p-6 md:max-w-350 md:mx-auto">
+    <div className="w-full min-h-dvh">
+      <div className="flex flex-col gap-4 p-4 pt-12 pb-28 md:pt-6 md:p-6 md:pb-28 md:max-w-350 md:mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-1.5">

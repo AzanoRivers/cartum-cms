@@ -160,6 +160,49 @@ canvas,
     contain: strict;
 }
 
+/* === UPLOAD QUEUE — row entrance + height animation === */
+@keyframes upload-row-in {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.upload-row-animate {
+    animation: upload-row-in 140ms ease-out both;
+}
+
+/* Grid wrapper that transitions between 0fr ↔ 1fr for smooth height change */
+.upload-rows-wrapper {
+    display: grid;
+    transition: grid-template-rows 200ms ease;
+}
+
+/* === DOCK — collapse / expand transition === */
+
+/* Nav pill — shifts right when collapsed so toggle stays in place */
+.dock-nav {
+    transition:
+        transform          280ms ease-in-out,
+        background-color   var(--dur-medium) var(--ease-out-expo),
+        border-color       var(--dur-medium) var(--ease-out-expo);
+}
+
+/* Icons section:
+   min-width:0 is CRITICAL — without it, flex won't shrink below content size
+   so max-width:0px would be ignored and the collapse wouldn't animate */
+.dock-icons-section {
+    min-width: 0;
+    transition:
+        max-width  280ms ease-in-out,
+        opacity    180ms ease-in-out,
+        clip-path  260ms ease-in-out;
+}
+
 /* === NODE PANEL TRANSFORM ORIGINS === */
 [data-panel-origin="top-left"] {
     transform-origin: top left;

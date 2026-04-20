@@ -201,31 +201,42 @@ export function MediaUploadZone({
         tabIndex={-1}
       />
 
-      {/* Queue rows */}
-      {allRows.length > 0 && (
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5 pr-px">
-          {allRows.map((entry) => (
-            <UploadFileRow
-              key={entry.id}
-              name={entry.name}
-              status={entry.status}
-              progress={entry.progress}
-              error={entry.error}
-              fileSizeBytes={entry.file.size}
-              isVideo={entry.file.type.startsWith('video/')}
-              onRemove={entry.status === 'pending' || entry.status === 'error'
-                ? () => onRemove(entry.id)
-                : undefined}
-              onCancel={onCancel && entry.phaseLabel !== undefined
-                ? () => onCancel(entry.id)
-                : undefined}
-              optimizingLabel={optimizingLabel}
-              uploadingLabel={uploadingLabel}
-              phaseLabel={entry.phaseLabel}
-            />
-          ))}
+      {/* Queue rows — grid trick: gridTemplateRows 0fr↔1fr is transitionable */}
+      <div
+        className="upload-rows-wrapper"
+        style={{ gridTemplateRows: allRows.length > 0 ? '1fr' : '0fr' }}
+      >
+        {/* contain:layout isolates recalcs from propagating up the tree */}
+        <div className="overflow-hidden min-h-0 contain-[layout]">
+          <div className="flex flex-col gap-1.5 pr-px overflow-y-auto max-h-[min(20rem,40vh)] py-px">
+            {allRows.map((entry, i) => (
+              <div
+                key={entry.id}
+                className="upload-row-animate shrink-0"
+                style={{ animationDelay: `${Math.min(i * 10, 80)}ms` }}
+              >
+                <UploadFileRow
+                  name={entry.name}
+                  status={entry.status}
+                  progress={entry.progress}
+                  error={entry.error}
+                  fileSizeBytes={entry.file.size}
+                  isVideo={entry.file.type.startsWith('video/')}
+                  onRemove={entry.status === 'pending' || entry.status === 'error'
+                    ? () => onRemove(entry.id)
+                    : undefined}
+                  onCancel={onCancel && entry.phaseLabel !== undefined
+                    ? () => onCancel(entry.id)
+                    : undefined}
+                  optimizingLabel={optimizingLabel}
+                  uploadingLabel={uploadingLabel}
+                  phaseLabel={entry.phaseLabel}
+                />
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Upload warnings — video takes priority when both types present */}
       {hasVideos && videoUploadWarning && (

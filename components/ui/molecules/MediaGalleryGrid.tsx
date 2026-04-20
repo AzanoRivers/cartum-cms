@@ -68,7 +68,7 @@ export function MediaGalleryGrid({
 }: MediaGalleryGridProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8">
         {Array.from({ length: loadingCount }).map((_, i) => (
           <SkeletonCard key={i} />
         ))}
@@ -115,7 +115,7 @@ export function MediaGalleryGrid({
   }
 
   return (
-    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8">
       {assets.map((asset) => (
         <MediaGalleryCard
           key={asset.id}

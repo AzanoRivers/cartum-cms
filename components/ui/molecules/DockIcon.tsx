@@ -15,15 +15,17 @@ export type DockIconProps = {
 export function DockIcon({ icon, tooltip, active = false, onClick }: DockIconProps) {
   return (
     <Tooltip content={tooltip} side="top">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onClick}
-        className={active ? 'text-accent bg-accent/10' : 'text-muted hover:text-text'}
-        aria-label={tooltip}
-      >
-        <Icon name={icon} size="lg" />
-      </Button>
+      <span className={active ? 'rounded-md bg-accent/15' : undefined}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClick}
+          className={active ? 'text-accent hover:bg-accent/20' : 'text-muted hover:text-text'}
+          aria-label={tooltip}
+        >
+          <Icon name={icon} size="lg" />
+        </Button>
+      </span>
     </Tooltip>
   )
 }

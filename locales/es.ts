@@ -136,6 +136,8 @@ export const es: Dictionary = {
       create:        'Crear mazo',
       backToBuilder: 'Volver al constructor',
       help:          'Ayuda y Atajos',
+      collapse:      'Colapsar dock',
+      expand:        'Expandir dock',
     },
     help: {
       title:              'Ayuda',
@@ -649,7 +651,7 @@ export const es: Dictionary = {
         noOptions:   'No se encontraron cartas.',
       },
       mediaGallery: {
-        title:             'Galería de Medios',
+        title:             'Galería',
         tabImages:         'Imágenes',
         tabVideos:         'Videos',
         searchPlaceholder: 'Buscar…',
