@@ -14,8 +14,15 @@ export function uploadFileWithProgress(
     const xhr = new XMLHttpRequest()
     xhr.open('PUT', uploadUrl)
     xhr.setRequestHeader('Content-Type', mimeType)
+    let lastProgressAt = 0
     xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+      if (!e.lengthComputable) return
+      const pct = Math.round((e.loaded / e.total) * 100)
+      const now = Date.now()
+      if (pct === 100 || now - lastProgressAt >= 100) {
+        lastProgressAt = now
+        onProgress(pct)
+      }
     })
     xhr.addEventListener('load', () => {
       if (xhr.status < 400) resolve()

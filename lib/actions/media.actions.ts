@@ -5,6 +5,8 @@ import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { auth } from '@/auth'
 import { getR2Client } from '@/lib/media/r2-client'
+import { blobUpload, BLOB_VIDEO_MAX_BYTES } from '@/lib/media/blob-client'
+import { getActiveProvider } from '@/lib/media/storage-router'
 import { getSetting } from '@/lib/settings/get-setting'
 import { mediaRepository } from '@/db/repositories/media.repository'
 import type { ActionResult } from '@/types/actions'
@@ -14,6 +16,7 @@ import type {
   SaveMediaInput,
   MediaRecord,
   MediaMeta,
+  MediaStorageSummary,
   UploadViaServerInput,
   UploadViaServerResult,
   ListMediaAssetsInput,
@@ -22,6 +25,7 @@ import type {
   MediaAssetsPagedResult,
   VpsWarning,
 } from '@/types/media'
+import type { StorageProvider } from '@/types/settings'
 import { ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES } from '@/types/media'
 
 const ALLOWED = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES] as string[]
@@ -38,7 +42,8 @@ async function requireSession() {
 }
 
 // -----------------------------------------------------------------------
-// getUploadUrl — generates a presigned PUT URL for direct browser upload
+// getUploadUrl — generates a presigned PUT URL for direct browser upload (R2)
+// Returns USE_SERVER_UPLOAD when Blob is the active provider (no presigned URLs)
 // -----------------------------------------------------------------------
 export async function getUploadUrl(
   input: GetUploadUrlInput,
@@ -49,6 +54,11 @@ export async function getUploadUrl(
     // Server-side mime type validation — never trust client
     if (!ALLOWED.includes(input.mimeType)) {
       return { success: false, error: 'FILE_TYPE_NOT_ALLOWED' }
+    }
+
+    const provider = await getActiveProvider()
+    if (provider === 'blob') {
+      return { success: false, error: 'USE_SERVER_UPLOAD' }
     }
 
     const { client, bucket, publicUrl } = await getR2Client()
@@ -197,6 +207,109 @@ export async function uploadViaServer(
       return { success: false, error: 'STORAGE_NOT_CONFIGURED' }
     }
     return { success: false, error: 'Upload failed.' }
+  }
+}
+
+// -----------------------------------------------------------------------
+// uploadBlobDirect — server-side Blob upload (Vercel Blob has no presigned URLs)
+// Called by the hook when getUploadUrl returns USE_SERVER_UPLOAD
+// -----------------------------------------------------------------------
+export async function uploadBlobDirect(
+  input: UploadViaServerInput,
+): Promise<ActionResult<{ publicUrl: string; key: string }>> {
+  try {
+    const userId = await requireSession()
+
+    if (!ALLOWED.includes(input.mimeType)) {
+      return { success: false, error: 'FILE_TYPE_NOT_ALLOWED' }
+    }
+
+    const ext      = input.filename ? sanitizeExtension(input.filename) : (input.mimeType.split('/')[1] ?? 'bin')
+    const pathname = `uploads/${randomUUID()}.${ext}`
+
+    const { publicUrl, key } = await blobUpload(pathname, input.file, input.mimeType)
+
+    await mediaRepository.create({
+      key,
+      publicUrl,
+      mimeType:        input.mimeType,
+      sizeBytes:       input.file.byteLength,
+      name:            input.filename ?? undefined,
+      nodeId:          input.nodeId,
+      uploadedBy:      userId,
+      storageProvider: 'blob',
+    })
+
+    return { success: true, data: { publicUrl, key } }
+  } catch (err) {
+    if (err instanceof Error && err.message === 'BLOB_NOT_CONFIGURED') {
+      return { success: false, error: 'STORAGE_NOT_CONFIGURED' }
+    }
+    return { success: false, error: 'Upload failed.' }
+  }
+}
+
+// -----------------------------------------------------------------------
+// uploadVideoBlobDirect — server-side Blob upload for videos (no presigned URLs)
+// Enforces the hard 50 MB Server Action limit before uploading.
+// -----------------------------------------------------------------------
+export async function uploadVideoBlobDirect(
+  input: UploadViaServerInput,
+): Promise<ActionResult<{ publicUrl: string; key: string }>> {
+  try {
+    const userId = await requireSession()
+
+    if (input.file.byteLength > BLOB_VIDEO_MAX_BYTES) {
+      return { success: false, error: 'VIDEO_TOO_LARGE_FOR_BLOB' }
+    }
+
+    const ext      = input.filename ? sanitizeExtension(input.filename) : 'mp4'
+    const pathname = `uploads/videos/${randomUUID()}.${ext}`
+
+    const { publicUrl, key } = await blobUpload(pathname, input.file, input.mimeType)
+
+    await mediaRepository.create({
+      key,
+      publicUrl,
+      mimeType:        input.mimeType,
+      sizeBytes:       input.file.byteLength,
+      name:            input.filename ?? undefined,
+      nodeId:          input.nodeId,
+      uploadedBy:      userId,
+      storageProvider: 'blob',
+    })
+
+    return { success: true, data: { publicUrl, key } }
+  } catch (err) {
+    if (err instanceof Error && err.message === 'BLOB_NOT_CONFIGURED') {
+      return { success: false, error: 'STORAGE_NOT_CONFIGURED' }
+    }
+    return { success: false, error: 'Upload failed.' }
+  }
+}
+
+// -----------------------------------------------------------------------
+// getActiveStorageProvider — expose active provider to client hooks
+// -----------------------------------------------------------------------
+export async function getActiveStorageProvider(): Promise<ActionResult<StorageProvider>> {
+  try {
+    const provider = await getActiveProvider()
+    return { success: true, data: provider }
+  } catch {
+    return { success: false, error: 'PROVIDER_UNKNOWN' }
+  }
+}
+
+// -----------------------------------------------------------------------
+// getMediaStorageSummary — total bytes/count per type + blob quota usage
+// -----------------------------------------------------------------------
+export async function getMediaStorageSummary(): Promise<ActionResult<MediaStorageSummary>> {
+  try {
+    await requireSession()
+    const summary = await mediaRepository.getStorageSummary()
+    return { success: true, data: summary }
+  } catch {
+    return { success: false, error: 'Failed to load storage summary.' }
   }
 }
 

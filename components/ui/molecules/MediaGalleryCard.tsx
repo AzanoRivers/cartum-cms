@@ -167,6 +167,10 @@ export function MediaGalleryCard({
                 preload="metadata"
                 muted
                 playsInline
+                onLoadedMetadata={(e) => {
+                  const v = e.currentTarget
+                  v.currentTime = v.duration > 10 ? 5 : v.duration * 0.5
+                }}
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

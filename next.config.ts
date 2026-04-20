@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   experimental: {
     // Video chunks are 10 MB. Next.js 16 default buffer is 10 MB — raise slightly for multipart overhead.
     proxyClientMaxBodySize: '15mb',
+    // Blob video uploads go through a Server Action with the full ArrayBuffer (no chunking).
+    // 52 MB gives a small margin above the hard 50 MB Vercel Blob limit.
+    serverActions: { bodySizeLimit: '52mb' },
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',

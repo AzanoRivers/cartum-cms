@@ -49,7 +49,7 @@ La interfaz principal es un **tablero de nodos infinito**, donde modelar la base
 | CMS sin DB propia | Un URL de PostgreSQL es suficiente (Neon, Supabase) |
 | Despliegue sin servidor propio | 100% serverless-first, funciona en Vercel / Cloudflare |
 | Equipo técnico + editores de contenido | Builder Mode (admin) vs Content Mode (editor), misma app |
-| Subir imágenes/video | Integración con Cloudflare R2 (opcional) |
+| Subir imágenes/video | Cloudflare R2 o Vercel Blob (opcional) |
 | Emails transaccionales | Resend integrado para reset y bienvenida (opcional) |
 
 ### La analogía del tablero
@@ -72,7 +72,7 @@ La interfaz principal es un **tablero de nodos infinito**, donde modelar la base
 | Base de datos | PostgreSQL: Neon o Supabase |
 | ORM | Drizzle ORM |
 | Auth | Auth.js v5 (NextAuth) |
-| Storage | Cloudflare R2 (opcional) |
+| Storage | Cloudflare R2 o Vercel Blob (opcional) |
 | Email | Resend (opcional) |
 | Estado UI | Zustand v5 |
 | Despliegue | Vercel / Cloudflare / Netlify |
@@ -120,6 +120,12 @@ R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
 
+# ── Vercel Blob (alternativa a R2) ─────────────────────────────
+# Obtén el token desde: Vercel Dashboard → Storage → Blob → Token
+BLOB_READ_WRITE_TOKEN=
+# Nota: con Blob activo y sin VPS configurado, los videos tienen un límite fijo de 50 MB.
+# Para videos más grandes, usa Cloudflare R2 o configura el VPS en Settings → Storage.
+
 # ── Resend (correos transaccionales) ───────────────────────────
 # Sin estas vars, los emails de bienvenida y reset de contraseña
 # no se envían (el flujo igual funciona, solo sin correo).
@@ -166,7 +172,8 @@ Cuando se configura `MEDIA_VPS_URL` y `MEDIA_VPS_KEY`, el browser llama al VPS *
 
 El hook obtiene un token de sesión de 2 horas al cargar la página y lo renueva automáticamente en background antes de que venza. Si el VPS no está disponible, las subidas caen sin error al proxy interno de Vercel.
 
-> Guía completa: [docs/media-vps.md](docs/media-vps.md)
+> Guía completa del VPS: [docs/media-vps.md](docs/media-vps.md)
+> Arquitectura de storage (R2 + Blob): [docs/media-storage.md](docs/media-storage.md)
 
 ---
 
@@ -310,7 +317,7 @@ The main interface is an **infinite node board**, where modeling your database i
 | CMS without managing your own DB | A single PostgreSQL URL is enough (Neon, Supabase) |
 | Deploy without a dedicated server | 100% serverless-first, works on Vercel / Cloudflare |
 | Technical team + content editors | Builder Mode (admin) vs Content Mode (editor), same app |
-| Image/video uploads | Cloudflare R2 integration (optional) |
+| Image/video uploads | Cloudflare R2 or Vercel Blob (optional) |
 | Transactional emails | Resend integration for resets and welcome emails (optional) |
 
 ### The board analogy
@@ -333,7 +340,7 @@ The main interface is an **infinite node board**, where modeling your database i
 | Database | PostgreSQL: Neon or Supabase |
 | ORM | Drizzle ORM |
 | Auth | Auth.js v5 (NextAuth) |
-| Storage | Cloudflare R2 (optional) |
+| Storage | Cloudflare R2 or Vercel Blob (optional) |
 | Email | Resend (optional) |
 | UI State | Zustand v5 |
 | Deployment | Vercel / Cloudflare / Netlify |
@@ -373,6 +380,11 @@ R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
 
+# Vercel Blob: alternative to R2 (get token from Vercel Dashboard → Storage → Blob)
+BLOB_READ_WRITE_TOKEN=
+# Note: with Blob active and no VPS configured, videos are limited to 50 MB per file.
+# For larger videos, use Cloudflare R2 or configure the VPS optimizer in Settings → Storage.
+
 # Resend: without these, emails are skipped (flows still work)
 RESEND_API_KEY=
 RESEND_FROM_EMAIL=
@@ -405,7 +417,8 @@ When `MEDIA_VPS_URL` and `MEDIA_VPS_KEY` are configured, the browser calls the V
 
 The hook fetches a 2-hour session token on page load and automatically renews it in the background before it expires. If the VPS is unavailable, uploads fall back silently to the internal Vercel proxy.
 
-> Full guide: [docs/media-vps.md](docs/media-vps.md)
+> Full VPS guide: [docs/media-vps.md](docs/media-vps.md)
+> Storage architecture (R2 + Blob): [docs/media-storage.md](docs/media-storage.md)
 
 ---
 

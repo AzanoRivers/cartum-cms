@@ -1,4 +1,5 @@
 import { recordsRepository } from '@/db/repositories/records.repository'
+import { mediaRepository } from '@/db/repositories/media.repository'
 import type { ContentRecord, RecordValue } from '@/types/records'
 import type { FieldNode } from '@/types/nodes'
 
@@ -38,16 +39,27 @@ export async function expandRelations(
   const result: Record<string, RecordValue | Record<string, RecordValue>> = { ...record.data }
 
   for (const fieldName of includeNames) {
-    const field = fields.find((f) => f.name === fieldName && f.fieldType === 'relation')
+    const field = fields.find((f) => f.name === fieldName)
     if (!field) continue
 
-    const relId = record.data[fieldName]
-    if (!relId || typeof relId !== 'string') continue
+    const rawValue = record.data[fieldName]
+    if (!rawValue || typeof rawValue !== 'string') continue
 
-    const relRow = await recordsRepository.findById(relId)
-    if (!relRow) continue
-
-    result[fieldName] = relRow.data as Record<string, RecordValue>
+    if (field.fieldType === 'relation') {
+      const relRow = await recordsRepository.findById(rawValue)
+      if (!relRow) continue
+      result[fieldName] = relRow.data as Record<string, RecordValue>
+    } else if (field.fieldType === 'image' || field.fieldType === 'video') {
+      const mediaRow = await mediaRepository.findById(rawValue)
+      if (!mediaRow) continue
+      result[fieldName] = {
+        id:              mediaRow.id,
+        url:             mediaRow.publicUrl,
+        mimeType:        mediaRow.mimeType,
+        storageProvider: mediaRow.storageProvider,
+        sizeBytes:       mediaRow.sizeBytes,
+      }
+    }
   }
 
   return result

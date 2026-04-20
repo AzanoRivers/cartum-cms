@@ -5,6 +5,8 @@ import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { auth } from '@/auth'
 import { getSetting } from '@/lib/settings/get-setting'
 import { getR2Client } from '@/lib/media/r2-client'
+import { blobUpload } from '@/lib/media/blob-client'
+import { getActiveProvider } from '@/lib/media/storage-router'
 import { mediaRepository } from '@/db/repositories/media.repository'
 
 /**
@@ -74,7 +76,50 @@ export async function POST(req: NextRequest) {
     ? vtContentType.split(';')[0].trim()
     : mime_type
 
-  // ── 2. Stream to R2 ───────────────────────────────────────────────────────
+  const ext      = filename.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') ?? 'mp4'
+  const key      = `uploads/${randomUUID()}.${ext}`
+  const provider = await getActiveProvider()
+
+  // ── 2. Upload to storage (Blob or R2) ─────────────────────────────────────
+  if (provider === 'blob') {
+    // Blob requires buffering — no streaming put via SDK
+    let videoBuffer: Buffer
+    try {
+      videoBuffer = Buffer.from(await vpsRes.arrayBuffer())
+    } catch {
+      return NextResponse.json({ error: 'VPS_BUFFER_FAILED' }, { status: 502 })
+    }
+
+    let blobResult: { publicUrl: string; key: string }
+    try {
+      blobResult = await blobUpload(`uploads/videos/${key}`, videoBuffer, finalMime)
+    } catch {
+      return NextResponse.json({ error: 'BLOB_UPLOAD_FAILED' }, { status: 500 })
+    }
+
+    try {
+      await mediaRepository.create({
+        key:             blobResult.key,
+        publicUrl:       blobResult.publicUrl,
+        mimeType:        finalMime,
+        sizeBytes:       videoBuffer.byteLength,
+        name:            filename,
+        uploadedBy:      userId,
+        storageProvider: 'blob',
+      })
+    } catch {
+      return NextResponse.json({ error: 'DB_SAVE_FAILED' }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      key:       blobResult.key,
+      publicUrl: blobResult.publicUrl,
+      mimeType:  finalMime,
+      sizeBytes: videoBuffer.byteLength,
+    })
+  }
+
+  // ── R2 path: stream directly from VPS to R2 ───────────────────────────────
   let r2Config: Awaited<ReturnType<typeof getR2Client>>
   try {
     r2Config = await getR2Client()
@@ -84,10 +129,7 @@ export async function POST(req: NextRequest) {
 
   const { client, bucket, publicUrl: r2BaseUrl } = r2Config
 
-  const ext = filename.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') ?? 'mp4'
-  const key = `uploads/${randomUUID()}.${ext}`
-
-  // Convert Web ReadableStream → Node.js Readable for the AWS SDK
+  // Convert Web ReadableStream to Node.js Readable for the AWS SDK
   const nodeReadable = Readable.fromWeb(vpsRes.body as import('stream/web').ReadableStream)
 
   try {

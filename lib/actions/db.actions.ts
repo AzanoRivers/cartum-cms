@@ -14,12 +14,109 @@ import {
   passwordResetTokens,
   usersRoles,
   rolePermissions,
+  roleSectionPermissions,
   appSettings,
   project,
   roles,
   users,
 } from '@/db/schema'
+import { del as blobDel, list as blobList } from '@vercel/blob'
+import { getSetting } from '@/lib/settings/get-setting'
+import { getR2Client } from '@/lib/media/r2-client'
+import {
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
+} from '@aws-sdk/client-s3'
 import type { ActionResult } from '@/types/actions'
+
+// ── Storage purge ─────────────────────────────────────────────────────────────
+
+export type StoragePurgeResult = {
+  deleted:     number
+  failed:      number
+  r2Orphans:   number
+  blobOrphans: number
+}
+
+async function purgeAllMediaStorage(): Promise<StoragePurgeResult> {
+  let deleted     = 0
+  let failed      = 0
+  let r2Orphans   = 0
+  let blobOrphans = 0
+
+  // Hoist clients once — getSetting reads from DB, must not run per-row
+  let r2: Awaited<ReturnType<typeof getR2Client>> | null = null
+  try { r2 = await getR2Client() } catch { /* R2 not configured */ }
+
+  const blobToken = await getSetting('blob_token', process.env.BLOB_READ_WRITE_TOKEN).catch(() => null)
+
+  // ── Phase 1: DB-driven purge ─────────────────────────────────────────────
+  const rows = await db
+    .select({ key: media.key, publicUrl: media.publicUrl, storageProvider: media.storageProvider })
+    .from(media)
+
+  const BATCH = 100
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const batch = rows.slice(i, i + BATCH)
+    await Promise.all(
+      batch.map(async (row) => {
+        try {
+          if (row.storageProvider === 'blob') {
+            if (!blobToken) { failed++; return }
+            await blobDel(row.publicUrl, { token: blobToken })
+          } else {
+            if (!r2) { failed++; return }
+            await r2.client.send(new DeleteObjectCommand({ Bucket: r2.bucket, Key: row.key }))
+          }
+          deleted++
+        } catch {
+          failed++
+        }
+      }),
+    )
+  }
+
+  // ── Phase 2: storage sweep — orphans not in DB ────────────────────────────
+
+  // R2 sweep
+  if (r2) {
+    let continuationToken: string | undefined
+    do {
+      const listRes = await r2.client.send(new ListObjectsV2Command({
+        Bucket:            r2.bucket,
+        Prefix:            'uploads/',
+        ContinuationToken: continuationToken,
+      }))
+      const keys = (listRes.Contents ?? []).map((obj) => ({ Key: obj.Key! }))
+      if (keys.length > 0) {
+        await r2.client.send(new DeleteObjectsCommand({
+          Bucket: r2.bucket,
+          Delete: { Objects: keys, Quiet: true },
+        }))
+        r2Orphans += keys.length
+      }
+      continuationToken = listRes.IsTruncated ? listRes.NextContinuationToken : undefined
+    } while (continuationToken)
+  }
+
+  // Blob sweep
+  if (blobToken) {
+    let cursor: string | undefined
+    do {
+      const listRes = await blobList({ prefix: 'uploads/', cursor, token: blobToken })
+      for (const blob of listRes.blobs) {
+        try {
+          await blobDel(blob.url, { token: blobToken })
+          blobOrphans++
+        } catch { /* best-effort */ }
+      }
+      cursor = listRes.hasMore ? listRes.cursor : undefined
+    } while (cursor)
+  }
+
+  return { deleted, failed, r2Orphans, blobOrphans }
+}
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
 
@@ -33,14 +130,23 @@ async function requireSuperAdmin(): Promise<string | null> {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type CmsBackup = {
-  version:          string
-  exportedAt:       string
-  nodes:            unknown[]
-  fieldMeta:        unknown[]
-  nodeRelations:    unknown[]
-  records:          unknown[]
-  media:            unknown[]
-  rolePermissions?: unknown[]   // optional — absent in backups created before v1.1
+  version:                  string
+  exportedAt:               string
+  // config layer — added in v1.2 (optional for compat with v1.0/v1.1 backups)
+  project?:                 unknown[]
+  users?:                   unknown[]
+  roles?:                   unknown[]
+  usersRoles?:              unknown[]
+  apiTokens?:               unknown[]
+  appSettings?:             unknown[]
+  roleSectionPermissions?:  unknown[]
+  // content layer — always present
+  nodes:                    unknown[]
+  fieldMeta:                unknown[]
+  nodeRelations:            unknown[]
+  records:                  unknown[]
+  media:                    unknown[]
+  rolePermissions?:         unknown[]  // absent in v1.0
 }
 
 // ── Export ────────────────────────────────────────────────────────────────────
@@ -49,25 +155,42 @@ export async function exportDatabaseAction(): Promise<ActionResult<{ json: strin
   const userId = await requireSuperAdmin()
   if (!userId) return { success: false, error: 'Unauthorized' }
 
-  const [nodesData, fieldMetaData, nodeRelationsData, recordsData, mediaData, rolePermissionsData] =
-    await Promise.all([
-      db.select().from(nodes),
-      db.select().from(fieldMeta),
-      db.select().from(nodeRelations),
-      db.select().from(records),
-      db.select().from(media),
-      db.select().from(rolePermissions),
-    ])
+  const [
+    projectData, usersData, rolesData, usersRolesData, apiTokensData,
+    appSettingsData, roleSectionPermissionsData,
+    nodesData, fieldMetaData, nodeRelationsData, recordsData, mediaData, rolePermissionsData,
+  ] = await Promise.all([
+    db.select().from(project),
+    db.select().from(users),
+    db.select().from(roles),
+    db.select().from(usersRoles),
+    db.select().from(apiTokens),
+    db.select().from(appSettings),
+    db.select().from(roleSectionPermissions),
+    db.select().from(nodes),
+    db.select().from(fieldMeta),
+    db.select().from(nodeRelations),
+    db.select().from(records),
+    db.select().from(media),
+    db.select().from(rolePermissions),
+  ])
 
   const backup: CmsBackup = {
-    version:         '1.1',
-    exportedAt:      new Date().toISOString(),
-    nodes:           nodesData,
-    fieldMeta:       fieldMetaData,
-    nodeRelations:   nodeRelationsData,
-    records:         recordsData,
-    media:           mediaData,
-    rolePermissions: rolePermissionsData,
+    version:                 '1.2',
+    exportedAt:              new Date().toISOString(),
+    project:                 projectData,
+    users:                   usersData,
+    roles:                   rolesData,
+    usersRoles:              usersRolesData,
+    apiTokens:               apiTokensData,
+    appSettings:             appSettingsData,
+    roleSectionPermissions:  roleSectionPermissionsData,
+    nodes:                   nodesData,
+    fieldMeta:               fieldMetaData,
+    nodeRelations:           nodeRelationsData,
+    records:                 recordsData,
+    media:                   mediaData,
+    rolePermissions:         rolePermissionsData,
   }
 
   const dateStr  = new Date().toISOString().slice(0, 10)
@@ -172,7 +295,7 @@ export async function importDatabaseAction(raw: unknown): Promise<ActionResult<n
   const userId = await requireSuperAdmin()
   if (!userId) return { success: false, error: 'Unauthorized' }
 
-  // Top-level structure check
+  // Top-level structure check (only required fields — content layer)
   if (
     typeof raw !== 'object' || raw === null ||
     !('version' in raw) || !('nodes' in raw) ||
@@ -185,11 +308,20 @@ export async function importDatabaseAction(raw: unknown): Promise<ActionResult<n
     return { success: false, error: 'invalid_backup' }
   }
 
-  // Normalize: rolePermissions is optional (absent in v1.0 backups)
+  // Normalize optional arrays — v1.0/v1.1 backups lack config layer tables
   const rawObj = raw as Record<string, unknown>
+  const arr    = (k: string) => Array.isArray(rawObj[k]) ? rawObj[k] as unknown[] : []
+
   const backup: CmsBackup = {
-    ...(raw as Omit<CmsBackup, 'rolePermissions'>),
-    rolePermissions: Array.isArray(rawObj.rolePermissions) ? rawObj.rolePermissions : [],
+    ...(raw as CmsBackup),
+    project:                arr('project'),
+    users:                  arr('users'),
+    roles:                  arr('roles'),
+    usersRoles:             arr('usersRoles'),
+    apiTokens:              arr('apiTokens'),
+    appSettings:            arr('appSettings'),
+    roleSectionPermissions: arr('roleSectionPermissions'),
+    rolePermissions:        arr('rolePermissions'),
   }
 
   // Item-level shape validation
@@ -197,49 +329,45 @@ export async function importDatabaseAction(raw: unknown): Promise<ActionResult<n
   if (itemError) return { success: false, error: itemError }
 
   // Sort nodes topologically (BFS from roots) to satisfy self-referential FK
-  // on insertion. Handles arbitrary nesting depth, not just 2 levels.
   const sortedNodes = topoSortNodes(backup.nodes)
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type Tx = any
+
   try {
-    await db.transaction(async (tx) => {
-      // Wipe existing content in FK-safe order.
-      // rolePermissions.nodeId → nodes.id CASCADE, so it is deleted automatically
-      // when nodes are deleted, but we delete it explicitly first to be explicit
-      // and to allow us to re-insert it cleanly below.
-      await tx.delete(media)
+    await db.transaction(async (tx: Tx) => {
+      // ── Wipe in FK-safe order (children before parents) ──────────────────
+      await tx.delete(media)                  // uploadedBy → users RESTRICT
+      await tx.delete(apiTokens)              // roleId → roles
+      await tx.delete(usersRoles)             // userId → users, roleId → roles
+      await tx.delete(roleSectionPermissions) // roleId → roles CASCADE
+      await tx.delete(rolePermissions)        // roleId + nodeId CASCADE
       await tx.delete(nodeRelations)
-      await tx.delete(rolePermissions)
       await tx.delete(records)
       await tx.delete(fieldMeta)
       await tx.delete(nodes)
+      await tx.delete(appSettings)            // updatedBy → users SET NULL
+      await tx.delete(project)
+      await tx.delete(roles)
+      await tx.delete(users)
 
-      // Restore — insert only if arrays are non-empty
-      if (sortedNodes.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await tx.insert(nodes).values(sortedNodes as any[])
+      // ── Restore in FK-safe order (parents before children) ───────────────
+      const ins = async (table: unknown, rows: unknown[]) => {
+        if (rows.length > 0) await tx.insert(table).values(rows)
       }
-      if (backup.fieldMeta.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await tx.insert(fieldMeta).values(backup.fieldMeta as any[])
-      }
-      if (backup.nodeRelations.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await tx.insert(nodeRelations).values(backup.nodeRelations as any[])
-      }
-      if (backup.records.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await tx.insert(records).values(backup.records as any[])
-      }
-      if (backup.media.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await tx.insert(media).values(backup.media as any[])
-      }
-      // Restore role permissions after nodes are inserted so FK is satisfied.
-      // Skipped for v1.0 backups (rolePermissions array will be empty).
-      if ((backup.rolePermissions ?? []).length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await tx.insert(rolePermissions).values(backup.rolePermissions as any[])
-      }
+      await ins(project,                backup.project!)
+      await ins(roles,                  backup.roles!)
+      await ins(users,                  backup.users!)
+      await ins(usersRoles,             backup.usersRoles!)
+      await ins(apiTokens,              backup.apiTokens!)
+      await ins(roleSectionPermissions, backup.roleSectionPermissions!)
+      await ins(nodes,                  sortedNodes)
+      await ins(fieldMeta,              backup.fieldMeta)
+      await ins(nodeRelations,          backup.nodeRelations)
+      await ins(records,                backup.records)
+      await ins(media,                  backup.media)
+      await ins(rolePermissions,        backup.rolePermissions!)
+      await ins(appSettings,            backup.appSettings!)
     })
   } catch {
     return { success: false, error: 'db_error' }
@@ -263,11 +391,14 @@ async function safeDelete(table: Parameters<typeof db.delete>[0]): Promise<void>
   }
 }
 
-export async function resetCmsAction(): Promise<ActionResult<null>> {
+export async function resetCmsAction(): Promise<ActionResult<{ storagePurge: StoragePurgeResult } | null>> {
   const userId = await requireSuperAdmin()
   if (!userId) return { success: false, error: 'Unauthorized' }
 
   try {
+    // Purge storage BEFORE wiping DB rows — rows are the inventory
+    const storagePurge = await purgeAllMediaStorage()
+
     // FK-safe deletion order:
     // 1. media (RESTRICT FK → users.id, must go before users)
     // 2. auth helper tables
@@ -292,17 +423,17 @@ export async function resetCmsAction(): Promise<ActionResult<null>> {
     await safeDelete(project)
     await safeDelete(roles)
     await safeDelete(users)
+
+    // Clear all cookies so stale sessions can't be used after reset
+    try {
+      const jar = await cookies()
+      for (const cookie of jar.getAll()) {
+        jar.delete(cookie.name)
+      }
+    } catch { /* cookies may not be available in some edge runtimes */ }
+
+    return { success: true, data: { storagePurge } }
   } catch {
     return { success: false, error: 'db_error' }
   }
-
-  // Clear all cookies so stale sessions can't be used after reset
-  try {
-    const jar = await cookies()
-    for (const cookie of jar.getAll()) {
-      jar.delete(cookie.name)
-    }
-  } catch { /* cookies may not be available in some edge runtimes */ }
-
-  return { success: true, data: null }
 }

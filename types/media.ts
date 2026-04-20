@@ -7,16 +7,17 @@ export interface OptimizeResult {
 }
 
 export interface MediaRecord {
-  id:         string
-  key:        string
-  publicUrl:  string
-  mimeType:   string
-  sizeBytes:  number | null
-  name:       string | null
-  nodeId:     string | null
-  recordId:   string | null
-  uploadedBy: string
-  createdAt:  Date
+  id:              string
+  key:             string
+  publicUrl:       string
+  mimeType:        string
+  sizeBytes:       number | null
+  name:            string | null
+  nodeId:          string | null
+  recordId:        string | null
+  uploadedBy:      string
+  storageProvider: 'r2' | 'blob'
+  createdAt:       Date
 }
 
 export interface GetUploadUrlInput {
@@ -33,13 +34,14 @@ export interface UploadUrlResult {
 }
 
 export interface SaveMediaInput {
-  key:       string
-  publicUrl: string
-  mimeType:  string
-  sizeBytes: number | null
-  name?:     string
-  nodeId?:   string
-  recordId?: string
+  key:              string
+  publicUrl:        string
+  mimeType:         string
+  sizeBytes:        number | null
+  name?:            string
+  nodeId?:          string
+  recordId?:        string
+  storageProvider?: 'r2' | 'blob'
 }
 
 export interface ListMediaAssetsInput {
@@ -108,6 +110,18 @@ export const MAX_VIDEO_SIZE_BYTES          = 500 * 1024 * 1024  // 500 MB
 export const VIDEO_CHUNK_MAX_BYTES         = 10  * 1024 * 1024  //  10 MB — safe for most proxies (nginx default 1 MB raised)
 export const VIDEO_FALLBACK_WARNING_BYTES  = 100 * 1024 * 1024  // 100 MB — threshold for unoptimized upload warning
 export const IMAGE_FALLBACK_WARNING_BYTES  =   5 * 1024 * 1024  //   5 MB — warn when VPS unavailable and image is large
+// Hard Vercel Server Action limit for Blob uploads — cannot be raised without changing Vercel infra
+export const BLOB_VIDEO_MAX_BYTES          = 50  * 1024 * 1024  //  50 MB
+
+export const BLOB_STORAGE_QUOTA_BYTES = 500 * 1024 * 1024  // 500 MB — Vercel Hobby plan limit
+
+export interface MediaStorageSummary {
+  imagesTotalBytes: number
+  videosTotalBytes: number
+  imagesCount:      number
+  videosCount:      number
+  blobTotalBytes:   number  // sum of all records with storageProvider = 'blob'
+}
 
 /** Phase labels shown in the upload row during VPS video compression. */
 export type VideoUploadPhase = 'chunking' | 'processing' | 'finalizing'

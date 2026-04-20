@@ -3,8 +3,10 @@ import { db } from '@/db'
 import { media } from '@/db/schema'
 import { DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getR2Client } from '@/lib/media/r2-client'
+import { blobDelete } from '@/lib/media/blob-client'
 import type {
   MediaRecord,
+  MediaStorageSummary,
   ListMediaAssetsInput,
   MediaAssetsPage,
   ListMediaAssetsPagedInput,
@@ -14,16 +16,17 @@ import type {
 
 function toMediaRecord(row: typeof media.$inferSelect): MediaRecord {
   return {
-    id:         row.id,
-    key:        row.key,
-    publicUrl:  row.publicUrl,
-    mimeType:   row.mimeType,
-    sizeBytes:  row.sizeBytes,
-    name:       row.name ?? null,
-    nodeId:     row.nodeId,
-    recordId:   row.recordId,
-    uploadedBy: row.uploadedBy,
-    createdAt:  row.createdAt,
+    id:              row.id,
+    key:             row.key,
+    publicUrl:       row.publicUrl,
+    mimeType:        row.mimeType,
+    sizeBytes:       row.sizeBytes,
+    name:            row.name ?? null,
+    nodeId:          row.nodeId,
+    recordId:        row.recordId,
+    uploadedBy:      row.uploadedBy,
+    storageProvider: (row.storageProvider as 'r2' | 'blob') ?? 'r2',
+    createdAt:       row.createdAt,
   }
 }
 
@@ -32,14 +35,15 @@ export const mediaRepository = {
     const [row] = await db
       .insert(media)
       .values({
-        key:        input.key,
-        publicUrl:  input.publicUrl,
-        mimeType:   input.mimeType,
-        sizeBytes:  input.sizeBytes,
-        name:       input.name ?? null,
-        nodeId:     input.nodeId ?? null,
-        recordId:   input.recordId ?? null,
-        uploadedBy: input.uploadedBy,
+        key:             input.key,
+        publicUrl:       input.publicUrl,
+        mimeType:        input.mimeType,
+        sizeBytes:       input.sizeBytes,
+        name:            input.name ?? null,
+        nodeId:          input.nodeId ?? null,
+        recordId:        input.recordId ?? null,
+        uploadedBy:      input.uploadedBy,
+        storageProvider: input.storageProvider ?? 'r2',
       })
       .returning()
     return toMediaRecord(row)
@@ -124,6 +128,25 @@ export const mediaRepository = {
     }
   },
 
+  async getStorageSummary(): Promise<MediaStorageSummary> {
+    const [row] = await db
+      .select({
+        imagesTotalBytes: sql<string>`COALESCE(SUM(CASE WHEN ${media.mimeType} LIKE 'image/%' THEN COALESCE(${media.sizeBytes}, 0) ELSE 0 END), 0)`,
+        videosTotalBytes: sql<string>`COALESCE(SUM(CASE WHEN ${media.mimeType} LIKE 'video/%' THEN COALESCE(${media.sizeBytes}, 0) ELSE 0 END), 0)`,
+        imagesCount:      sql<string>`COUNT(CASE WHEN ${media.mimeType} LIKE 'image/%' THEN 1 END)`,
+        videosCount:      sql<string>`COUNT(CASE WHEN ${media.mimeType} LIKE 'video/%' THEN 1 END)`,
+        blobTotalBytes:   sql<string>`COALESCE(SUM(CASE WHEN ${media.storageProvider} = 'blob' THEN COALESCE(${media.sizeBytes}, 0) ELSE 0 END), 0)`,
+      })
+      .from(media)
+    return {
+      imagesTotalBytes: Number(row.imagesTotalBytes),
+      videosTotalBytes: Number(row.videosTotalBytes),
+      imagesCount:      Number(row.imagesCount),
+      videosCount:      Number(row.videosCount),
+      blobTotalBytes:   Number(row.blobTotalBytes),
+    }
+  },
+
   async getAllFileNames(): Promise<string[]> {
     const rows = await db.select({ key: media.key, name: media.name }).from(media)
     return rows.map((r) => (r.name ?? r.key.split('/').pop() ?? '').toLowerCase()).filter(Boolean)
@@ -133,12 +156,14 @@ export const mediaRepository = {
     const [row] = await db.select().from(media).where(eq(media.id, id)).limit(1)
     if (!row) throw new Error('MEDIA_NOT_FOUND')
 
-    // Delete from R2 storage — best-effort (don't fail if R2 is unreachable)
-    try {
-      const { client, bucket } = await getR2Client()
-      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: row.key }))
-    } catch {
-      // ignore R2 errors — still remove DB record
+    // Delete from storage — best-effort (don't fail if provider is unreachable)
+    if (row.storageProvider === 'blob') {
+      try { await blobDelete(row.publicUrl) } catch { /* ignore */ }
+    } else {
+      try {
+        const { client, bucket } = await getR2Client()
+        await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: row.key }))
+      } catch { /* ignore R2 errors — still remove DB record */ }
     }
 
     await db.delete(media).where(eq(media.id, id))

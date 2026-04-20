@@ -298,6 +298,26 @@ function MediaSection({ d }: { d: DocsDict }) {
       </div>
       <Note>{s.configNote}</Note>
       <div>
+        <SubHeading>{s.storageTitle}</SubHeading>
+        <Prose>{s.storageIntro}</Prose>
+        <div className="mt-2">
+          <UL items={[s.storageR2, s.storageBlob]} />
+        </div>
+        <div className="mt-3">
+          <SubHeading>{s.storageSwitchTitle}</SubHeading>
+          <Prose>{s.storageSwitch}</Prose>
+          <div className="mt-2">
+            <Note>{s.storageBackcompat}</Note>
+          </div>
+        </div>
+        <div className="mt-3">
+          <SubHeading>{s.storageVideoLimitsTitle}</SubHeading>
+          <div className="mt-2">
+            <UL items={[s.storageVideoLimitsBlob, s.storageVideoLimitsR2]} />
+          </div>
+        </div>
+      </div>
+      <div>
         <SubHeading>{s.vpsTitle}</SubHeading>
         <Prose>{s.vpsIntro}</Prose>
         <div className="mt-2">

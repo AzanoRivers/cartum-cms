@@ -300,6 +300,16 @@
         vpsItem3:      'Videos: init, chunks, finalize and status polling all go directly to the VPS.',
         vpsItem4:      'Video final step (VPS → R2 save) still runs on Vercel - it requires server-side credentials.',
         vpsTtlNote:    'Token lifetime (default 2 h) is configured on the VPS at app/core/security.py → _SESSION_TTL.',
+        storageTitle:       'Storage Providers',
+        storageIntro:       'Cartum supports two storage providers: Cloudflare R2 and Vercel Blob. Configure them at Settings → Storage.',
+        storageR2:          'Cloudflare R2: the browser uploads directly to R2 via a presigned URL — bytes never pass through Vercel.',
+        storageBlob:        'Vercel Blob: uploads go through a Server Action on Vercel. Simpler to set up — no Cloudflare account needed.',
+        storageSwitchTitle: 'Switching providers',
+        storageSwitch:      'Go to Settings → Storage. If both providers are configured, a selector appears at the top. The active provider applies to new uploads only — existing files are not migrated.',
+        storageBackcompat:  'Files already uploaded keep their original provider regardless of the active setting. Existing URLs always work.',
+        storageVideoLimitsTitle: 'Video limits by provider',
+        storageVideoLimitsBlob:  'Vercel Blob without VPS: 50 MB per video (fixed Vercel Server Action limit). The upload is rejected before entering the queue if the file exceeds this limit.',
+        storageVideoLimitsR2:    'Cloudflare R2 or Blob with VPS: up to 500 MB. The VPS optimizer compresses the video before storage — the 50 MB limit does not apply.',
       },
       apiForDevs: {
         title:        'API for Developers',
@@ -687,7 +697,9 @@
         videoChunking:    'Uploading to VPS…',
         videoProcessing:  'Compressing…',
         videoFinalizing:  'Saving…',
-        videoVpsSkipped:  'Optimizer not configured. Uploading original.',
+        videoVpsSkipped:       'Optimizer not configured. Uploading original.',
+        videoBlobTooLarge:     'Video exceeds 50 MB. Use Cloudflare R2 or configure a VPS optimizer to upload larger videos.',
+        videoBlobFallbackFail: 'VPS error and video exceeds the 50 MB Blob limit. Cannot upload.',
         // Video fallback warning modal
         videoFallbackTitle:  'Large video warning',
         videoFallbackBody:   'This video exceeds 100 MB, which is above the recommended limit. Large videos may cause slow load times even after compression. Consider using a smaller or pre-optimized file.',
@@ -801,6 +813,7 @@
       r2BucketNamePlaceholder: 'my-bucket',
       r2PublicUrl:             'R2 Public URL',
       r2PublicUrlPlaceholder:  'https://pub-xxx.r2.dev',
+      vpsSectionTitle:         'VPS Media Optimizer',
       mediaVpsUrl:             'Optimization server URL',
       mediaVpsUrlPlaceholder:  'https://optimus.azanolabs.com',
       mediaVpsKey:             'Optimization server API key',
@@ -816,6 +829,27 @@
       saved:                   'Storage settings saved.',
       error:                   'Could not save storage settings.',
       saveEmptyNotice:         'Saving empty values removes them from the database (env fallback resumes).',
+      // Provider selector
+      providerLabel:           'Active provider',
+      providerR2:              'Cloudflare R2',
+      providerBlob:            'Vercel Blob',
+      providerSaved:           'Provider updated.',
+      providerError:           'Could not update provider.',
+      providerSelectHint:      'Select the active storage provider for new uploads.',
+      // Status badges
+      statusConfigured:        'Configured',
+      statusNotConfigured:     'Not configured',
+      statusActive:            'Active',
+      // R2 accordion
+      r2SectionTitle:          'Cloudflare R2',
+      // Blob accordion
+      blobSectionTitle:        'Vercel Blob',
+      blobToken:               'Blob read/write token',
+      blobTokenPlaceholder:    'vercel_blob_rw_...',
+      blobTokenHint:           'From your Vercel dashboard \u2192 Storage \u2192 Blob.',
+      testBlob:                'Test Blob connection',
+      testBlobOk:              'Blob connected.',
+      testBlobFail:            'Could not connect to Blob.',
     },
     email: {
       title:               'Email',
@@ -993,19 +1027,25 @@
       importOverwriteWarn:'This will overwrite all existing nodes, fields and records.',
       importSuccess:      'Backup imported successfully.',
       importError:        'Import failed. Make sure the file is a valid Cartum backup.',
+      exportWithMediaButton: 'Export with media (.zip)',
+      exportWithMediaing:    'Building ZIP...',
+      exportWithMediaNote:   'Includes all images and videos from Cloudflare R2 and Vercel Blob.',
       exportError:        'Export failed. Please try again.',
       resetError:         'Reset failed. Please try again.',
       dangerTitle:        'Danger zone',
       dangerDesc:         'Permanently delete all CMS data, users and settings. This cannot be undone.',
       dangerButton:       'Delete all data',
       resetDialog: {
-        title:         'Delete all data?',
-        desc:          'This will permanently erase all users, nodes, records, media and settings. The CMS will restart from zero.',
-        placeholder:   'Type to confirm',
-        confirmPhrase: 'DELETE PERMANENTLY',
-        cancel:        'Cancel',
-        confirm:       'Yes, delete everything',
-        confirming:    'Deleting...',
+        title:              'Delete all data?',
+        desc:               'This will permanently erase all users, nodes, records, media and settings. The CMS will restart from zero.',
+        storageNote:        'All files stored in Cloudflare R2 and Vercel Blob will also be permanently deleted.',
+        placeholder:        'Type to confirm',
+        confirmPhrase:      'DELETE PERMANENTLY',
+        cancel:             'Cancel',
+        confirm:            'Yes, delete everything',
+        confirming:         'Deleting...',
+        purgedSummary:      'Files purged: {deleted}. Errors: {failed}.',
+        purgeFailWarn:      '{failed} file(s) could not be deleted from storage and may remain as orphans.',
       },
     },
   },
@@ -1184,6 +1224,9 @@ export type Dictionary = {
         vpsTitle: string; vpsIntro: string
         vpsItem1: string; vpsItem2: string; vpsItem3: string; vpsItem4: string
         vpsTtlNote: string
+        storageTitle: string; storageIntro: string; storageR2: string; storageBlob: string
+        storageSwitchTitle: string; storageSwitch: string; storageBackcompat: string
+        storageVideoLimitsTitle: string; storageVideoLimitsBlob: string; storageVideoLimitsR2: string
       }
       apiForDevs: {
         title: string; intro: string
@@ -1324,6 +1367,7 @@ export type Dictionary = {
         videoUploadWarning: string
         videoSizeError: string; videoChunking: string; videoProcessing: string
         videoFinalizing: string; videoVpsSkipped: string
+        videoBlobTooLarge: string; videoBlobFallbackFail: string
         videoFallbackTitle: string; videoFallbackBody: string
         videoFallbackUpload: string; videoFallbackCancel: string
         imageFallbackTitle: string; imageFallbackBody: string
@@ -1376,11 +1420,17 @@ export type Dictionary = {
     }
     storage: {
       title: string
+      providerLabel: string; providerR2: string; providerBlob: string; providerSaved: string; providerError: string; providerSelectHint: string
+      statusConfigured: string; statusNotConfigured: string; statusActive: string
+      r2SectionTitle: string
       r2BucketName: string; r2BucketNamePlaceholder: string
       r2PublicUrl: string; r2PublicUrlPlaceholder: string
-      mediaVpsUrl: string; mediaVpsUrlPlaceholder: string; mediaVpsKey: string
+      vpsSectionTitle: string; mediaVpsUrl: string; mediaVpsUrlPlaceholder: string; mediaVpsKey: string
       showKey: string; hideKey: string; apiDocsLink: string
       testConnection: string; testing: string; testOk: string; testFail: string
+      blobSectionTitle: string
+      blobToken: string; blobTokenPlaceholder: string; blobTokenHint: string
+      testBlob: string; testBlobOk: string; testBlobFail: string
       save: string; saving: string; saved: string; error: string; saveEmptyNotice: string
     }
     email: {
@@ -1452,11 +1502,13 @@ export type Dictionary = {
       title: string; exportTitle: string; exportDesc: string; exportButton: string; exporting: string
       importTitle: string; importDesc: string; importButton: string; importing: string
       importOverwriteWarn: string; importSuccess: string; importError: string
+      exportWithMediaButton: string; exportWithMediaing: string; exportWithMediaNote: string
       exportError: string; resetError: string
       dangerTitle: string; dangerDesc: string; dangerButton: string
       resetDialog: {
-        title: string; desc: string; placeholder: string
+        title: string; desc: string; storageNote: string; placeholder: string
         confirmPhrase: string; cancel: string; confirm: string; confirming: string
+        purgedSummary: string; purgeFailWarn: string
       }
     }
   }

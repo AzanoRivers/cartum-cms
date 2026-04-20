@@ -69,6 +69,9 @@ export function DangerResetDialog({
                   <p className="mt-1 font-mono text-xs text-muted leading-relaxed">
                     {d.desc}
                   </p>
+                  <p className="mt-2 font-mono text-xs text-danger/70 leading-relaxed">
+                    ⚠ {d.storageNote}
+                  </p>
                 </div>
               </div>
 

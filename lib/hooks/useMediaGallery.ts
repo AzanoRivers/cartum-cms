@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { uploadFileWithProgress } from '@/lib/media/upload'
 import { optimizeImage } from '@/lib/media/optimize'
-import { getUploadUrl, saveMediaRecord, listMediaAssetsPaged, getMediaFileNames } from '@/lib/actions/media.actions'
+import { getUploadUrl, saveMediaRecord, uploadBlobDirect, uploadVideoBlobDirect, listMediaAssetsPaged, getMediaFileNames } from '@/lib/actions/media.actions'
 import { uploadVideoViaVps } from '@/lib/media/video-vps-upload'
 import type { VpsDirectConfig } from '@/lib/media/video-vps-upload'
 import type { MediaRecord, VpsWarning } from '@/types/media'
@@ -17,6 +17,7 @@ import {
   MAX_VIDEO_SIZE_BYTES,
   VIDEO_FALLBACK_WARNING_BYTES,
   IMAGE_FALLBACK_WARNING_BYTES,
+  BLOB_VIDEO_MAX_BYTES,
 } from '@/types/media'
 
 export type UploadLabels = {
@@ -28,11 +29,14 @@ export type UploadLabels = {
   vpsValidation:  string
   vpsPartial:     string
   // Video VPS phase labels
-  videoSizeError:  string
-  videoChunking:   string
-  videoProcessing: string
-  videoFinalizing: string
-  videoVpsSkipped: string
+  videoSizeError:       string
+  videoChunking:        string
+  videoProcessing:      string
+  videoFinalizing:      string
+  videoVpsSkipped:      string
+  // Blob video limit labels
+  videoBlobTooLarge?:     string
+  videoBlobFallbackFail?: string
 }
 
 export type UploadEntry = {
@@ -66,6 +70,14 @@ export type UseMediaGalleryConfig = {
   compressionBatch?:      string
   /** Shown when a file already exists in the queue or gallery — use {names} as placeholder. */
   duplicateErrorLabel?:   string
+  /** Active storage provider — used for Blob video size pre-checks. */
+  activeProvider?:        'r2' | 'blob'
+  /** Whether the VPS optimizer is configured — used with activeProvider for Blob limit checks. */
+  vpsConfigured?:         boolean
+  /** Toast shown when a video is rejected before queue entry (Blob + no VPS + > 50 MB). */
+  blobVideoTooLargeLabel?: string
+  /** Called once when a full upload batch finishes (success count >= 1). Use to refresh derived data. */
+  onBatchComplete?: () => void
 }
 
 export function useMediaGallery(config?: UseMediaGalleryConfig) {
@@ -84,6 +96,14 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
   compressionBatchRef.current     = config?.compressionBatch ?? ''
   const duplicateErrorLabelRef  = useRef(config?.duplicateErrorLabel ?? '')
   duplicateErrorLabelRef.current  = config?.duplicateErrorLabel ?? ''
+  const activeProviderRef       = useRef<'r2' | 'blob'>(config?.activeProvider ?? 'r2')
+  activeProviderRef.current       = config?.activeProvider ?? 'r2'
+  const vpsConfiguredRef        = useRef(config?.vpsConfigured ?? false)
+  vpsConfiguredRef.current        = config?.vpsConfigured ?? false
+  const blobVideoTooLargeLabelRef = useRef(config?.blobVideoTooLargeLabel ?? '')
+  blobVideoTooLargeLabelRef.current = config?.blobVideoTooLargeLabel ?? ''
+  const onBatchCompleteRef = useRef(config?.onBatchComplete)
+  onBatchCompleteRef.current = config?.onBatchComplete
 
   // ── All-names cache — cross-tab duplicate detection ───────────────────────
   // Loaded once on mount, updated after each upload/delete via refresh().
@@ -367,6 +387,13 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         continue
       }
       const isVideo = file.type.startsWith('video/')
+
+      // Blob + no VPS + video > 50 MB: reject before queue entry
+      if (isVideo && activeProviderRef.current === 'blob' && !vpsConfiguredRef.current && file.size > BLOB_VIDEO_MAX_BYTES) {
+        if (blobVideoTooLargeLabelRef.current) toast.error(blobVideoTooLargeLabelRef.current)
+        continue
+      }
+
       const sizeLimit = isVideo ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES
       if (file.size > sizeLimit) {
         if (isVideo && sizeErrorLabel) toast.error(sizeErrorLabel)
@@ -538,38 +565,51 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         // Network error reaching proxy — use Tier 1 result silently
       }
 
-      // ── Presigned URL (tiny server request, no bytes) ──
+      // ── Storage upload ──
       // Derive filename with the correct extension — if Optimus converted to webp,
       // the original file.name still has the old extension (e.g. .png).
-      const baseName     = file.name.replace(/\.[^.]+$/, '')
-      const finalExt     = finalMime === 'image/webp' ? 'webp' : (file.name.split('.').pop() ?? 'bin')
+      const baseName      = file.name.replace(/\.[^.]+$/, '')
+      const finalExt      = finalMime === 'image/webp' ? 'webp' : (file.name.split('.').pop() ?? 'bin')
       const finalFilename = `${baseName}.${finalExt}`
       const urlRes = await getUploadUrl({ filename: finalFilename, mimeType: finalMime })
-      if (!urlRes.success) {
-        patchEntry(id, { status: 'error', error: labels.error })
-        return 'error'
-      }
-      const { uploadUrl, key, publicUrl } = urlRes.data
 
-      // ── PUT directly to R2 from browser — Vercel not involved ──
       patchEntry(id, { status: 'uploading', progress: 0 })
-      try {
-        await uploadFileWithProgress(finalBlob, uploadUrl, finalMime, (pct) => {
-          patchEntry(id, { progress: pct })
+
+      if (!urlRes.success && urlRes.error === 'USE_SERVER_UPLOAD') {
+        // Blob provider — upload through server action (no presigned URL available)
+        const buf = await finalBlob.arrayBuffer()
+        const blobRes = await uploadBlobDirect({
+          file:     buf,
+          mimeType: finalMime,
+          filename: finalFilename,
         })
-      } catch {
+        if (!blobRes.success) {
+          patchEntry(id, { status: 'error', error: labels.error })
+          return 'error'
+        }
+        patchEntry(id, { progress: 100 })
+      } else if (urlRes.success) {
+        // R2 provider — PUT directly from browser via presigned URL
+        const { uploadUrl, key, publicUrl } = urlRes.data
+        try {
+          await uploadFileWithProgress(finalBlob, uploadUrl, finalMime, (pct) => {
+            patchEntry(id, { progress: pct })
+          })
+        } catch {
+          patchEntry(id, { status: 'error', error: labels.error })
+          return 'error'
+        }
+        await saveMediaRecord({
+          key,
+          publicUrl,
+          mimeType:  finalMime,
+          sizeBytes: finalBlob.size,
+          name:      file.name,
+        })
+      } else {
         patchEntry(id, { status: 'error', error: labels.error })
         return 'error'
       }
-
-      // ── Save metadata only (no bytes) ──
-      await saveMediaRecord({
-        key,
-        publicUrl,
-        mimeType:  finalMime,
-        sizeBytes: finalBlob.size,
-        name:      file.name,
-      })
 
       patchEntry(id, { status: 'done', progress: 100 })
       batchOriginalBytes.current   += file.size
@@ -640,31 +680,48 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
             toast.warning(warnMap[result.vpsError])
           }
 
-          // Direct presigned R2 upload (user already confirmed the size warning above)
+          // Direct upload fallback (user already confirmed the size warning above)
           patchEntry(id, { phaseLabel: undefined })
           const urlRes = await getUploadUrl({ filename: file.name, mimeType: file.type })
-          if (!urlRes.success) {
-            patchEntry(id, { status: 'error', error: labels.error })
-            return 'error'
-          }
-          const { uploadUrl, key, publicUrl } = urlRes.data
 
-          try {
-            await uploadFileWithProgress(file, uploadUrl, file.type, (pct) => {
-              patchEntry(id, { progress: pct })
+          if (!urlRes.success && urlRes.error === 'USE_SERVER_UPLOAD') {
+            // Blob provider — validate 50 MB hard limit before uploading
+            if (file.size > BLOB_VIDEO_MAX_BYTES) {
+              patchEntry(id, { status: 'error', error: labels.videoBlobTooLarge ?? labels.error })
+              return 'error'
+            }
+            patchEntry(id, { status: 'uploading', progress: 10 })
+            const buf = await file.arrayBuffer()
+            const blobRes = await uploadVideoBlobDirect({
+              file:     buf,
+              mimeType: file.type,
+              filename: file.name,
             })
-          } catch {
+            if (!blobRes.success) {
+              patchEntry(id, { status: 'error', error: labels.error })
+              return 'error'
+            }
+          } else if (urlRes.success) {
+            const { uploadUrl, key, publicUrl } = urlRes.data
+            try {
+              await uploadFileWithProgress(file, uploadUrl, file.type, (pct) => {
+                patchEntry(id, { progress: pct })
+              })
+            } catch {
+              patchEntry(id, { status: 'error', error: labels.error })
+              return 'error'
+            }
+            await saveMediaRecord({
+              key,
+              publicUrl,
+              mimeType:  file.type,
+              sizeBytes: file.size,
+              name:      file.name,
+            })
+          } else {
             patchEntry(id, { status: 'error', error: labels.error })
             return 'error'
           }
-
-          await saveMediaRecord({
-            key,
-            publicUrl,
-            mimeType:  file.type,
-            sizeBytes: file.size,
-            name:      file.name,
-          })
         }
 
         // VPS path: record was already saved server-side by the /complete route
@@ -677,8 +734,25 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         return 'success'
 
       } catch {
-        // Non-recoverable error mid-pipeline (chunk failure, VPS job failed, R2 write failed, etc.)
-        patchEntry(id, { status: 'error', error: labels.error, phaseLabel: undefined })
+        // VPS pipeline failed — attempt Blob fallback if Blob is active
+        if (activeProviderRef.current === 'blob') {
+          if (file.size > BLOB_VIDEO_MAX_BYTES) {
+            patchEntry(id, { status: 'error', error: labels.videoBlobFallbackFail ?? labels.videoBlobTooLarge ?? labels.error, phaseLabel: undefined })
+          } else {
+            try {
+              patchEntry(id, { phaseLabel: undefined, progress: 10 })
+              const buf     = await file.arrayBuffer()
+              const blobRes = await uploadVideoBlobDirect({ file: buf, mimeType: file.type, filename: file.name })
+              if (blobRes.success) {
+                patchEntry(id, { status: 'done', progress: 100 })
+                return 'success'
+              }
+            } catch { /* fall through to error */ }
+            patchEntry(id, { status: 'error', error: labels.error })
+          }
+        } else {
+          patchEntry(id, { status: 'error', error: labels.error, phaseLabel: undefined })
+        }
         return 'error'
       } finally {
         uploadAbortControllers.current.delete(id)
@@ -731,6 +805,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         toast.error(tpl ? tpl.replace('{n}', String(e)) : `${e} file(s) failed.`)
       }
       fetchPage(filter, page, perPage, search)
+      if (s > 0) onBatchCompleteRef.current?.()
     }
   }
 

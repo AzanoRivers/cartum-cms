@@ -34,6 +34,8 @@ export type MediaUploadModalProps = {
   estimatedMinsUnit:   string
   videoUploadWarning?: string
   imageUploadWarning?: string
+  /** Shown as a warning banner when Blob is active without VPS (50 MB video limit). */
+  blobVideoWarning?:   string
   // close-confirmation labels (shown when active uploads exist)
   cancelConfirmTitle:  string
   cancelConfirmDesc:   string
@@ -66,6 +68,7 @@ export function MediaUploadModal({
   estimatedMinsUnit,
   videoUploadWarning,
   imageUploadWarning,
+  blobVideoWarning,
   cancelConfirmTitle,
   cancelConfirmDesc,
   cancelConfirmYes,
@@ -131,6 +134,14 @@ export function MediaUploadModal({
               <X size={14} />
             </button>
           </div>
+
+          {/* Blob video limit banner */}
+          {blobVideoWarning && (
+            <div className="mx-5 mt-4 shrink-0 flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5">
+              <div className="mt-0.5 size-1.5 shrink-0 rounded-full bg-amber-400" />
+              <span className="font-mono text-[11px] leading-snug text-amber-300">{blobVideoWarning}</span>
+            </div>
+          )}
 
           {/* Upload zone */}
           <div className="flex-1 min-h-0 p-5 flex flex-col overflow-hidden">

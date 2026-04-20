@@ -1,10 +1,10 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Search, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMediaGallery } from '@/lib/hooks/useMediaGallery'
-import { deleteMediaRecord, bulkDeleteMediaRecords } from '@/lib/actions/media.actions'
+import { deleteMediaRecord, bulkDeleteMediaRecords, getMediaStorageSummary } from '@/lib/actions/media.actions'
 import { MediaGalleryTabs }      from '@/components/ui/molecules/MediaGalleryTabs'
 import { MediaGalleryGrid }      from '@/components/ui/molecules/MediaGalleryGrid'
 import { MediaGalleryPagination } from '@/components/ui/molecules/MediaGalleryPagination'
@@ -15,7 +15,75 @@ import { MediaBulkDeleteModal }  from '@/components/ui/organisms/MediaBulkDelete
 import { VideoFallbackModal }    from '@/components/ui/organisms/VideoFallbackModal'
 import { VHSTransition }         from '@/components/ui/transitions/VHSTransition'
 import type { CmsDictionary }    from '@/locales/en'
-import type { MediaRecord }      from '@/types/media'
+import type { MediaRecord, MediaStorageSummary } from '@/types/media'
+import { BLOB_STORAGE_QUOTA_BYTES } from '@/types/media'
+
+// ── Storage badge helpers ───────────────────────────────────────────────────
+
+function formatStorageBytes(bytes: number): string {
+  if (bytes === 0) return '—'
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
+
+type BadgeColor = 'accent' | 'primary'
+
+function StorageBadge({ label, bytes, count, color }: {
+  label: string
+  bytes: number
+  count: number
+  color: BadgeColor
+}) {
+  const dotCls  = color === 'accent' ? 'bg-accent'   : 'bg-primary'
+  const ringCls = color === 'accent'
+    ? 'border-accent/20 bg-accent/[0.07]'
+    : 'border-primary/20 bg-primary/[0.07]'
+  const sizeCls = color === 'accent' ? 'text-accent' : 'text-primary'
+
+  return (
+    <div className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.75 font-mono text-[10px] ${ringCls}`}>
+      <span className={`size-1.5 shrink-0 rounded-full ${dotCls}`} />
+      <span className="text-muted">{label}</span>
+      <span className="text-muted/40">·</span>
+      <span className={`font-semibold ${sizeCls}`}>{formatStorageBytes(bytes)}</span>
+      <span className="text-muted/40">·</span>
+      <span className="text-muted">{count}</span>
+    </div>
+  )
+}
+
+function BlobQuotaBadge({ usedBytes }: { usedBytes: number }) {
+  const quota  = BLOB_STORAGE_QUOTA_BYTES
+  const pct    = Math.min(usedBytes / quota, 1)
+  const pctInt = Math.round(pct * 100)
+
+  const level = pct > 0.9 ? 'danger' : pct > 0.7 ? 'warn' : 'ok'
+  const styles = {
+    ok:     { dot: 'bg-success',     bar: 'bg-success',     border: 'border-success/20',     bg: 'bg-success/[0.07]',     text: 'text-success' },
+    warn:   { dot: 'bg-amber-400',   bar: 'bg-amber-400',   border: 'border-amber-400/25',   bg: 'bg-amber-400/[0.07]',   text: 'text-amber-400' },
+    danger: { dot: 'bg-danger',      bar: 'bg-danger',      border: 'border-danger/25',      bg: 'bg-danger/[0.07]',      text: 'text-danger' },
+  }[level]
+
+  return (
+    <div className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.75 font-mono text-[10px] ${styles.border} ${styles.bg}`}>
+      <span className={`size-1.5 shrink-0 rounded-full ${styles.dot}`} />
+      <span className="text-muted">Blob</span>
+      <span className="text-muted/40">·</span>
+      <span className={`font-semibold ${styles.text}`}>{formatStorageBytes(usedBytes)}</span>
+      <span className="text-muted/40">/</span>
+      <span className="text-muted">{formatStorageBytes(quota)}</span>
+      {/* progress bar */}
+      <div className="relative h-0.75 w-10 overflow-hidden rounded-full bg-border">
+        <div
+          className={`absolute inset-y-0 left-0 rounded-full ${styles.bar}`}
+          style={{ width: `${pct * 100}%` }}
+        />
+      </div>
+      <span className={`tabular-nums ${styles.text}`}>{pctInt}%</span>
+    </div>
+  )
+}
 
 /** cms.cartum.io + 5 → "cms_cartum_media_5.zip"  */
 function buildZipFilename(count: number): string {
@@ -27,11 +95,21 @@ function buildZipFilename(count: number): string {
 }
 
 export type MediaGalleryPageProps = {
-  d: CmsDictionary
+  d:                CmsDictionary
+  activeProvider?:  'r2' | 'blob'
+  vpsConfigured?:   boolean
+  storageSummary?:  MediaStorageSummary
 }
 
-export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
+export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = false, storageSummary: initialSummary }: MediaGalleryPageProps) {
   const g = d.content.mediaGallery
+  const [storageSummary, setStorageSummary] = useState(initialSummary)
+
+  const refreshSummary = useCallback(async () => {
+    const res = await getMediaStorageSummary()
+    if (res.success) setStorageSummary(res.data)
+  }, [])
+
   const [showUpload,       setShowUpload]       = useState(false)
   const [previewAsset,     setPreviewAsset]     = useState<MediaRecord | null>(null)
   const [showBulkDelete,   setShowBulkDelete]   = useState(false)
@@ -43,7 +121,7 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
     filter, page, perPage,
     changeFilter, changePage, changePerPage,
     handleSearchInput,
-    queue, dragging, uploading,
+    queue, dragging,
     addFilesToQueue, removeFromQueue, startUpload, cancelUpload, cancelAllUploads,
     onDragOver, onDragLeave, onDrop,
     selectedIds, selectionMode, toggleSelect, clearSelection,
@@ -58,11 +136,20 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
     uploadErrorBatch:     g.uploadErrorBatch,
     compressionBatch:     g.compressionBatch,
     duplicateErrorLabel:  g.duplicateError,
+    activeProvider,
+    vpsConfigured,
+    blobVideoTooLargeLabel: g.videoBlobTooLarge,
+    onBatchComplete: refreshSummary,
   })
+
+  const blobVideoWarning = activeProvider === 'blob' && !vpsConfigured
+    ? g.videoBlobTooLarge
+    : undefined
 
   async function handleDelete(asset: MediaRecord) {
     await deleteMediaRecord(asset.id)
     refresh()
+    void refreshSummary()
   }
 
   async function handleBulkDelete() {
@@ -85,6 +172,7 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
     clearSelection()
     setShowBulkDelete(false)
     refresh()
+    void refreshSummary()
   }
 
   async function handleBulkDownload() {
@@ -170,7 +258,18 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
       <div className="flex flex-col gap-4 p-4 pt-12 md:pt-6 md:p-6 md:max-w-350 md:mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-mono text-base font-semibold text-text">{g.title}</h1>
+        <div className="flex flex-col gap-1.5">
+          <h1 className="font-mono text-base font-semibold text-text">{g.title}</h1>
+          {storageSummary && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <StorageBadge label={g.tabImages} bytes={storageSummary.imagesTotalBytes} count={storageSummary.imagesCount} color="accent" />
+              <StorageBadge label={g.tabVideos} bytes={storageSummary.videosTotalBytes} count={storageSummary.videosCount} color="primary" />
+              {activeProvider === 'blob' && (
+                <BlobQuotaBadge usedBytes={storageSummary.blobTotalBytes} />
+              )}
+            </div>
+          )}
+        </div>
 
         <button
           type="button"
@@ -199,11 +298,13 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
             vpsTimeout:      g.vpsTimeout,
             vpsValidation:   g.vpsValidation,
             vpsPartial:      g.vpsPartial,
-            videoSizeError:  g.videoSizeError,
-            videoChunking:   g.videoChunking,
-            videoProcessing: g.videoProcessing,
-            videoFinalizing: g.videoFinalizing,
-            videoVpsSkipped: g.videoVpsSkipped,
+            videoSizeError:       g.videoSizeError,
+            videoChunking:        g.videoChunking,
+            videoProcessing:      g.videoProcessing,
+            videoFinalizing:      g.videoFinalizing,
+            videoVpsSkipped:      g.videoVpsSkipped,
+            videoBlobTooLarge:     g.videoBlobTooLarge,
+            videoBlobFallbackFail: g.videoBlobFallbackFail,
           })
         }
         onCancel={cancelUpload}
@@ -223,6 +324,7 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
         estimatedMinsUnit={g.estimatedMinsUnit}
         videoUploadWarning={g.videoUploadWarning}
         imageUploadWarning={g.imageUploadWarning}
+        blobVideoWarning={blobVideoWarning}
         cancelConfirmTitle={g.uploadCancelConfirmTitle}
         cancelConfirmDesc={g.uploadCancelConfirmDesc}
         cancelConfirmYes={g.uploadCancelConfirmYes}
@@ -359,9 +461,13 @@ export function MediaGalleryPage({ d }: MediaGalleryPageProps) {
           onDrop={handleGridDrop}
         >
           {gridDragging && (
-            <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-primary bg-primary/5 backdrop-blur-[1px]">
-              <Upload size={28} className="text-primary opacity-80" />
-              <p className="font-mono text-sm font-medium text-primary">{g.dropHere}</p>
+            <div className="pointer-events-none absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-primary bg-surface/80 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-3">
+                <div className="rounded-full bg-primary/15 p-4 ring-1 ring-primary/30">
+                  <Upload size={32} className="text-primary" />
+                </div>
+                <p className="font-mono text-sm font-semibold text-primary">{g.dropHere}</p>
+              </div>
             </div>
           )}
           <MediaGalleryGrid

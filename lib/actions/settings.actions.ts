@@ -7,7 +7,8 @@ import { auth } from '@/auth'
 import { getSetting, setSetting } from '@/lib/settings/get-setting'
 import { hashPassword } from '@/lib/services/auth.service'
 import { getR2Client } from '@/lib/media/r2-client'
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { blobUpload, blobDelete, isBlobConfigured } from '@/lib/media/blob-client'
+import { PutObjectCommand, DeleteObjectCommand, PutBucketCorsCommand } from '@aws-sdk/client-s3'
 import { Resend } from 'resend'
 import { sendWelcomeEmail } from '@/lib/email/mailer'
 import type { SupportedLocale } from '@/types/project'
@@ -96,19 +97,23 @@ export async function updateProjectSettings(
 export async function getStorageSettings(): Promise<ActionResult<StorageSettings>> {
   try {
     await requireSuperAdmin()
-    const [rbn, rpu, mvu, mvk] = await Promise.all([
-      getSetting('r2_bucket_name', process.env.R2_BUCKET_NAME),
-      getSetting('r2_public_url',  process.env.R2_PUBLIC_URL),
-      getSetting('media_vps_url',  process.env.MEDIA_VPS_URL),
-      getSetting('media_vps_key',  process.env.MEDIA_VPS_KEY),
+    const [rbn, rpu, mvu, mvk, bt, sp] = await Promise.all([
+      getSetting('r2_bucket_name',   process.env.R2_BUCKET_NAME),
+      getSetting('r2_public_url',    process.env.R2_PUBLIC_URL),
+      getSetting('media_vps_url',    process.env.MEDIA_VPS_URL),
+      getSetting('media_vps_key',    process.env.MEDIA_VPS_KEY),
+      getSetting('blob_token',       process.env.BLOB_READ_WRITE_TOKEN),
+      getSetting('storage_provider', 'r2'),
     ])
     return {
       success: true,
       data: {
-        r2BucketName: rbn ?? '',
-        r2PublicUrl:  rpu ?? '',
-        mediaVpsUrl:  mvu,
-        mediaVpsKey:  mvk,
+        r2BucketName:    rbn ?? '',
+        r2PublicUrl:     rpu ?? '',
+        mediaVpsUrl:     mvu,
+        mediaVpsKey:     mvk,
+        blobToken:       bt ?? '',
+        storageProvider: (sp === 'blob' ? 'blob' : 'r2'),
       },
     }
   } catch (err) {
@@ -122,11 +127,43 @@ export async function updateStorageSettings(
   try {
     const session = await requireSuperAdmin()
     await Promise.all([
-      setSetting('r2_bucket_name', input.r2BucketName || undefined, session.user.id),
-      setSetting('r2_public_url',  input.r2PublicUrl  || undefined, session.user.id),
-      setSetting('media_vps_url',  input.mediaVpsUrl  || undefined, session.user.id),
-      setSetting('media_vps_key',  input.mediaVpsKey  || undefined, session.user.id),
+      setSetting('r2_bucket_name',   input.r2BucketName    || undefined, session.user.id),
+      setSetting('r2_public_url',    input.r2PublicUrl      || undefined, session.user.id),
+      setSetting('media_vps_url',    input.mediaVpsUrl      || undefined, session.user.id),
+      setSetting('media_vps_key',    input.mediaVpsKey      || undefined, session.user.id),
+      setSetting('blob_token',       input.blobToken        || undefined, session.user.id),
+      setSetting('storage_provider', input.storageProvider  || 'r2',      session.user.id),
     ])
+
+    // Auto-configure CORS on R2 bucket so the browser can fetch files directly
+    // (needed for client-side ZIP export — GET/HEAD only, safe for public media)
+    try {
+      const { client, bucket } = await getR2Client()
+      await client.send(new PutBucketCorsCommand({
+        Bucket: bucket,
+        CORSConfiguration: {
+          CORSRules: [{
+            AllowedOrigins: ['*'],
+            AllowedMethods: ['GET', 'HEAD'],
+            AllowedHeaders: ['*'],
+            MaxAgeSeconds: 3600,
+          }],
+        },
+      }))
+    } catch { /* R2 not configured yet or CORS already set — skip */ }
+
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function updateStorageProvider(
+  provider: 'r2' | 'blob',
+): Promise<ActionResult<void>> {
+  try {
+    const session = await requireSuperAdmin()
+    await setSetting('storage_provider', provider, session.user.id)
     return { success: true, data: undefined }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
@@ -148,6 +185,45 @@ export async function testStorageConnection(): Promise<
     return { success: true, data: { ok: true, latencyMs: Date.now() - started } }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Connection failed' }
+  }
+}
+
+export async function testBlobConnection(): Promise<
+  ActionResult<{ ok: boolean; latencyMs: number }>
+> {
+  try {
+    await requireSuperAdmin()
+    const testPath = `_cartum_ping_${Date.now()}.txt`
+    const started  = Date.now()
+    const { publicUrl } = await blobUpload(testPath, Buffer.from('1'), 'text/plain')
+    await blobDelete(publicUrl)
+    return { success: true, data: { ok: true, latencyMs: Date.now() - started } }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Connection failed' }
+  }
+}
+
+export async function getStorageStatus(): Promise<
+  ActionResult<{ r2Configured: boolean; blobConfigured: boolean; activeProvider: 'r2' | 'blob' }>
+> {
+  try {
+    await requireSuperAdmin()
+    const [rbn, rpu, bt, sp] = await Promise.all([
+      getSetting('r2_bucket_name',   process.env.R2_BUCKET_NAME),
+      getSetting('r2_public_url',    process.env.R2_PUBLIC_URL),
+      getSetting('blob_token',       process.env.BLOB_READ_WRITE_TOKEN),
+      getSetting('storage_provider', 'r2'),
+    ])
+    return {
+      success: true,
+      data: {
+        r2Configured:   Boolean(rbn && rpu),
+        blobConfigured: Boolean(bt),
+        activeProvider: (sp === 'blob' ? 'blob' : 'r2'),
+      },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
 }
 

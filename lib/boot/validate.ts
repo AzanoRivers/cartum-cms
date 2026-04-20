@@ -98,7 +98,24 @@ export async function runBootValidation(): Promise<void> {
     }
   }
 
-  // ── 10. Setup state ───────────────────────────────────────────────────────
+  // ── 10. Vercel Blob (optional) ────────────────────────────────────────────
+  try {
+    const { getSetting: gs2 } = await import('@/lib/settings/get-setting')
+    const blobToken = await gs2('blob_token', process.env.BLOB_READ_WRITE_TOKEN)
+    if (blobToken) {
+      ok('Vercel Blob — OK')
+    } else {
+      info('CARTUM_I001', 'Vercel Blob not configured. Optional — set BLOB_READ_WRITE_TOKEN to enable.')
+    }
+  } catch {
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      ok('Vercel Blob — OK')
+    } else {
+      info('CARTUM_I001', 'Vercel Blob not configured. Optional — set BLOB_READ_WRITE_TOKEN to enable.')
+    }
+  }
+
+  // ── 11. Setup state ───────────────────────────────────────────────────────
   try {
     const { checkSetupComplete } = await import('@/db/adapters/check-setup')
     const setupDone = await checkSetupComplete()

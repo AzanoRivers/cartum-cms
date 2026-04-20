@@ -71,6 +71,13 @@
       "when": 1776156824297,
       "tag": "0009_breezy_purifiers",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776657513582,
+      "tag": "0010_brainy_shinko_yamashiro",
+      "breakpoints": true
     }
   ]
 }

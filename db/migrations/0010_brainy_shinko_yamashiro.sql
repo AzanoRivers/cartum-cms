@@ -1,0 +1,1 @@
+ALTER TABLE "media" ADD COLUMN "storage_provider" varchar(10) DEFAULT 'r2' NOT NULL;
