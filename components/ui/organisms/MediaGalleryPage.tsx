@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Search, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMediaGallery } from '@/lib/hooks/useMediaGallery'
@@ -112,6 +112,10 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
 
   const [showUpload,       setShowUpload]       = useState(false)
   const [previewAsset,     setPreviewAsset]     = useState<MediaRecord | null>(null)
+
+  // Refresh the names cache every time the upload modal opens so that files
+  // uploaded in the current session (or deleted externally) are correctly detected.
+  useEffect(() => { if (showUpload) refreshNames() }, [showUpload])
   const [showBulkDelete,   setShowBulkDelete]   = useState(false)
   const [gridDragging,     setGridDragging]     = useState(false)
   const gridDragCounter = useRef(0)
@@ -125,7 +129,7 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
     addFilesToQueue, removeFromQueue, startUpload, cancelUpload, cancelAllUploads,
     onDragOver, onDragLeave, onDrop,
     selectedIds, selectionMode, toggleSelect, clearSelection,
-    refresh,
+    refresh, refreshNames,
     videoFallbackOpen, confirmVideoFallback, cancelVideoFallback,
     imageFallbackOpen, confirmImageFallback, cancelImageFallback,
   } = useMediaGallery({
@@ -298,6 +302,7 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
             vpsTimeout:      g.vpsTimeout,
             vpsValidation:   g.vpsValidation,
             vpsPartial:      g.vpsPartial,
+            vpsQueueFull:    g.vpsQueueFull,
             videoSizeError:       g.videoSizeError,
             videoChunking:        g.videoChunking,
             videoProcessing:      g.videoProcessing,
@@ -494,6 +499,7 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
               vpsTimeout:      g.vpsTimeout,
               vpsValidation:   g.vpsValidation,
               vpsPartial:      g.vpsPartial,
+              vpsQueueFull:    g.vpsQueueFull,
               videoSizeError:  g.videoSizeError,
               videoChunking:   g.videoChunking,
               videoProcessing: g.videoProcessing,

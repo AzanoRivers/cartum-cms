@@ -30,7 +30,7 @@ export type VideoVpsResult = {
    * Set when VPS was reachable but rejected init (e.g. 422 validation, 401 auth, 5xx).
    * When true AND skipped === true the caller should show a warning toast before falling back.
    */
-  vpsError?:  'auth' | 'validation' | 'unreachable'
+  vpsError?:  'auth' | 'validation' | 'unreachable' | 'queue_full'
   /** true when the upload was cancelled via AbortSignal — caller should discard the entry silently */
   cancelled?: boolean
 }
@@ -217,35 +217,28 @@ export async function uploadVideoViaVps(
     onProgress(Math.round(((i + 1) / totalChunks) * 50))
   }
 
-  // ── Phase 3: Finalize (with retry on queue-full) ───────────────────────────
+  // ── Phase 3: Finalize ─────────────────────────────────────────────────────
   let jobId: string | null = null
-  let retries = 0
-  const MAX_RETRIES = 10
   const finalizeUrl = vpsOrProxy(vpsConfig, '/videos/upload/finalize', '/api/internal/media/videos/finalize')
 
-  while (retries < MAX_RETRIES) {
-    const finalRes = await fetch(finalizeUrl, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders(vpsConfig) },
-      body:    JSON.stringify({ upload_id: uploadId }),
-      signal,
-    })
+  const finalRes = await fetch(finalizeUrl, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(vpsConfig) },
+    body:    JSON.stringify({ upload_id: uploadId }),
+    signal,
+  })
 
-    if (finalRes.status === 503) {
-      const { retry_after_seconds } = await finalRes.json().catch(() => ({ retry_after_seconds: 10 }))
-      await sleep((retry_after_seconds ?? 10) * 1000, signal)
-      retries++
-      continue
-    }
-
-    if (!finalRes.ok) throw new Error('VPS_FINALIZE_FAILED')
-
-    const { job_id } = await finalRes.json()
-    jobId = job_id
-    break
+  if (finalRes.status === 503) {
+    // Queue full — skip VPS entirely, caller will fall back to direct upload
+    return { key: '', publicUrl: '', mimeType: file.type, sizeBytes: null, skipped: true, vpsError: 'queue_full' }
   }
 
-  if (!jobId) throw new Error('VPS_FINALIZE_TIMEOUT')
+  if (!finalRes.ok) throw new Error('VPS_FINALIZE_FAILED')
+
+  const { job_id } = await finalRes.json()
+  jobId = job_id
+
+  if (!jobId) throw new Error('VPS_FINALIZE_NO_JOB')
 
   // ── Phase 4: Poll status (50–90 %) ────────────────────────────────────────
   onPhaseLabel(labels.processing)

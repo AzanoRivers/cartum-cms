@@ -674,6 +674,7 @@
         vpsTimeout:     'File too large for the optimizer. Uploaded as original.',
         vpsValidation:  'Format not supported by the optimizer. Uploaded as original.',
         vpsPartial:     'Partially optimized. Some images uploaded as originals.',
+        vpsQueueFull:   'Optimus busy. Uploading without optimization.',
         // Bulk selection
         bulkPlaceholder:     'Bulk action',
         bulkDownload:        'Download',
@@ -1361,7 +1362,7 @@ export type Dictionary = {
         deleteLabel: string; confirmDelete: string; copyUrlLabel: string; copiedLabel: string
         ofLabel: string; perPageLabel: string
         vpsUnreachable: string; vpsAuth: string; vpsTimeout: string
-        vpsValidation: string; vpsPartial: string
+        vpsValidation: string; vpsPartial: string; vpsQueueFull: string
         bulkPlaceholder: string; bulkDownload: string; bulkDelete: string
         bulkSelected: string; bulkClear: string
         bulkDeleteTitle: string; bulkDeleteBody: string; bulkDeleteConfirm: string

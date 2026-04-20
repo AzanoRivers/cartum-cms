@@ -28,6 +28,7 @@ export type UploadLabels = {
   vpsTimeout:     string
   vpsValidation:  string
   vpsPartial:     string
+  vpsQueueFull:   string
   // Video VPS phase labels
   videoSizeError:       string
   videoChunking:        string
@@ -691,6 +692,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
               auth:        labels.vpsAuth,
               validation:  labels.vpsValidation,
               unreachable: labels.vpsUnreachable,
+              queue_full:  labels.vpsQueueFull,
             }
             toast.warning(warnMap[result.vpsError])
           }
@@ -820,7 +822,11 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         toast.error(tpl ? tpl.replace('{n}', String(e)) : `${e} file(s) failed.`)
       }
       fetchPage(filter, page, perPage, search)
-      if (s > 0) onBatchCompleteRef.current?.()
+      if (s > 0) {
+        onBatchCompleteRef.current?.()
+        // Refresh names cache so re-uploading the same file in this session is caught
+        getMediaFileNames().then((res) => { if (res.success) allNamesRef.current = new Set(res.data) })
+      }
     }
   }
 
@@ -853,6 +859,9 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
     // refresh
     refresh: () => {
       fetchPage(filter, page, perPage, search)
+      getMediaFileNames().then((res) => { if (res.success) allNamesRef.current = new Set(res.data) })
+    },
+    refreshNames: () => {
       getMediaFileNames().then((res) => { if (res.success) allNamesRef.current = new Set(res.data) })
     },
     // video fallback modal

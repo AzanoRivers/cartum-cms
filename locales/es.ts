@@ -676,6 +676,7 @@ export const es: Dictionary = {
         vpsTimeout:       'Archivo muy grande para el optimizador. Subido como original.',
         vpsValidation:    'Formato no compatible con el optimizador. Subido como original.',
         vpsPartial:       'Optimización parcial. Algunas imágenes se subieron como originales.',
+        vpsQueueFull:     'Optimus ocupado. Se sube sin optimizar.',
         // Selección en lote
         bulkPlaceholder:     'Acción en lote',
         bulkDownload:        'Descargar',
