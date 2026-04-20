@@ -724,6 +724,7 @@ export const es: Dictionary = {
         estimatedTimeLabel:   'Tiempo estimado en optimización',
         estimatedSecsUnit:    'Segundos',
         estimatedMinsUnit:    'Minutos',
+        finalizingSoonLabel:  'La carga Finalizará pronto…',
         imageUploadWarning:   'No cierres ni recargues mientras se procesan las imágenes. Se perderá el progreso.',
         uploadCancelConfirmTitle: '¿Cancelar subidas?',
         uploadCancelConfirmDesc:  'Cerrar cancelará las subidas y optimizaciones activas. No se guardará nada.',

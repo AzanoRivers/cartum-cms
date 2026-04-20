@@ -722,6 +722,7 @@
         estimatedTimeLabel:   'Estimated optimization time',
         estimatedSecsUnit:    'Seconds',
         estimatedMinsUnit:    'Minutes',
+        finalizingSoonLabel:  'Upload finishing soon…',
         imageUploadWarning:   'Do not close or reload while images are being processed. Progress will be lost.',
         // Close confirmation when active uploads exist
         uploadCancelConfirmTitle: 'Cancel uploads?',
@@ -1387,6 +1388,7 @@ export type Dictionary = {
         imageFallbackTitle: string; imageFallbackBody: string
         imageFallbackUpload: string; imageFallbackCancel: string
         estimatedTimeLabel: string; estimatedSecsUnit: string; estimatedMinsUnit: string
+        finalizingSoonLabel: string
         imageUploadWarning: string
         uploadCancelConfirmTitle: string; uploadCancelConfirmDesc: string
         uploadCancelConfirmYes: string; uploadCancelConfirmNo: string

@@ -334,6 +334,7 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
         estimatedMinsUnit={g.estimatedMinsUnit}
         videoUploadWarning={g.videoUploadWarning}
         imageUploadWarning={g.imageUploadWarning}
+        finalizingSoonLabel={g.finalizingSoonLabel}
         blobVideoWarning={blobVideoWarning}
         cancelConfirmTitle={g.uploadCancelConfirmTitle}
         cancelConfirmDesc={g.uploadCancelConfirmDesc}
@@ -528,6 +529,7 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
             estimatedMinsUnit:   g.estimatedMinsUnit,
             videoUploadWarning:  g.videoUploadWarning,
             imageUploadWarning:  g.imageUploadWarning,
+            finalizingSoonLabel: g.finalizingSoonLabel,
           }}
           />
         </div>

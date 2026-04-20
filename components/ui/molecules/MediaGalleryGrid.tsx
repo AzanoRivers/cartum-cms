@@ -27,6 +27,7 @@ export type MediaGalleryGridUploadProps = {
   estimatedMinsUnit:   string
   videoUploadWarning?: string
   imageUploadWarning?: string
+  finalizingSoonLabel?: string
 }
 
 export type MediaGalleryGridProps = {
@@ -103,6 +104,7 @@ export function MediaGalleryGrid({
             estimatedMinsUnit={uploadProps.estimatedMinsUnit}
             videoUploadWarning={uploadProps.videoUploadWarning}
             imageUploadWarning={uploadProps.imageUploadWarning}
+            finalizingSoonLabel={uploadProps.finalizingSoonLabel}
           />
         </div>
       )

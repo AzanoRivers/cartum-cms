@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Upload } from 'lucide-react'
+import { Upload, Sparkles } from 'lucide-react'
 import { UploadFileRow } from '@/components/ui/molecules/UploadFileRow'
 import type { UploadEntry } from '@/lib/hooks/useMediaGallery'
 
@@ -47,6 +47,7 @@ export type MediaUploadZoneProps = {
   estimatedMinsUnit:   string
   videoUploadWarning?: string
   imageUploadWarning?: string
+  finalizingSoonLabel?: string
 }
 
 export function MediaUploadZone({
@@ -71,6 +72,7 @@ export function MediaUploadZone({
   estimatedMinsUnit,
   videoUploadWarning,
   imageUploadWarning,
+  finalizingSoonLabel,
 }: MediaUploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -150,13 +152,22 @@ export function MediaUploadZone({
       {/* Drop zone ↔ Countdown (mutually exclusive) */}
       {hasActive ? (
         <div className="shrink-0 flex flex-col items-center justify-center gap-3 rounded-md border border-border bg-surface-2 px-6 py-10">
-          <div className="flex items-center gap-2.5">
-            <span className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
-            <span className="font-mono text-2xl font-semibold text-primary tabular-nums tracking-widest">
-              {secondsLeft !== null ? formatCountdown(secondsLeft) : '--:--'}
-            </span>
-          </div>
-          <p className="font-mono text-[11px] text-muted text-center">{estimatedTimeLabel}</p>
+          {secondsLeft === 0 && finalizingSoonLabel ? (
+            <>
+              <Sparkles size={22} className="text-primary animate-pulse" />
+              <p className="font-mono text-[11px] text-primary text-center">{finalizingSoonLabel}</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2.5">
+                <span className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
+                <span className="font-mono text-2xl font-semibold text-primary tabular-nums tracking-widest">
+                  {secondsLeft !== null ? formatCountdown(secondsLeft) : '--:--'}
+                </span>
+              </div>
+              <p className="font-mono text-[11px] text-muted text-center">{estimatedTimeLabel}</p>
+            </>
+          )}
         </div>
       ) : (
         <div

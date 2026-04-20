@@ -34,6 +34,7 @@ export type MediaUploadModalProps = {
   estimatedMinsUnit:   string
   videoUploadWarning?: string
   imageUploadWarning?: string
+  finalizingSoonLabel?: string
   /** Shown as a warning banner when Blob is active without VPS (50 MB video limit). */
   blobVideoWarning?:   string
   // close-confirmation labels (shown when active uploads exist)
@@ -68,6 +69,7 @@ export function MediaUploadModal({
   estimatedMinsUnit,
   videoUploadWarning,
   imageUploadWarning,
+  finalizingSoonLabel,
   blobVideoWarning,
   cancelConfirmTitle,
   cancelConfirmDesc,
@@ -167,6 +169,7 @@ export function MediaUploadModal({
               estimatedMinsUnit={estimatedMinsUnit}
               videoUploadWarning={videoUploadWarning}
               imageUploadWarning={imageUploadWarning}
+              finalizingSoonLabel={finalizingSoonLabel}
             />
           </div>
         </VHSTransition>
