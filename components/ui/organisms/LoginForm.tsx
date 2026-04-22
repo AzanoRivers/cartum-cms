@@ -17,6 +17,13 @@ function randomDigit() {
   return Math.floor(Math.random() * 10)
 }
 
+function getMainDomain(hostname: string): string | null {
+  if (hostname === 'localhost' || /^127\.\d+\.\d+\.\d+$/.test(hostname)) return null
+  const parts = hostname.split('.')
+  if (parts.length < 2) return null
+  return parts.slice(-2).join('.')
+}
+
 export function LoginForm({ dict, initialError }: LoginFormProps) {
   const router = useRouter()
   const [email, setEmail]       = useState('')
@@ -24,6 +31,11 @@ export function LoginForm({ dict, initialError }: LoginFormProps) {
   const [showPwd, setShowPwd]   = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const [loading, setLoading]   = useState(false)
+  const [domain, setDomain]     = useState<string | null>(null)
+
+  useEffect(() => {
+    setDomain(getMainDomain(window.location.hostname))
+  }, [])
 
   // Show toast if redirected here with an error (e.g., from the middleware)
   useEffect(() => {
@@ -93,6 +105,9 @@ export function LoginForm({ dict, initialError }: LoginFormProps) {
           <img src="/images/brand/icon.svg" alt="Cartum" width={28} height={28} className="h-7 w-7 object-contain" />
         </div>
         <span className="font-mono text-[10px] tracking-[0.3em] text-muted uppercase">Cartum CMS</span>
+        {domain && (
+          <span className="font-mono text-xs tracking-wide text-text/70">{domain}</span>
+        )}
       </div>
 
       <div className="rounded-lg border border-border bg-surface p-8">
