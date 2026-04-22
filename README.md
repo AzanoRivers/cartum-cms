@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="https://cartum.azanolabs.com/images/brand/icon.svg" width="80" alt="Cartum CMS" />
+</div>
+
 # Cartum CMS
 
 ![Next.js](https://img.shields.io/badge/Next.js_16-black?style=flat-square&logo=next.js)
@@ -143,10 +147,32 @@ MEDIA_VPS_KEY=
 
 ### Instalación y arranque local
 
+#### Opción 1 — CLI interactivo (recomendado)
+
+Crea el proyecto, configura el `.env` e instala dependencias en un solo comando:
+
+```bash
+pnpm create cartum-cms
+# o
+npx create-cartum-cms
+# o
+yarn create cartum-cms
+```
+
+Después solo ejecuta:
+
+```bash
+cd tu-proyecto
+pnpm db:migrate
+pnpm dev
+```
+
+#### Opción 2 — Manual
+
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/tu-org/cartum.git
-cd cartum
+git clone https://github.com/AzanoRivers/cartum-cms.git
+cd cartum-cms
 
 # 2. Instalar dependencias
 pnpm install
@@ -398,9 +424,31 @@ MEDIA_VPS_KEY=
 
 ### Local Setup
 
+#### Option 1 — Interactive CLI (recommended)
+
+Scaffolds the project, sets up `.env` and installs dependencies in one command:
+
 ```bash
-git clone https://github.com/your-org/cartum.git
-cd cartum
+pnpm create cartum-cms
+# or
+npx create-cartum-cms
+# or
+yarn create cartum-cms
+```
+
+Then just run:
+
+```bash
+cd your-project
+pnpm db:migrate
+pnpm dev
+```
+
+#### Option 2 — Manual
+
+```bash
+git clone https://github.com/AzanoRivers/cartum-cms.git
+cd cartum-cms
 pnpm install
 cp .env.example .env   # fill in your values
 pnpm db:migrate
