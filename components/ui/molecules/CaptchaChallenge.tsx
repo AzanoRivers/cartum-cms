@@ -17,9 +17,9 @@ export type CaptchaChallengeProps = {
   isError?:    boolean
 }
 
-const DIGIT_W = 52
-const DIGIT_H = 64
-const FONT    = 'bold 36px "Courier New", monospace'
+const DIGIT_W = 44
+const DIGIT_H = 56
+const FONT    = 'bold 28px "Courier New", monospace'
 
 function drawDigit(canvas: HTMLCanvasElement, digit: number) {
   const ctx = canvas.getContext('2d')
@@ -81,13 +81,13 @@ export function CaptchaChallenge({
         {label}
       </label>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 xs:gap-3">
         {/* Canvas A */}
         <canvas
           ref={canvasA}
           width={DIGIT_W}
           height={DIGIT_H}
-          className="rounded shrink-0"
+          className="rounded shrink-0 w-11 h-14 xs:w-13 xs:h-16"
           aria-hidden="true"
         />
 
@@ -99,7 +99,7 @@ export function CaptchaChallenge({
           ref={canvasB}
           width={DIGIT_W}
           height={DIGIT_H}
-          className="rounded shrink-0"
+          className="rounded shrink-0 w-11 h-14 xs:w-13 xs:h-16"
           aria-hidden="true"
         />
 
@@ -116,7 +116,7 @@ export function CaptchaChallenge({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           aria-label={label}
-          className={`w-20 bg-[--color-surface-2] border rounded px-3 py-2 font-mono text-sm text-[--color-text] text-center outline-none transition-colors placeholder:text-[--color-text-muted] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+          className={`w-14 xs:w-20 bg-[--color-surface-2] border rounded px-3 py-2 font-mono text-sm text-[--color-text] text-center outline-none transition-colors placeholder:text-[--color-text-muted] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
             isError
               ? 'border-[--color-danger] focus:border-[--color-danger]'
               : 'border-[--color-border] focus:border-[--color-primary]'

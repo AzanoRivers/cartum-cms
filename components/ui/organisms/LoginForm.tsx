@@ -97,9 +97,9 @@ export function LoginForm({ dict, initialError }: LoginFormProps) {
   }
 
   return (
-    <div className="w-full max-w-sm">
+    <div className="w-full max-w-sm px-3 xs:px-0">
       {/* Logo */}
-      <div className="mb-8 flex flex-col items-center gap-2">
+      <div className="mb-5 xs:mb-8 flex flex-col items-center gap-2">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/images/brand/icon.svg" alt="Cartum" width={28} height={28} className="h-7 w-7 object-contain" />
@@ -110,8 +110,8 @@ export function LoginForm({ dict, initialError }: LoginFormProps) {
         )}
       </div>
 
-      <div className="rounded-lg border border-border bg-surface p-8">
-        <h1 className="mb-6 text-lg font-semibold text-text">{dict.title}</h1>
+      <div className="rounded-lg border border-border bg-surface p-5 xs:p-8">
+        <h1 className="mb-5 xs:mb-6 text-base xs:text-lg font-semibold text-text">{dict.title}</h1>
 
         {error && (
           <div className="mb-4 rounded border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">

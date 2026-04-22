@@ -56,6 +56,10 @@
   --radius-xl: 16px;
   --radius-full: 9999px;
 
+  /* === BREAKPOINTS EXTRA-SMALL (sub-sm) === */
+  --breakpoint-2xs: 320px;
+  --breakpoint-xs:  360px;
+
   /* === EASING (genera ease-spring, ease-out-expo, etc. como utilities) === */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   /* slight bounce */
