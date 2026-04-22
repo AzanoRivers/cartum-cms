@@ -19,6 +19,18 @@
 
 ---
 
+### ⚡ Quick Installation / Instalación Rápida
+
+```bash
+pnpm create cartum-cms
+# or / o
+npx create-cartum-cms
+# or / o
+yarn create cartum-cms
+```
+
+---
+
 ## Español
 
 - [¿Qué es Cartum?](#qué-es-cartum)
