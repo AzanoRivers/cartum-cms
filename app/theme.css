@@ -82,6 +82,7 @@
   /* === KEYFRAMES === */
   @keyframes panel-unfurl {
     0% {
+      -webkit-clip-path: inset(0 0 100% 0 round var(--radius-lg));
       clip-path: inset(0 0 100% 0 round var(--radius-lg));
       opacity: 0;
       transform: scale(0.96);
@@ -89,10 +90,12 @@
 
     60% {
       opacity: 1;
+      -webkit-clip-path: inset(0 0 4% 0 round var(--radius-lg));
       clip-path: inset(0 0 4% 0 round var(--radius-lg));
     }
 
     100% {
+      -webkit-clip-path: inset(0 0 0% 0 round var(--radius-lg));
       clip-path: inset(0 0 0% 0 round var(--radius-lg));
       opacity: 1;
       transform: scale(1);
@@ -101,12 +104,14 @@
 
   @keyframes panel-fold {
     0% {
+      -webkit-clip-path: inset(0 0 0% 0 round var(--radius-lg));
       clip-path: inset(0 0 0% 0 round var(--radius-lg));
       opacity: 1;
       transform: scale(1);
     }
 
     100% {
+      -webkit-clip-path: inset(0 0 100% 0 round var(--radius-lg));
       clip-path: inset(0 0 100% 0 round var(--radius-lg));
       opacity: 0;
       transform: scale(0.96);
