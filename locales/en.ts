@@ -92,8 +92,10 @@
       captchaLabel:   'Verify the sum',
       captchaPlaceholder: '?',
       captchaError:   'Incorrect answer. Try again.',
-      loginSuccess:   'Welcome back!',
+      loginSuccess:    'Welcome back!',
       accountDisabled: 'Your account is disabled. Contact your administrator.',
+      emailRequired:   'Enter your email address.',
+      passwordRequired:'Enter your password.',
     },
     forgotPassword: {
       title:          'Reset password',
@@ -488,12 +490,40 @@
       save:             'Save',
       saving:           'Saving…',
       typeChangeBlocked: 'This attribute already has cards. Delete all cards from this deck first to change the type.',
+      typeChangeConfirmTitle:   'Change attribute type',
+      typeChangeConfirmBody:    'THE VALUE SAVED IN THIS CARD WILL BE LOST',
+      typeChangeConfirmSubtext: 'Changing the attribute type of the card will delete the current content.',
+      typeChangeConfirm:        'Change type',
       text: {
-        multiline:               'Multiline (textarea)',
+        multiline:               'Multiline (Text/Headings/Bold)',
         maxLength:               'Max length (optional)',
         maxLengthPlaceholder:    'e.g. 255',
         defaultValueLabel:       'Default value (optional)',
         defaultValuePlaceholder: 'Enter default text…',
+        richTextBold:            'Bold',
+        richTextBoldTip:         'Make selected text bold',
+        richTextItalic:          'Italic',
+        richTextItalicTip:       'Make selected text italic',
+        richTextTitle:           'Title',
+        richTextTitleTip:        'Format selected line as a heading',
+        richTextAlignLeft:       'Left',
+        richTextAlignCenter:     'Center',
+        richTextAlignRight:      'Right',
+        richTextColor:           'Color',
+        richTextColorTip:        'Apply color to selected text',
+        richTextLink:            'Link',
+        richTextLinkTip:         'Insert a hyperlink',
+        richTextLinkTextLabel:   'Text',
+        richTextLinkUrlLabel:    'URL',
+        richTextLinkInsert:      'Insert',
+        richTextLinkCancel:      'Cancel',
+        richTextHtml:            'HTML',
+        richTextHtmlTip:         'Insert raw HTML code',
+        richTextHtmlCodeLabel:   'HTML code',
+        richTextHtmlInsert:      'Insert',
+        richTextHtmlCancel:      'Cancel',
+        richTextClear:           'Clear',
+        richTextClearTip:        'Remove all formatting',
       },
       number: {
         subtype:              'Subtype',
@@ -556,6 +586,8 @@
         uploading:     'Uploading…',
         optimizing:    'Optimizing…',
         uploadError:   'Upload failed.',
+        fromUrl:       'From URL',
+        urlPlaceholder: 'https://…',
       },
       gallery: {
         maxItems:            'Max images (optional)',
@@ -760,8 +792,10 @@
       toast: {
         duplicateSuccess: 'Deck duplicated.',
         duplicateError:   'Could not duplicate deck.',
-        deleteSuccess:    'Deck deleted.',
-        deleteError:      'Could not delete deck.',
+        deleteSuccess:      'Deck deleted.',
+        deleteError:        'Could not delete deck.',
+        deleteFieldSuccess: 'Card deleted.',
+        deleteFieldError:   'Could not delete card.',
         checkRiskError:   'Could not check deck dependencies. Please try again.',
         renameSuccess:    'Deck renamed.',
         renameError:      'Could not rename deck.',
@@ -791,8 +825,9 @@
       api:        'API Tokens',
       users:      'Users',
       roles:      'Roles',
-      info:       'Info',
-      db:         'Database',
+      info:         'Info',
+      db:           'Database',
+      webMigration: 'Web Migration',
     },
     panelTitle: 'SETTINGS',
     appearance: {
@@ -1010,6 +1045,11 @@
         errorUnknown:   'Could not update password. Please try again.',
       },
     },
+    webMigration: {
+      title:       'Web Migration',
+      description: 'Enter a local or remote URL and Cartum will analyze the page structure and content, then automatically recreate it as nodes and fields in the current Board.',
+      comingSoon:  'Coming soon',
+    },
     info: {
       title:          'Info',
       version:        '1.0.0',
@@ -1143,6 +1183,7 @@ export type Dictionary = {
       error: string; forgotPassword: string
       captchaLabel: string; captchaPlaceholder: string; captchaError: string
       loginSuccess: string; accountDisabled: string
+      emailRequired: string; passwordRequired: string
     }
     forgotPassword: {
       title: string; subtitle: string; email: string
@@ -1315,7 +1356,8 @@ export type Dictionary = {
     fieldEdit: {
       ariaLabel: string; title: string; name: string; requiredToggle: string
       fieldType: string; cancel: string; save: string; saving: string; typeChangeBlocked: string
-      text:    { multiline: string; maxLength: string; maxLengthPlaceholder: string; defaultValueLabel: string; defaultValuePlaceholder: string }
+      typeChangeConfirmTitle: string; typeChangeConfirmBody: string; typeChangeConfirmSubtext: string; typeChangeConfirm: string
+      text:    { multiline: string; maxLength: string; maxLengthPlaceholder: string; defaultValueLabel: string; defaultValuePlaceholder: string; richTextBold: string; richTextBoldTip: string; richTextItalic: string; richTextItalicTip: string; richTextTitle: string; richTextTitleTip: string; richTextAlignLeft: string; richTextAlignCenter: string; richTextAlignRight: string; richTextColor: string; richTextColorTip: string; richTextLink: string; richTextLinkTip: string; richTextLinkTextLabel: string; richTextLinkUrlLabel: string; richTextLinkInsert: string; richTextLinkCancel: string; richTextHtml: string; richTextHtmlTip: string; richTextHtmlCodeLabel: string; richTextHtmlInsert: string; richTextHtmlCancel: string; richTextClear: string; richTextClearTip: string }
       number:  { subtype: string; subtypeInt: string; subtypeFloat: string; valueModeLabel: string; valueModeFixed: string; valueModeRange: string; fixedValue: string; fixedValuePlaceholder: string; min: string; max: string; minPlaceholder: string; maxPlaceholder: string; rangeError: string }
       boolean: { defaultValue: string; trueLabel: string; falseLabel: string; truePlaceholder: string; falsePlaceholder: string }
       storage: { notConfiguredImages: string; notConfiguredVideos: string; configuredImages: string; configuredVideos: string; imageFormats: string; videoFormats: string; goToContent: string }
@@ -1326,6 +1368,7 @@ export type Dictionary = {
         noImage: string; noVideo: string; dragOrSelect: string; dropHere: string
         selectFromLib: string; uploadNew: string; changeMedia: string; removeMedia: string
         confirmRemove: string; otherTypesMsg: string; uploading: string; optimizing: string; uploadError: string
+        fromUrl: string; urlPlaceholder: string
       }
       gallery: { maxItems: string; maxItemsPlaceholder: string }
       galleryContent: {
@@ -1406,7 +1449,7 @@ export type Dictionary = {
       }
       toast: {
         duplicateSuccess: string; duplicateError: string
-        deleteSuccess: string; deleteError: string; checkRiskError: string
+        deleteSuccess: string; deleteError: string; deleteFieldSuccess: string; deleteFieldError: string; checkRiskError: string
         renameSuccess: string; renameError: string
       }
       renameDialog: {
@@ -1420,7 +1463,7 @@ export type Dictionary = {
     panelTitle: string
     nav: {
       account: string; appearance: string; project: string; storage: string; email: string
-      api: string; users: string; roles: string; info: string; db: string
+      api: string; users: string; roles: string; info: string; db: string; webMigration: string
     }
     appearance: {
       title: string; themeLabel: string; saved: string; saveError: string
@@ -1507,6 +1550,9 @@ export type Dictionary = {
         generate: string; copy: string; copied: string
         errorWeak: string; errorWrong: string; errorUnknown: string
       }
+    }
+    webMigration: {
+      title: string; description: string; comingSoon: string
     }
     info: {
       title: string; version: string; versionLabel: string; releasedOn: string; releaseDate: string

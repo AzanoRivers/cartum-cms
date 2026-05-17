@@ -100,7 +100,7 @@ export function DockBar() {
         )}
         {!isDocs && (
           <DockIcon
-            icon="CircleHelp"
+            icon="CircleQuestionMark"
             tooltip={d?.dock.help ?? 'Help & Shortcuts'}
             onClick={() => openHelp()}
           />

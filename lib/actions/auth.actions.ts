@@ -82,7 +82,7 @@ export async function resetPasswordAction(
   try {
     const parsed = ResetSchema.safeParse(input)
     if (!parsed.success) {
-      const first = parsed.error.errors[0]?.message ?? 'Invalid input.'
+      const first = parsed.error.issues[0]?.message ?? 'Invalid input.'
       return { success: false, error: first }
     }
 

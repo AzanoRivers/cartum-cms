@@ -63,7 +63,16 @@ export function LoginForm({ dict, initialError }: LoginFormProps) {
     setError(null)
     setCaptchaError(false)
 
-    // Validate captcha first
+    if (!email.trim()) {
+      toast.error(dict.emailRequired)
+      return
+    }
+    if (!password) {
+      toast.error(dict.passwordRequired)
+      return
+    }
+
+    // Validate captcha
     if (parseInt(captchaValue, 10) !== captchaA + captchaB) {
       setCaptchaError(true)
       toast.error(dict.captchaError)
@@ -128,7 +137,6 @@ export function LoginForm({ dict, initialError }: LoginFormProps) {
               id="email"
               type="email"
               autoComplete="email"
-              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded border border-border bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-muted outline-none transition-colors focus:border-accent"
@@ -145,7 +153,6 @@ export function LoginForm({ dict, initialError }: LoginFormProps) {
                 id="password"
                 type={showPwd ? 'text' : 'password'}
                 autoComplete="current-password"
-                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded border border-border bg-surface-2 px-3 py-2 pr-10 text-sm text-text placeholder:text-muted outline-none transition-colors focus:border-accent"

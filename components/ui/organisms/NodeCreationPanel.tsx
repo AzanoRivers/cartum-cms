@@ -32,36 +32,44 @@ const GRID_COLS  = 4
 const GRID_GAP_X = 256   // px between nodes horizontally
 const GRID_GAP_Y = 136   // px between rows
 
-/**
- * Places new nodes near the current viewport center in canvas-space coordinates.
- * Using the canvas container's actual dimensions (tracked in the store) ensures
- * the center is accurate on both desktop and mobile (where headers/dock consume space).
- */
 function calcNextPosition(parentId: string | null): { positionX: number; positionY: number } {
   const { nodes, offsetX, offsetY, scale, canvasWidth, canvasHeight } = useNodeBoardStore.getState()
   const siblings = nodes.filter((n) => n.parentId === parentId)
   const idx = siblings.length
-
-  // With transform-origin:center, the canvas-space point at the viewport center is:
-  //   center = canvasDim/2 - offset/scale
-  // (derived from: screen = scale*(canvas - cx) + cx + offset  →  canvas = (screen-cx-offset)/scale + cx
-  //  at screen = cx  →  canvas = -offset/scale + cx)
-  const centerX = canvasWidth  / 2 - offsetX / scale
-  const centerY = canvasHeight / 2 - offsetY / scale
-
   const col = idx % GRID_COLS
   const row = Math.floor(idx / GRID_COLS)
 
+  let anchorX: number
+  let anchorY: number
+
+  if (siblings.length > 0) {
+    // Anchor on centroid of existing siblings so the new node always appears
+    // clustered with its peers, regardless of current viewport pan position.
+    anchorX = siblings.reduce((s, n) => s + n.positionX, 0) / siblings.length
+    anchorY = siblings.reduce((s, n) => s + n.positionY, 0) / siblings.length
+  } else if (parentId !== null) {
+    // First child: place beside its parent container
+    const parent = nodes.find((n) => n.id === parentId)
+    anchorX = parent?.positionX ?? canvasWidth / 2 - offsetX / scale
+    anchorY = parent?.positionY ?? canvasHeight / 2 - offsetY / scale
+  } else {
+    // First root-level node: use viewport center
+    // canvas-space center = canvasDim/2 - offset/scale  (transform-origin:center derivation)
+    anchorX = canvasWidth  / 2 - offsetX / scale
+    anchorY = canvasHeight / 2 - offsetY / scale
+  }
+
   return {
-    positionX: centerX - GRID_GAP_X / 2 + col * GRID_GAP_X,
-    positionY: centerY - GRID_GAP_Y / 2 + row * GRID_GAP_Y,
+    positionX: anchorX - GRID_GAP_X / 2 + col * GRID_GAP_X,
+    positionY: anchorY - GRID_GAP_Y / 2 + row * GRID_GAP_Y,
   }
 }
 
 export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
   const closeCreationPanel = useUIStore((s) => s.closeCreationPanel)
   const anchorEl           = useUIStore((s) => s.creationPanelAnchorEl)
-  const addNode = useNodeBoardStore((s) => s.addNode)
+  const addNode     = useNodeBoardStore((s) => s.addNode)
+  const markNodeNew = useNodeBoardStore((s) => s.markNodeNew)
   const d = useUIStore((s) => s.cmsDict)
 
   // Wrap the stored anchor element in a stable ref so NodePanel (desktop) can
@@ -130,6 +138,7 @@ export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
           return
         }
         addNode(result.data)
+        markNodeNew(result.data.id)
       } else if (selectedKind) {
         if (!parentId) return
         const pos = calcNextPosition(parentId)
@@ -144,6 +153,7 @@ export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
           return
         }
         addNode(result.data)
+        markNodeNew(result.data.id)
       }
       handleClose()
     })

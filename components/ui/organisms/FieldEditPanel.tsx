@@ -4,15 +4,16 @@ import { useState, useTransition, useEffect, useRef } from 'react'
 import { CheckCircle2, AlertTriangle } from 'lucide-react'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { Button } from '@/components/ui/atoms/Button'
-import { Input } from '@/components/ui/atoms/Input'
+import { Input, charCounterClass } from '@/components/ui/atoms/Input'
 import { Icon } from '@/components/ui/atoms/Icon'
 import { FieldTypePicker } from '@/components/ui/molecules/FieldTypePicker'
 import { FieldAccordionSection } from '@/components/ui/molecules/FieldAccordionSection'
 import { FieldMediaContent } from '@/components/ui/molecules/FieldMediaContent'
 import { FieldGalleryContent } from '@/components/ui/molecules/FieldGalleryContent'
+import { RichTextEditor } from '@/components/ui/molecules/RichTextEditor'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useNodeBoardStore } from '@/lib/stores/nodeBoardStore'
-import { updateFieldMeta, getContainerNodes } from '@/lib/actions/nodes.actions'
+import { updateFieldMeta, forceChangeFieldType, getContainerNodes } from '@/lib/actions/nodes.actions'
 import type {
   ContainerNode,
   FieldNode,
@@ -30,6 +31,15 @@ import type {
 export type FieldEditPanelProps = {
   isStorageConfigured: boolean
   asSheet?: boolean
+}
+
+// ── Sync store reads for lazy useState initializers ───────────────────────────
+
+function _getOpenFieldNode(): FieldNode | null {
+  const { editingFieldId } = useUIStore.getState()
+  if (!editingFieldId) return null
+  const { nodes } = useNodeBoardStore.getState()
+  return (nodes.find((n) => n.id === editingFieldId && n.type === 'field') as FieldNode | undefined) ?? null
 }
 
 // ── Toggle helper ─────────────────────────────────────────────────────────────
@@ -88,11 +98,19 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
   const [name, setName]           = useState('')
   const [isRequired, setRequired] = useState(false)
   const [fieldType, setFieldType] = useState<FieldType>('text')
-  const [hasRecords, setHasRecords] = useState(false)
 
-  // type-specific config
-  const [multiline, setMultiline]       = useState(false)
-  const [maxLength, setMaxLength]       = useState('')
+  // type-specific config — lazy initializers read store synchronously to avoid wrong first render
+  const [multiline, setMultiline] = useState(() => {
+    const f = _getOpenFieldNode()
+    if (f?.fieldType !== 'text') return false
+    return ((f.config ?? {}) as TextFieldConfig).multiline ?? false
+  })
+  const [maxLength, setMaxLength] = useState(() => {
+    const f = _getOpenFieldNode()
+    if (f?.fieldType !== 'text') return ''
+    const c = (f.config ?? {}) as TextFieldConfig
+    return c.maxLength != null ? String(c.maxLength) : ''
+  })
   const [numSubtype, setNumSubtype]         = useState<'integer' | 'float'>('integer')
   const [numValueMode, setNumValueMode]     = useState<'fixed' | 'range'>('fixed')
   const [numFixedValue, setNumFixedValue]   = useState('')
@@ -103,7 +121,11 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
   const [falseLabel, setFalseLabel]     = useState('')
   const [relTarget, setRelTarget]       = useState('')
   const [relationType, setRelationType] = useState<'1:1' | '1:n' | 'n:m'>('1:n')
-  const [textDefaultValue, setTextDefaultValue] = useState('')
+  const [textDefaultValue, setTextDefaultValue] = useState(() => {
+    const f = _getOpenFieldNode()
+    if (f?.fieldType !== 'text') return ''
+    return f.defaultValue ?? ''
+  })
   const [defaultUrl,     setDefaultUrl]     = useState<string | null>(null)
   const [defaultMediaId, setDefaultMediaId] = useState<string | null>(null)
   const [galleryItems,    setGalleryItems]    = useState<GalleryItem[]>([])
@@ -116,8 +138,11 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
   const [errors, setErrors]               = useState<Record<string, string>>({})
   const [pending, startTransition]        = useTransition()
 
+  const [pendingNewType, setPendingNewType] = useState<FieldType | null>(null)
+
   // ── Native wheel event: stop propagation to canvas ─────────────────────────
-  const panelRef = useRef<HTMLDivElement>(null)
+  const panelRef        = useRef<HTMLDivElement>(null)
+  const overlayDownRef  = useRef(false)
   useEffect(() => {
     const el = panelRef.current
     if (!el) return
@@ -135,7 +160,7 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
     setErrors({})
 
     // Open "content" for fields with inline-editable content (text, number, image, video)
-    const hasInlineContent = field.fieldType === 'text' || field.fieldType === 'number' || field.fieldType === 'image' || field.fieldType === 'video' || field.fieldType === 'gallery'
+    const hasInlineContent = field.fieldType === 'text' || field.fieldType === 'number' || field.fieldType === 'boolean' || field.fieldType === 'image' || field.fieldType === 'video' || field.fieldType === 'gallery'
     setOpenSection(hasInlineContent ? 'content' : 'type')
 
     const cfg = field.config ?? {}
@@ -277,28 +302,52 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
     if (!field) return
     if (!validate()) return
 
-    const config = buildConfig()
-    const relationTargetId =
-      fieldType === 'relation' ? relTarget || null : null
+    const config           = buildConfig()
+    const relationTargetId = fieldType === 'relation' ? relTarget || null : null
+    const typeChanged      = fieldType !== field.fieldType
 
     startTransition(async () => {
+      // Type changed: use forced action that clears records data first
+      if (typeChanged) {
+        const result = await forceChangeFieldType({
+          nodeId:           field.id,
+          name:             name.trim(),
+          isRequired,
+          fieldType,
+          defaultValue:     fieldType === 'text' ? (textDefaultValue.trim() || null) : null,
+          config,
+          relationTargetId,
+        })
+
+        if (!result.success) {
+          const msg = result.error
+          if (msg === 'NODE_NAME_TAKEN') {
+            setErrors({ name: d?.fieldEdit.errors.nameTaken ?? 'A node with this name already exists here.' })
+          } else {
+            setErrors({ global: msg ?? (d?.fieldEdit.errors.unknown ?? 'Unknown error.') })
+          }
+          return
+        }
+
+        const updated = result.data
+        setNodes(nodes.map((n) => (n.id === updated.id ? updated : n)))
+        closeFieldEdit()
+        return
+      }
+
       const result = await updateFieldMeta({
-        nodeId:           field.id,
-        name:             name.trim(),
+        nodeId:       field.id,
+        name:         name.trim(),
         isRequired,
         fieldType,
-        defaultValue:     fieldType === 'text' ? (textDefaultValue.trim() || null) : undefined,
+        defaultValue: fieldType === 'text' ? (textDefaultValue.trim() || null) : undefined,
         config,
         relationTargetId,
       })
 
       if (!result.success) {
         const msg = result.error
-        if (msg === 'FIELD_TYPE_CHANGE_BLOCKED') {
-          setHasRecords(true)
-          setFieldType(field.fieldType)
-          setErrors({ fieldType: d?.fieldEdit.typeChangeBlocked ?? 'This field has existing records. Delete all records first to change the type.' })
-        } else if (msg === 'NODE_NAME_TAKEN') {
+        if (msg === 'NODE_NAME_TAKEN') {
           setErrors({ name: d?.fieldEdit.errors.nameTaken ?? 'A node with this name already exists here.' })
         } else {
           setErrors({ global: msg ?? (d?.fieldEdit.errors.unknown ?? 'Unknown error.') })
@@ -306,7 +355,6 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
         return
       }
 
-      // Optimistic update
       const updated = result.data
       setNodes(nodes.map((n) => (n.id === updated.id ? updated : n)))
       closeFieldEdit()
@@ -327,94 +375,6 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
             placeholder={d?.fieldEdit.text.maxLengthPlaceholder ?? 'e.g. 255'}
             value={maxLength}
             onChange={(e) => setMaxLength(e.target.value)}
-          />
-        </div>
-      )
-    }
-
-    if (fieldType === 'number') {
-      return (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <span className="font-mono text-xs text-muted">{d?.fieldEdit.number.subtype ?? 'Subtype'}</span>
-            <div className="flex gap-2">
-              {(['integer', 'float'] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setNumSubtype(s)}
-                  className={[
-                    'flex-1 rounded-md border py-1.5 font-mono text-xs transition-all cursor-pointer',
-                    numSubtype === s
-                      ? 'border-primary bg-surface text-primary'
-                      : 'border-border bg-surface-2 text-muted hover:border-primary',
-                  ].join(' ')}
-                >
-                  {s === 'integer' ? (d?.fieldEdit.number.subtypeInt ?? s) : (d?.fieldEdit.number.subtypeFloat ?? s)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="font-mono text-xs text-muted">{d?.fieldEdit.number.valueModeLabel ?? 'Value type'}</span>
-            <div className="flex gap-2">
-              {(['fixed', 'range'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setNumValueMode(m)}
-                  className={[
-                    'flex-1 rounded-md border py-1.5 font-mono text-xs transition-all cursor-pointer',
-                    numValueMode === m
-                      ? 'border-primary bg-surface text-primary'
-                      : 'border-border bg-surface-2 text-muted hover:border-primary',
-                  ].join(' ')}
-                >
-                  {m === 'fixed' ? (d?.fieldEdit.number.valueModeFixed ?? 'Fixed') : (d?.fieldEdit.number.valueModeRange ?? 'Range')}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    if (fieldType === 'boolean') {
-      return (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <span className="font-mono text-xs text-muted">{d?.fieldEdit.boolean.defaultValue ?? 'Default value'}</span>
-            <div className="flex gap-2">
-              {([true, false] as const).map((v) => (
-                <button
-                  key={String(v)}
-                  type="button"
-                  onClick={() => setBoolDefault(v)}
-                  className={[
-                    'flex-1 rounded-md border py-1.5 font-mono text-xs transition-all cursor-pointer',
-                    boolDefault === v
-                      ? 'border-primary bg-surface text-primary'
-                      : 'border-border bg-surface-2 text-muted hover:border-primary',
-                  ].join(' ')}
-                >
-                  {v ? 'true' : 'false'}
-                </button>
-              ))}
-            </div>
-          </div>
-          <Input
-            label={d?.fieldEdit.boolean.trueLabel ?? 'True label (optional)'}
-            size="sm"
-            placeholder={d?.fieldEdit.boolean.truePlaceholder ?? 'e.g. Active'}
-            value={trueLabel}
-            onChange={(e) => setTrueLabel(e.target.value)}
-          />
-          <Input
-            label={d?.fieldEdit.boolean.falseLabel ?? 'False label (optional)'}
-            size="sm"
-            placeholder={d?.fieldEdit.boolean.falsePlaceholder ?? 'e.g. Inactive'}
-            value={falseLabel}
-            onChange={(e) => setFalseLabel(e.target.value)}
           />
         </div>
       )
@@ -542,6 +502,8 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
     uploading:     d?.fieldEdit.mediaContent.uploading     ?? 'Uploading…',
     optimizing:    d?.fieldEdit.mediaContent.optimizing    ?? 'Optimizing…',
     uploadError:   d?.fieldEdit.mediaContent.uploadError   ?? 'Upload failed.',
+    fromUrl:       d?.fieldEdit.mediaContent.fromUrl       ?? 'From URL',
+    urlPlaceholder: d?.fieldEdit.mediaContent.urlPlaceholder ?? 'https://…',
   }
 
   const innerContent = (
@@ -571,17 +533,109 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
             <span className="font-mono text-xs text-muted">
               {d?.fieldEdit.text.defaultValueLabel ?? 'Default value (optional)'}
             </span>
-            <textarea
-              className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-text placeholder:text-muted outline-none focus:border-primary transition-colors resize-y min-h-32"
-              rows={8}
-              placeholder={d?.fieldEdit.text.defaultValuePlaceholder ?? 'Enter default text…'}
-              value={textDefaultValue}
-              onChange={(e) => setTextDefaultValue(e.target.value)}
-              maxLength={maxLength !== '' ? Number(maxLength) : undefined}
-            />
+            {multiline ? (
+              <RichTextEditor
+                value={textDefaultValue}
+                onChange={setTextDefaultValue}
+                maxLength={maxLength !== '' ? Number(maxLength) : undefined}
+                placeholder={d?.fieldEdit.text.defaultValuePlaceholder ?? 'Enter default text…'}
+                labels={{
+                  bold:          d?.fieldEdit.text.richTextBold           ?? 'Bold',
+                  boldTip:       d?.fieldEdit.text.richTextBoldTip        ?? 'Make selected text bold',
+                  italic:        d?.fieldEdit.text.richTextItalic         ?? 'Italic',
+                  italicTip:     d?.fieldEdit.text.richTextItalicTip      ?? 'Make selected text italic',
+                  title:         d?.fieldEdit.text.richTextTitle          ?? 'Title',
+                  titleTip:      d?.fieldEdit.text.richTextTitleTip       ?? 'Format selected line as a heading',
+                  alignLeft:     d?.fieldEdit.text.richTextAlignLeft      ?? 'Left',
+                  alignCenter:   d?.fieldEdit.text.richTextAlignCenter    ?? 'Center',
+                  alignRight:    d?.fieldEdit.text.richTextAlignRight     ?? 'Right',
+                  color:         d?.fieldEdit.text.richTextColor          ?? 'Color',
+                  colorTip:      d?.fieldEdit.text.richTextColorTip       ?? 'Apply color to selected text',
+                  link:          d?.fieldEdit.text.richTextLink           ?? 'Link',
+                  linkTip:       d?.fieldEdit.text.richTextLinkTip        ?? 'Insert a hyperlink',
+                  linkTextLabel: d?.fieldEdit.text.richTextLinkTextLabel  ?? 'Text',
+                  linkUrlLabel:  d?.fieldEdit.text.richTextLinkUrlLabel   ?? 'URL',
+                  linkInsert:    d?.fieldEdit.text.richTextLinkInsert     ?? 'Insert',
+                  linkCancel:    d?.fieldEdit.text.richTextLinkCancel     ?? 'Cancel',
+                  html:          d?.fieldEdit.text.richTextHtml           ?? 'HTML',
+                  htmlTip:       d?.fieldEdit.text.richTextHtmlTip        ?? 'Insert raw HTML code',
+                  htmlCodeLabel: d?.fieldEdit.text.richTextHtmlCodeLabel  ?? 'HTML code',
+                  htmlInsert:    d?.fieldEdit.text.richTextHtmlInsert     ?? 'Insert',
+                  htmlCancel:    d?.fieldEdit.text.richTextHtmlCancel     ?? 'Cancel',
+                  clear:         d?.fieldEdit.text.richTextClear          ?? 'Clear',
+                  clearTip:      d?.fieldEdit.text.richTextClearTip       ?? 'Remove all formatting',
+                }}
+              />
+            ) : (() => {
+              const effectiveMax = maxLength !== '' ? Number(maxLength) : 1500
+              const atLimit = textDefaultValue.length >= effectiveMax
+              return (
+                <>
+                  <textarea
+                    className={[
+                      'w-full rounded-md border bg-surface-2 px-3 py-2 font-mono text-xs text-text placeholder:text-muted outline-none focus:border-primary transition-colors resize-y min-h-32',
+                      atLimit ? 'border-danger/40' : 'border-border',
+                    ].join(' ')}
+                    rows={8}
+                    placeholder={d?.fieldEdit.text.defaultValuePlaceholder ?? 'Enter default text…'}
+                    value={textDefaultValue}
+                    onChange={(e) => setTextDefaultValue(e.target.value)}
+                    maxLength={effectiveMax}
+                  />
+                  <div className="flex justify-end">
+                    <span className={`font-mono text-[10px] tabular-nums ${charCounterClass(textDefaultValue.length, effectiveMax)}`}>
+                      {textDefaultValue.length}/{effectiveMax}
+                    </span>
+                  </div>
+                </>
+              )
+            })()}
           </div>
         ) : fieldType === 'number' ? (
           <div className="flex flex-col gap-3">
+            {/* Subtype */}
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-xs text-muted">{d?.fieldEdit.number.subtype ?? 'Subtype'}</span>
+              <div className="flex gap-2">
+                {(['integer', 'float'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setNumSubtype(s)}
+                    className={[
+                      'flex-1 rounded-md border py-1.5 font-mono text-xs transition-all cursor-pointer',
+                      numSubtype === s
+                        ? 'border-primary bg-surface text-primary'
+                        : 'border-border bg-surface-2 text-muted hover:border-primary',
+                    ].join(' ')}
+                  >
+                    {s === 'integer' ? (d?.fieldEdit.number.subtypeInt ?? s) : (d?.fieldEdit.number.subtypeFloat ?? s)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Value mode */}
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-xs text-muted">{d?.fieldEdit.number.valueModeLabel ?? 'Value type'}</span>
+              <div className="flex gap-2">
+                {(['fixed', 'range'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setNumValueMode(m)}
+                    className={[
+                      'flex-1 rounded-md border py-1.5 font-mono text-xs transition-all cursor-pointer',
+                      numValueMode === m
+                        ? 'border-primary bg-surface text-primary'
+                        : 'border-border bg-surface-2 text-muted hover:border-primary',
+                    ].join(' ')}
+                  >
+                    {m === 'fixed' ? (d?.fieldEdit.number.valueModeFixed ?? 'Fixed') : (d?.fieldEdit.number.valueModeRange ?? 'Range')}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Value input(s) */}
             {numValueMode === 'fixed' ? (
               <Input
                 label={d?.fieldEdit.number.fixedValue ?? 'Value'}
@@ -616,6 +670,43 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
                 )}
               </>
             )}
+          </div>
+        ) : fieldType === 'boolean' ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-xs text-muted">{d?.fieldEdit.boolean.defaultValue ?? 'Default value'}</span>
+              <div className="flex gap-2">
+                {([true, false] as const).map((v) => (
+                  <button
+                    key={String(v)}
+                    type="button"
+                    onClick={() => setBoolDefault(v)}
+                    className={[
+                      'flex-1 rounded-md border py-1.5 font-mono text-xs transition-all cursor-pointer',
+                      boolDefault === v
+                        ? 'border-primary bg-surface text-primary'
+                        : 'border-border bg-surface-2 text-muted hover:border-primary',
+                    ].join(' ')}
+                  >
+                    {v ? 'true' : 'false'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <Input
+              label={d?.fieldEdit.boolean.trueLabel ?? 'True label (optional)'}
+              size="sm"
+              placeholder={d?.fieldEdit.boolean.truePlaceholder ?? 'e.g. Active'}
+              value={trueLabel}
+              onChange={(e) => setTrueLabel(e.target.value)}
+            />
+            <Input
+              label={d?.fieldEdit.boolean.falseLabel ?? 'False label (optional)'}
+              size="sm"
+              placeholder={d?.fieldEdit.boolean.falsePlaceholder ?? 'e.g. Inactive'}
+              value={falseLabel}
+              onChange={(e) => setFalseLabel(e.target.value)}
+            />
           </div>
         ) : fieldType === 'gallery' ? (
           <FieldGalleryContent
@@ -710,18 +801,18 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
             <FieldTypePicker
               value={fieldType}
               onChange={(t) => {
-                setFieldType(t)
-                setHasRecords(false)
-                setErrors((prev) => ({ ...prev, fieldType: '' }))
+                if (t === fieldType) return
+                if (t !== field.fieldType) {
+                  // Show warning before switching to a different type
+                  setPendingNewType(t)
+                } else {
+                  // Reverting to original type — no warning needed
+                  setFieldType(t)
+                  setErrors((prev) => ({ ...prev, fieldType: '' }))
+                }
               }}
-              disabled={hasRecords}
-              disabledReason={
-                hasRecords
-                  ? (d?.fieldEdit.typeChangeBlocked ?? 'This field has existing records. Delete all records first to change the type.')
-                  : errors.fieldType || undefined
-              }
             />
-            {!hasRecords && errors.fieldType && (
+            {errors.fieldType && (
               <p className="text-xs text-danger">{errors.fieldType}</p>
             )}
           </div>
@@ -762,37 +853,95 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
     </div>
   )
 
+  const typeChangeConfirmModal = pendingNewType && (
+    <>
+      <div
+        className="fixed inset-0 z-50"
+        aria-hidden="true"
+        onClick={() => setPendingNewType(null)}
+      />
+      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+        <VHSTransition duration="fast">
+          <div className="pointer-events-auto w-80 rounded-xl border border-danger/40 bg-surface shadow-2xl shadow-black/60 p-5 flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <span className="font-mono text-sm text-text">
+                {d?.fieldEdit.typeChangeConfirmTitle ?? 'Change attribute type'}
+              </span>
+              <span className="font-mono text-xs font-bold text-danger tracking-wide">
+                {d?.fieldEdit.typeChangeConfirmBody ?? 'THE VALUE SAVED IN THIS CARD WILL BE LOST'}
+              </span>
+              <p className="font-mono text-[11px] text-muted leading-relaxed">
+                {d?.fieldEdit.typeChangeConfirmSubtext ?? 'Changing the attribute type of the card will delete the current content.'}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1"
+                onClick={() => setPendingNewType(null)}
+              >
+                {d?.fieldEdit.cancel ?? 'Cancel'}
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                className="flex-1"
+                onClick={() => {
+                  setFieldType(pendingNewType)
+                  setErrors((prev) => ({ ...prev, fieldType: '' }))
+                  setPendingNewType(null)
+                }}
+              >
+                {d?.fieldEdit.typeChangeConfirm ?? 'Change type'}
+              </Button>
+            </div>
+          </div>
+        </VHSTransition>
+      </div>
+    </>
+  )
+
   if (asSheet) {
-    return <VHSTransition duration="fast">{innerContent}</VHSTransition>
+    return (
+      <>
+        <VHSTransition duration="fast">{innerContent}</VHSTransition>
+        {typeChangeConfirmModal}
+      </>
+    )
   }
 
   return (
-    <div
-      className="absolute inset-0 z-40 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-label={d?.fieldEdit.ariaLabel ?? 'Edit field'}
-      onClick={(e) => { if (e.target === e.currentTarget) closeFieldEdit() }}
-    >
-      <VHSTransition duration="fast">
-        <div
-          ref={panelRef}
-          className="w-85 sm:w-150 rounded-xl border border-border bg-surface shadow-2xl max-h-[calc(100vh-4rem)] overflow-y-auto"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-border px-4 py-3 sticky top-0 bg-surface z-10">
-            <span className="font-mono text-sm text-text">{d?.fieldEdit.title ?? 'Edit field'}</span>
-            <button
-              onClick={closeFieldEdit}
-              className="text-muted hover:text-text transition-colors cursor-pointer"
-              aria-label="Close"
-            >
-              <Icon name="X" size="sm" />
-            </button>
+    <>
+      <div
+        className="absolute inset-0 z-40 flex items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+        aria-label={d?.fieldEdit.ariaLabel ?? 'Edit field'}
+        onMouseDown={(e) => { overlayDownRef.current = e.target === e.currentTarget }}
+        onMouseUp={(e) => { if (overlayDownRef.current && e.target === e.currentTarget) closeFieldEdit() }}
+      >
+        <VHSTransition duration="fast">
+          <div
+            ref={panelRef}
+            className="w-85 sm:w-150 rounded-xl border border-border bg-surface shadow-2xl max-h-[calc(100vh-4rem)] overflow-y-auto"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sticky top-0 bg-surface z-10">
+              <span className="font-mono text-sm text-text">{d?.fieldEdit.title ?? 'Edit field'}</span>
+              <button
+                onClick={closeFieldEdit}
+                className="text-muted hover:text-text transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <Icon name="X" size="sm" />
+              </button>
+            </div>
+            {innerContent}
           </div>
-          {innerContent}
-        </div>
-      </VHSTransition>
-    </div>
+        </VHSTransition>
+      </div>
+      {typeChangeConfirmModal}
+    </>
   )
 }

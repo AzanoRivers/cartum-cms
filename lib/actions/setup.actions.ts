@@ -58,7 +58,7 @@ export async function createSuperAdmin(
 ): Promise<ActionResult> {
   const parsed = SuperAdminSchema.safeParse(input)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
   }
 
   try {
@@ -95,7 +95,7 @@ export async function createProject(
 ): Promise<ActionResult> {
   const parsed = ProjectSchema.safeParse(input)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
   }
 
   const jar    = await cookies()

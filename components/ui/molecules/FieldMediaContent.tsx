@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ImageIcon, VideoIcon, Upload, Library, X, RefreshCw } from 'lucide-react'
+import { ImageIcon, VideoIcon, Upload, Library, X, RefreshCw, Link, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { optimizeImage } from '@/lib/media/optimize'
 import { uploadFileWithProgress } from '@/lib/media/upload'
@@ -35,6 +35,8 @@ export type FieldMediaContentProps = {
     uploading:     string
     optimizing:    string
     uploadError:   string
+    fromUrl:       string
+    urlPlaceholder: string
   }
 }
 
@@ -88,6 +90,9 @@ function MediaContentInner({
   const [dragging,  setDragging]      = useState(false)
   const [libOpen,   setLibOpen]       = useState(false)
   const [confirming, setConfirming]   = useState(false)
+  const [changeMode, setChangeMode]   = useState(false)
+  const [urlMode,   setUrlMode]       = useState(false)
+  const [urlInput,  setUrlInput]      = useState('')
 
   const hasValue = Boolean(defaultUrl)
 
@@ -213,29 +218,115 @@ function MediaContentInner({
           </div>
 
           {/* Hover overlay — always visible on mobile (no hover), on-hover on desktop */}
-          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-            <button
-              type="button"
-              onClick={() => setLibOpen(true)}
-              className="flex items-center gap-1.5 rounded-md bg-surface/90 px-3 py-1.5 font-mono text-xs text-text transition-colors hover:bg-surface"
-            >
-              <RefreshCw size={11} />
-              {labels.changeMedia}
-            </button>
-            <button
-              type="button"
-              onClick={handleRemoveClick}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-mono text-xs transition-colors ${
-                confirming
-                  ? 'bg-danger text-white hover:bg-danger/80'
-                  : 'bg-danger/80 text-white hover:bg-danger'
-              }`}
-            >
-              <X size={11} />
-              {confirming ? labels.confirmRemove : labels.removeMedia}
-            </button>
+          <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 p-3 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 ${changeMode ? 'sm:!opacity-100' : ''}`}>
+            {changeMode ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setLibOpen(true); setChangeMode(false) }}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-md bg-surface/90 px-3 py-1.5 font-mono text-xs text-text transition-colors hover:bg-surface"
+                >
+                  <Library size={11} />
+                  {labels.selectFromLib}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { fileRef.current?.click(); setChangeMode(false) }}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-md bg-surface/90 px-3 py-1.5 font-mono text-xs text-text transition-colors hover:bg-surface"
+                >
+                  <Upload size={11} />
+                  {labels.uploadNew}
+                </button>
+                {isImage && (
+                  <button
+                    type="button"
+                    onClick={() => { setUrlMode(true); setChangeMode(false) }}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-md bg-surface/90 px-3 py-1.5 font-mono text-xs text-text transition-colors hover:bg-surface"
+                  >
+                    <Link size={11} />
+                    {labels.fromUrl}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setChangeMode(false)}
+                  className="mt-1 flex items-center justify-center rounded-full bg-black/30 p-1.5 text-white/60 transition-colors hover:bg-black/50 hover:text-white/90"
+                  aria-label="Cancel"
+                >
+                  <X size={12} />
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setChangeMode(true)}
+                  className="flex items-center gap-1.5 rounded-md bg-surface/90 px-3 py-1.5 font-mono text-xs text-text transition-colors hover:bg-surface"
+                >
+                  <RefreshCw size={11} />
+                  {labels.changeMedia}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemoveClick}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-mono text-xs transition-colors ${
+                    confirming
+                      ? 'bg-danger text-white hover:bg-danger/80'
+                      : 'bg-danger/80 text-white hover:bg-danger'
+                  }`}
+                >
+                  <X size={11} />
+                  {confirming ? labels.confirmRemove : labels.removeMedia}
+                </button>
+              </>
+            )}
           </div>
         </div>
+
+        {/* URL input row — shown when changeMode selected "Desde URL" */}
+        {urlMode && (
+          <div className="flex gap-2">
+            <input
+              type="url"
+              autoFocus
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && urlInput.trim()) {
+                  onChange({ defaultUrl: urlInput.trim(), defaultMediaId: null })
+                  setUrlMode(false)
+                  setUrlInput('')
+                }
+                if (e.key === 'Escape') {
+                  setUrlMode(false)
+                  setUrlInput('')
+                }
+              }}
+              placeholder={labels.urlPlaceholder}
+              className="min-w-0 flex-1 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 font-mono text-xs text-text placeholder:text-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
+            />
+            <button
+              type="button"
+              disabled={!urlInput.trim()}
+              onClick={() => {
+                if (!urlInput.trim()) return
+                onChange({ defaultUrl: urlInput.trim(), defaultMediaId: null })
+                setUrlMode(false)
+                setUrlInput('')
+              }}
+              className="flex shrink-0 items-center justify-center rounded-md border border-primary bg-primary/10 px-2.5 py-1.5 font-mono text-xs text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
+            >
+              <Check size={12} />
+            </button>
+            <button
+              type="button"
+              onClick={() => { setUrlMode(false); setUrlInput('') }}
+              className="flex shrink-0 items-center justify-center rounded-md border border-border bg-surface px-2.5 py-1.5 font-mono text-xs text-muted transition-colors hover:border-primary/50 hover:text-text focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
 
         <input
           ref={fileRef}
@@ -302,24 +393,78 @@ function MediaContentInner({
 
       {/* Action buttons */}
       {!isUploading && (
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setLibOpen(true)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-primary/50 hover:text-text focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
-          >
-            <Library size={11} />
-            {labels.selectFromLib}
-          </button>
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-primary/50 hover:text-text focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
-          >
-            <Upload size={11} />
-            {labels.uploadNew}
-          </button>
-        </div>
+        urlMode ? (
+          <div className="flex gap-2">
+            <input
+              type="url"
+              autoFocus
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && urlInput.trim()) {
+                  onChange({ defaultUrl: urlInput.trim(), defaultMediaId: null })
+                  setUrlMode(false)
+                  setUrlInput('')
+                }
+                if (e.key === 'Escape') {
+                  setUrlMode(false)
+                  setUrlInput('')
+                }
+              }}
+              placeholder={labels.urlPlaceholder}
+              className="min-w-0 flex-1 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 font-mono text-xs text-text placeholder:text-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
+            />
+            <button
+              type="button"
+              disabled={!urlInput.trim()}
+              onClick={() => {
+                if (!urlInput.trim()) return
+                onChange({ defaultUrl: urlInput.trim(), defaultMediaId: null })
+                setUrlMode(false)
+                setUrlInput('')
+              }}
+              className="flex shrink-0 items-center justify-center rounded-md border border-primary bg-primary/10 px-2.5 py-1.5 font-mono text-xs text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
+            >
+              <Check size={12} />
+            </button>
+            <button
+              type="button"
+              onClick={() => { setUrlMode(false); setUrlInput('') }}
+              className="flex shrink-0 items-center justify-center rounded-md border border-border bg-surface px-2.5 py-1.5 font-mono text-xs text-muted transition-colors hover:border-primary/50 hover:text-text focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setLibOpen(true)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1.5 font-mono text-xs text-muted transition-colors hover:border-primary/50 hover:text-text focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
+            >
+              <Library size={11} />
+              {labels.selectFromLib}
+            </button>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1.5 font-mono text-xs text-muted transition-colors hover:border-primary/50 hover:text-text focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
+            >
+              <Upload size={11} />
+              {labels.uploadNew}
+            </button>
+            {isImage && (
+              <button
+                type="button"
+                onClick={() => setUrlMode(true)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1.5 font-mono text-xs text-muted transition-colors hover:border-primary/50 hover:text-text focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
+              >
+                <Link size={11} />
+                {labels.fromUrl}
+              </button>
+            )}
+          </div>
+        )
       )}
 
       <input

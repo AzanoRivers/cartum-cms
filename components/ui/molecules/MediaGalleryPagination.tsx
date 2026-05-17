@@ -21,7 +21,7 @@ export function MediaGalleryPagination({
   perPage,
   onPage,
   onPerPage,
-  perPageOptions = [10, 20, 40],
+  perPageOptions = [8, 16, 24, 32, 40, 48],
   ofLabel,
   perPageLabel,
 }: MediaGalleryPaginationProps) {

@@ -15,6 +15,7 @@ import { ApiTokensSection } from '@/components/ui/organisms/settings/ApiTokensSe
 import { UsersSection } from '@/components/ui/organisms/settings/UsersSection'
 import { RolesSection } from '@/components/ui/organisms/settings/RolesSection'
 import { InfoSection } from '@/components/ui/organisms/settings/InfoSection'
+import { WebMigrationSection } from '@/components/ui/organisms/settings/WebMigrationSection'
 import { DbSection } from '@/components/ui/organisms/settings/DbSection'
 import type { Dictionary } from '@/locales/en'
 import type { SectionKey } from '@/types/roles'
@@ -38,8 +39,9 @@ const ALL_SECTIONS: Array<{ key: SectionKey }> = [
   { key: 'users'      },
   { key: 'roles'      },
   { key: 'api'        },
-  { key: 'db'         },
-  { key: 'info'       },
+  { key: 'db'           },
+  { key: 'webMigration' },
+  { key: 'info'         },
 ]
 
 export function SettingsPanel({
@@ -117,6 +119,9 @@ export function SettingsPanel({
       )}
       {activeSection === 'db' && (isSuperAdmin || sectionPermissions.db) && (
         <DbSection d={d.db} isSuperAdmin={isSuperAdmin} />
+      )}
+      {activeSection === 'webMigration' && (
+        <WebMigrationSection d={d.webMigration} />
       )}
       {activeSection === 'info' && (
         <InfoSection d={d.info} />

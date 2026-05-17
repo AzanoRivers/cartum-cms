@@ -147,6 +147,30 @@ export const nodeService = {
     })
   },
 
+  async forceChangeFieldType(nodeId: string, input: UpdateFieldMetaInput): Promise<FieldNode> {
+    const current = await nodesRepository.findById(nodeId)
+    if (!current || current.type !== 'field') throw new Error('FIELD_NOT_FOUND')
+
+    if (input.name && input.name !== current.name) {
+      const sibling = await nodesRepository.findSiblingByName(input.name, current.parentId)
+      if (sibling && sibling.id !== nodeId) throw new Error('NODE_NAME_TAKEN')
+    }
+
+    // Clear this field's data from all records in the parent container
+    if (current.parentId) {
+      await recordsRepository.clearFieldData(current.parentId, current.name)
+    }
+
+    return nodesRepository.updateFieldMeta(nodeId, {
+      name:             input.name,
+      fieldType:        input.fieldType,
+      isRequired:       input.isRequired,
+      defaultValue:     input.defaultValue ?? null,
+      config:           input.config ?? null,
+      relationTargetId: input.relationTargetId,
+    })
+  },
+
   // ── Delete ──────────────────────────────────────────────────────────────────
 
   async delete(id: string, confirmed = false): Promise<void> {

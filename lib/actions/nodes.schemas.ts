@@ -55,6 +55,16 @@ export const UpdateFieldMetaSchema = z.object({
   isRequired:       z.boolean().optional(),
   fieldType:        z.enum(['text', 'number', 'boolean', 'image', 'video', 'relation', 'gallery']).optional(),
   defaultValue:     z.string().nullable().optional(),
-  config:           z.record(z.unknown()).optional(),
+  config:           z.record(z.string(), z.unknown()).optional(),
+  relationTargetId: z.string().uuid().nullable().optional(),
+})
+
+export const ForceChangeFieldTypeSchema = z.object({
+  nodeId:           z.string().uuid(),
+  name:             z.string().min(1).max(64).regex(/^[a-zA-Z0-9 _-]+$/, 'Name contains invalid characters.').optional(),
+  isRequired:       z.boolean().optional(),
+  fieldType:        z.enum(['text', 'number', 'boolean', 'image', 'video', 'relation', 'gallery']),
+  defaultValue:     z.string().nullable().optional(),
+  config:           z.record(z.string(), z.unknown()).optional(),
   relationTargetId: z.string().uuid().nullable().optional(),
 })

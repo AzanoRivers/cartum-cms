@@ -286,7 +286,10 @@ export function FieldGalleryContent({
 
   // ── From library (multi-select) ─────────────────────────────────────────────
   async function handleLibrarySelect(assets: MediaRecord[]) {
-    const newItems: GalleryItem[] = assets.map((a) => ({ url: a.publicUrl, mediaId: a.id }))
+    const existingMediaIds = new Set(items.map((i) => i.mediaId).filter(Boolean))
+    const newItems: GalleryItem[] = assets
+      .filter((a) => !existingMediaIds.has(a.id))
+      .map((a) => ({ url: a.publicUrl, mediaId: a.id }))
     const merged = [...items, ...newItems]
     const limited = maxItems !== undefined ? merged.slice(0, maxItems) : merged
     await onChange(limited)
@@ -389,6 +392,7 @@ export function FieldGalleryContent({
           onClose={() => setLibOpen(false)}
           multiSelect
           onSelectMulti={handleLibrarySelect}
+          alreadySelectedIds={items.map((i) => i.mediaId).filter((id): id is string => Boolean(id))}
         />
       </div>
     </VHSTransition>

@@ -319,6 +319,10 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       return
     }
 
+    // Block panning while any panel/modal is open
+    const { settingsOpen, editingFieldId } = useUIStore.getState()
+    if (settingsOpen || editingFieldId) return
+
     // Canvas pan
     isPanning.current = true
     lastPos.current = { x: e.clientX, y: e.clientY }
@@ -523,6 +527,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   const handleDeleteNode = useCallback(async (nodeId: string) => {
     setIsCheckingDelete(true)
     const t = d?.board.toast
+    const isField = useNodeBoardStore.getState().nodes.find((n) => n.id === nodeId)?.type === 'field'
     try {
       const result = await checkNodeDeletionRisk({ id: nodeId })
       if (!result.success) {
@@ -533,8 +538,8 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       if (result.data.level === 'safe') {
         removeNode(nodeId)
         const del = await deleteNode({ id: nodeId, confirmed: true })
-        if (del.success) toast.success(t?.deleteSuccess ?? 'Node deleted.')
-        else toast.error(t?.deleteError ?? 'Could not delete node.')
+        if (del.success) toast.success(isField ? (t?.deleteFieldSuccess ?? 'Card deleted.') : (t?.deleteSuccess ?? 'Deck deleted.'))
+        else toast.error(isField ? (t?.deleteFieldError ?? 'Could not delete card.') : (t?.deleteError ?? 'Could not delete deck.'))
       } else {
         setDeleteRisk(result.data)
       }
@@ -546,14 +551,15 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteRisk) return
     const t = d?.board.toast
+    const isField = useNodeBoardStore.getState().nodes.find((n) => n.id === deleteRisk.entityId)?.type === 'field'
     setDeleteIsPending(true)
     try {
       removeNode(deleteRisk.entityId)
       const del = await deleteNode({ id: deleteRisk.entityId, confirmed: true })
-      if (del.success) toast.success(t?.deleteSuccess ?? 'Node deleted.')
-      else toast.error(t?.deleteError ?? 'Could not delete node.')
+      if (del.success) toast.success(isField ? (t?.deleteFieldSuccess ?? 'Card deleted.') : (t?.deleteSuccess ?? 'Deck deleted.'))
+      else toast.error(isField ? (t?.deleteFieldError ?? 'Could not delete card.') : (t?.deleteError ?? 'Could not delete deck.'))
     } catch {
-      toast.error(t?.deleteError ?? 'Could not delete node.')
+      toast.error(isField ? (t?.deleteFieldError ?? 'Could not delete card.') : (t?.deleteError ?? 'Could not delete deck.'))
     } finally {
       setDeleteIsPending(false)
       setDeleteRisk(null)
@@ -641,7 +647,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       )}
 
       {editingFieldId && (
-        <FieldEditPanel isStorageConfigured={isStorageConfigured} />
+        <FieldEditPanel key={editingFieldId} isStorageConfigured={isStorageConfigured} />
       )}
 
       {canvasMenu && (

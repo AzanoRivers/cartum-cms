@@ -11,6 +11,7 @@ export const SECTION_KEYS = [
   'roles',
   'api',
   'db',
+  'webMigration',
   'info',
 ] as const
 

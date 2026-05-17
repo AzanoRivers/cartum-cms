@@ -16,8 +16,10 @@ export type MediaLibraryPickerProps = {
   // Modo single (comportamiento por defecto)
   onSelect?: (asset: MediaRecord) => void
   // Modo multi-selección
-  multiSelect?:   boolean
-  onSelectMulti?: (assets: MediaRecord[]) => void
+  multiSelect?:      boolean
+  onSelectMulti?:    (assets: MediaRecord[]) => void
+  // IDs ya presentes en la galería — se muestran con indicador visual pero no son re-seleccionables
+  alreadySelectedIds?: string[]
 }
 
 function formatBytes(bytes: number | null): string {
@@ -30,6 +32,7 @@ function formatBytes(bytes: number | null): string {
 function AssetCard({
   asset,
   selected,
+  alreadyAdded,
   multiMode,
   onSelect,
   onDoubleClick,
@@ -37,6 +40,7 @@ function AssetCard({
 }: {
   asset:         MediaRecord
   selected:      boolean
+  alreadyAdded:  boolean
   multiMode:     boolean
   onSelect:      (a: MediaRecord) => void
   onDoubleClick: (a: MediaRecord) => void
@@ -48,15 +52,15 @@ function AssetCard({
   return (
     <button
       type="button"
-      onClick={() => onSelect(asset)}
-      onDoubleClick={() => !multiMode && onDoubleClick(asset)}
+      onClick={() => !alreadyAdded && onSelect(asset)}
+      onDoubleClick={() => !multiMode && !alreadyAdded && onDoubleClick(asset)}
       className={[
-        'relative aspect-square overflow-hidden rounded-md border bg-surface-2 transition-all duration-150 cursor-pointer',
-        selected
-          ? multiMode
-            ? 'border-primary ring-2 ring-primary ring-offset-1 ring-offset-background'
-            : 'border-primary ring-2 ring-primary ring-offset-1 ring-offset-background'
-          : 'border-border hover:border-primary/60',
+        'relative aspect-square overflow-hidden rounded-md border bg-surface-2 transition-all duration-150',
+        alreadyAdded
+          ? 'border-success/60 cursor-default'
+          : selected
+            ? 'border-primary ring-2 ring-primary ring-offset-1 ring-offset-background cursor-pointer'
+            : 'border-border hover:border-primary/60 cursor-pointer',
       ].join(' ')}
       title={name}
     >
@@ -65,7 +69,7 @@ function AssetCard({
         <img
           src={asset.publicUrl}
           alt={name}
-          className="h-full w-full object-cover"
+          className={`h-full w-full object-cover ${alreadyAdded ? 'opacity-60' : ''}`}
           loading="lazy"
         />
       ) : (
@@ -75,7 +79,7 @@ function AssetCard({
             preload="metadata"
             muted
             playsInline
-            className="h-full w-full object-cover"
+            className={`h-full w-full object-cover ${alreadyAdded ? 'opacity-60' : ''}`}
           />
           <div className="absolute bottom-0 inset-x-0 flex justify-center pb-1 pointer-events-none">
             <span className="font-mono text-[9px] px-1 truncate w-full text-center text-white/70">{name}</span>
@@ -83,7 +87,16 @@ function AssetCard({
         </div>
       )}
 
-      {selected && multiMode && (
+      {/* Already in gallery — green badge top-right */}
+      {alreadyAdded && (
+        <div className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-success text-white shadow-sm">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+      )}
+
+      {selected && multiMode && !alreadyAdded && (
         <div className="absolute inset-0 flex items-center justify-center bg-primary/60">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="20 6 9 17 4 12" />
@@ -91,7 +104,7 @@ function AssetCard({
         </div>
       )}
 
-      {selected && !multiMode && (
+      {selected && !multiMode && !alreadyAdded && (
         <div className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="20 6 9 17 4 12" />
@@ -99,7 +112,7 @@ function AssetCard({
         </div>
       )}
 
-      {selected && !multiMode && !isImage && (
+      {selected && !multiMode && !alreadyAdded && !isImage && (
         <div
           role="button"
           tabIndex={0}
@@ -128,7 +141,9 @@ export function MediaLibraryPicker({
   onSelect,
   multiSelect = false,
   onSelectMulti,
+  alreadySelectedIds,
 }: MediaLibraryPickerProps) {
+  const alreadySet = new Set(alreadySelectedIds ?? [])
   const d = useUIStore((s) => s.cmsDict)
   const u = d?.content.upload
 
@@ -256,6 +271,7 @@ export function MediaLibraryPicker({
                   key={asset.id}
                   asset={asset}
                   selected={multiSelect ? selectedIds.has(asset.id) : asset.id === selectedId}
+                  alreadyAdded={alreadySet.has(asset.id)}
                   multiMode={multiSelect}
                   onSelect={multiSelect ? handleMultiSelect : handleSingleSelect}
                   onDoubleClick={handleDoubleClick}

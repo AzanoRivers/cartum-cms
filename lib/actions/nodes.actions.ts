@@ -10,6 +10,7 @@ import {
   DeleteConnectionSchema,
   UpdateConnectionSchema,
   UpdateFieldMetaSchema,
+  ForceChangeFieldTypeSchema,
   DeleteNodeSchema,
   RenameNodeSchema,
   UpdatePositionSchema,
@@ -32,7 +33,7 @@ export async function createContainerNode(
   try {
     await requireSession()
     const parsed = CreateContainerSchema.safeParse(input)
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const node = await nodeService.createContainer(parsed.data)
     return { success: true, data: node }
   } catch (err) {
@@ -46,7 +47,7 @@ export async function createFieldNode(
   try {
     await requireSession()
     const parsed = CreateFieldSchema.safeParse(input)
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const node = await nodeService.createField(parsed.data)
     return { success: true, data: node }
   } catch (err) {
@@ -60,7 +61,7 @@ export async function updateNodePosition(
   try {
     await requireSession()
     const parsed = UpdatePositionSchema.safeParse(input)
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     await nodeService.updatePosition(parsed.data.id, parsed.data.x, parsed.data.y)
     return { success: true }
   } catch (err) {
@@ -74,7 +75,7 @@ export async function renameNode(
   try {
     await requireSession()
     const parsed = RenameNodeSchema.safeParse(input)
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const node = await nodeService.rename(parsed.data.id, parsed.data.name)
     return { success: true, data: node } as ActionResult<AnyNode>
   } catch (err) {
@@ -88,7 +89,7 @@ export async function deleteNode(
   try {
     await requireSession()
     const parsed = DeleteNodeSchema.safeParse(input)
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     await nodeService.delete(parsed.data.id, parsed.data.confirmed)
     return { success: true }
   } catch (err) {
@@ -104,7 +105,7 @@ export async function createConnection(
   try {
     await requireSession()
     const parsed = CreateConnectionSchema.safeParse(input)
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const connection = await connectionsService.create(
       parsed.data.sourceId,
       parsed.data.targetId,
@@ -122,7 +123,7 @@ export async function deleteConnection(
   try {
     await requireSession()
     const parsed = DeleteConnectionSchema.safeParse(input)
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     await connectionsService.delete(parsed.data.connectionId)
     return { success: true }
   } catch (err) {
@@ -136,7 +137,7 @@ export async function updateConnection(
   try {
     await requireSession()
     const parsed = UpdateConnectionSchema.safeParse(input)
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const conn = await connectionsService.updateType(parsed.data.connectionId, parsed.data.relationType)
     return { success: true, data: conn }
   } catch (err) {
@@ -152,8 +153,29 @@ export async function updateFieldMeta(
   try {
     await requireSession()
     const parsed = UpdateFieldMetaSchema.safeParse(input)
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const node = await nodeService.updateFieldMeta(parsed.data.nodeId, {
+      name:             parsed.data.name,
+      isRequired:       parsed.data.isRequired,
+      fieldType:        parsed.data.fieldType,
+      defaultValue:     parsed.data.defaultValue,
+      config:           parsed.data.config as FieldConfig | undefined,
+      relationTargetId: parsed.data.relationTargetId,
+    })
+    return { success: true, data: node }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error.' }
+  }
+}
+
+export async function forceChangeFieldType(
+  input: unknown,
+): Promise<ActionResult<FieldNode>> {
+  try {
+    await requireSession()
+    const parsed = ForceChangeFieldTypeSchema.safeParse(input)
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
+    const node = await nodeService.forceChangeFieldType(parsed.data.nodeId, {
       name:             parsed.data.name,
       isRequired:       parsed.data.isRequired,
       fieldType:        parsed.data.fieldType,

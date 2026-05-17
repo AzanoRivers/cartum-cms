@@ -26,7 +26,7 @@ export async function checkNodeDeletionRisk(
   try {
     await requireSession()
     const parsed = CheckNodeSchema.safeParse(input)
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Validation error.' }
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const risk = await integrityService.checkNodeDeletion(parsed.data.id)
     return { success: true, data: risk }
   } catch (err) {

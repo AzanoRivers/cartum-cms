@@ -1,4 +1,4 @@
-import { asc, count, desc, eq } from 'drizzle-orm'
+import { asc, count, desc, eq, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { records } from '@/db/schema'
 
@@ -43,6 +43,13 @@ async function deleteRecord(id: string): Promise<void> {
   await db.delete(records).where(eq(records.id, id))
 }
 
+async function clearFieldData(containerId: string, fieldName: string): Promise<void> {
+  await db
+    .update(records)
+    .set({ data: sql<Record<string, unknown>>`${records.data} - ${fieldName}::text` })
+    .where(eq(records.nodeId, containerId))
+}
+
 async function countByNodeId(nodeId: string): Promise<number> {
   const [result] = await db
     .select({ value: count() })
@@ -79,4 +86,5 @@ export const recordsRepository = {
   update,
   delete: deleteRecord,
   countByNodeId,
+  clearFieldData,
 }

@@ -37,6 +37,25 @@ interfaz CMS, procesamiento de media y despliegue serverless.
 - **Connection** = relación de clave foránea
 - **Record** = fila almacenada como JSONB
 
+## La Analogía del Tablero (vocabulario de dominio)
+
+> El tablero principal es una **mesa de póker infinita**.
+
+Esta analogía es estructural en todo Cartum — UI, locales, mensajes, documentación. Todo texto visible al usuario debe usar este vocabulario:
+
+| Concepto técnico | Término visible en la app |
+|---|---|
+| Container node (tabla DB) | **Mazo** — agrupa cartas del mismo tipo |
+| Field node (columna / atributo) | **Carta** — cada campo dentro de un mazo es una carta |
+| Connection (FK / relación entre tablas) | **Vínculo** — hilo que conecta cartas de mazos distintos |
+| Node board (canvas) | **Tablero** — la mesa infinita donde se modelan mazos y vínculos |
+
+**Regla crítica:** en código técnico (variables, DB, types) se usan los términos técnicos normales. En todo texto visible al usuario (labels, mensajes, advertencias, tooltips, locales) se usan exclusivamente los términos de la analogía.
+
+### Modelo de datos de records
+
+Los records se almacenan como JSONB en `records.data`, con las claves siendo el **`field.name`** (string). Ejemplo: `{ "titulo": "Hola", "precio": 42 }`. Un record pertenece a un mazo vía `nodeId`.
+
 ## Reglas de Código
 
 - TypeScript strict — nunca `any`, nunca tipos inline en componentes

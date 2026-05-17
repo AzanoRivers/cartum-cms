@@ -13,6 +13,8 @@ interface NodeBoardState {
   /** Actual pixel dimensions of the canvas container — updated by InfiniteCanvas on mount/resize. */
   canvasWidth: number
   canvasHeight: number
+  /** IDs of nodes created within the last 2 s — used to show the rainbow "new" border. */
+  newNodeIds: string[]
 }
 
 interface NodeBoardActions {
@@ -26,6 +28,8 @@ interface NodeBoardActions {
   setCanvasDimensions: (width: number, height: number) => void
   updateNodePositionOptimistic: (id: string, x: number, y: number) => void
   reset: () => void
+  markNodeNew: (id: string) => void
+  clearNewNode: (id: string) => void
 }
 
 const initialState: NodeBoardState = {
@@ -38,6 +42,7 @@ const initialState: NodeBoardState = {
   dragNodeId: null,
   canvasWidth: typeof window !== 'undefined' ? window.innerWidth : 1280,
   canvasHeight: typeof window !== 'undefined' ? window.innerHeight : 900,
+  newNodeIds: [],
 }
 
 export const useNodeBoardStore = create<NodeBoardState & NodeBoardActions>()(
@@ -59,5 +64,12 @@ export const useNodeBoardStore = create<NodeBoardState & NodeBoardActions>()(
         ),
       })),
     reset: () => set(initialState),
+    markNodeNew: (id) => {
+      set((s) => ({ newNodeIds: [...s.newNodeIds, id] }))
+      setTimeout(() => {
+        set((s) => ({ newNodeIds: s.newNodeIds.filter((x) => x !== id) }))
+      }, 3000)
+    },
+    clearNewNode: (id) => set((s) => ({ newNodeIds: s.newNodeIds.filter((x) => x !== id) })),
   }))
 )

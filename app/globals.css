@@ -69,6 +69,29 @@ select:focus-visible {
     outline: none;
 }
 
+/* Text cursor on all text-entry elements — overrides any inherited cursor: pointer from ancestors */
+input,
+textarea,
+[contenteditable] {
+    cursor: text;
+}
+
+input[type="number"],
+input[type="range"],
+input[type="color"],
+input[type="file"] {
+    cursor: default;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    cursor: pointer;
+}
+
+select {
+    cursor: pointer;
+}
+
 /* Skip-to-content link — visually hidden until focused */
 .skip-link {
     position: absolute;
@@ -335,6 +358,31 @@ canvas,
   color: transparent;
   animation: cartum-rainbow 8s linear infinite;
   filter: drop-shadow(0 0 5px rgba(99, 102, 241, 0.45));
+}
+
+/* === NEW-NODE RAINBOW BORDER (2 s auto-dismiss) === */
+@keyframes node-new-fade {
+  0%, 70% { opacity: 1; }
+  100%     { opacity: 0; }
+}
+
+.node-rainbow-border {
+  background: linear-gradient(
+    90deg,
+    #6366f1,
+    #22d3ee,
+    #a855f7,
+    #22c55e,
+    #eab308,
+    #f97316,
+    #ec4899,
+    #6366f1
+  );
+  background-size: 200% auto;
+  border-radius: 9.5px; /* rounded-lg (8px) + 1.5px outset */
+  animation:
+    cartum-rainbow 1.5s linear infinite,
+    node-new-fade  3s   ease-out forwards;
 }
 
 /* === BOTTOM SHEET ANIMATIONS === */

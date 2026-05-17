@@ -279,7 +279,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
   // ── Pagination & filter ────────────────────────────────────────────────────
   const [filter,     setFilter]     = useState<MediaGalleryFilter>('image')
   const [page,       setPage]       = useState(1)
-  const [perPage,    setPerPage]    = useState(10)
+  const [perPage,    setPerPage]    = useState(16)
   const [search,     setSearch]     = useState('')
   const searchTimer                 = useRef<ReturnType<typeof setTimeout> | null>(null)
 

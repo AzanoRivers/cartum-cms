@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/atoms/Badge'
 import { FullscreenLoader } from '@/components/ui/atoms/FullscreenLoader'
 import { ConnectorPort } from '@/components/ui/molecules/ConnectorPort'
 import { useUIStore } from '@/lib/stores/uiStore'
+import { useNodeBoardStore } from '@/lib/stores/nodeBoardStore'
 import type { AnyNode, FieldType, PortSide } from '@/types/nodes'
 
 const FIELD_TYPE_ICON: Record<FieldType, string> = {
@@ -74,6 +75,7 @@ function NodeCardInner({
 }: NodeCardProps) {
   const router = useRouter()
   const d = useUIStore((s) => s.cmsDict)
+  const isNew = useNodeBoardStore((s) => s.newNodeIds.includes(node.id))
   const [isNavigating, setIsNavigating] = useState(false)
 
   function handleClick(e: React.MouseEvent) {
@@ -103,6 +105,7 @@ function NodeCardInner({
     return (
       <>
         {isNavigating && createPortal(<FullscreenLoader />, document.body)}
+        {isNew && <div aria-hidden="true" className="absolute -inset-[1.5px] rounded-[9.5px] node-rainbow-border pointer-events-none" />}
         <article
           onClick={handleClick}
           className={`${baseClasses} ${stateClasses} min-w-52`}
@@ -152,11 +155,13 @@ function NodeCardInner({
   const iconName     = FIELD_TYPE_ICON[node.fieldType] as Parameters<typeof Icon>[0]['name']
   const iconClass    = FIELD_TYPE_ICON_CLASS[node.fieldType]
   return (
-    <article
-      onClick={handleClick}
-      className={`${baseClasses} ${stateClasses} min-w-44`}
-      aria-selected={selected}
-    >
+    <>
+      {isNew && <div aria-hidden="true" className="absolute -inset-[1.5px] rounded-[9.5px] node-rainbow-border pointer-events-none" />}
+      <article
+        onClick={handleClick}
+        className={`${baseClasses} ${stateClasses} min-w-44`}
+        aria-selected={selected}
+      >
       <div className="flex items-center gap-2 min-w-0">
         <Icon name={iconName} size="md" className={`${iconClass} shrink-0`} />
         <span className="font-mono text-sm text-text truncate">{node.name}</span>
@@ -166,6 +171,7 @@ function NodeCardInner({
         {node.isRequired && <Badge variant="warning" size="sm">{d?.nodeCard.required ?? '*'}</Badge>}
       </div>
     </article>
+    </>
   )
 }
 

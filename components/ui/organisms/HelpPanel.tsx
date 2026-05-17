@@ -103,7 +103,7 @@ export function HelpPanel() {
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface-2">
-                    <Icon name="CircleHelp" size="sm" className="text-primary" />
+                    <Icon name="CircleQuestionMark" size="sm" className="text-primary" />
                   </div>
                   <span className="font-mono text-sm font-medium text-text">{h.title}</span>
                 </div>
