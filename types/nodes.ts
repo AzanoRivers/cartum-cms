@@ -62,6 +62,10 @@ export type GalleryContentLabels = {
   uploading:     string
   optimizing:    string
   uploadError:   string
+  fromUrl:       string
+  urlPlaceholder: string
+  addAnotherUrl: string
+  addUrls:       string
 }
 
 export type FieldConfig =

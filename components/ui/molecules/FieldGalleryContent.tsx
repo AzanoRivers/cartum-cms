@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { cva } from 'class-variance-authority'
-import { GripVertical, Library, Upload, X } from 'lucide-react'
+import { GripVertical, Library, Upload, X, Link, Plus, ArrowLeft, ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { optimizeImage } from '@/lib/media/optimize'
 import { uploadFileWithProgress } from '@/lib/media/upload'
@@ -27,6 +27,8 @@ export type FieldGalleryContentProps = {
   onChange:  (items: GalleryItem[]) => Promise<void>
   labels:    GalleryContentLabels
 }
+
+type UrlEntry = { id: string; value: string }
 
 type UploadingSlot = {
   id:       string   // temporal, para key de React
@@ -135,18 +137,139 @@ function UploadSlot({ slot }: { slot: UploadingSlot }) {
   )
 }
 
+// ── UrlPreview — miniatura de la URL ingresada ────────────────────────────────
+
+function UrlPreview({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false)
+  // Reset error when URL changes
+  const prevUrl = useRef(url)
+  if (prevUrl.current !== url) { prevUrl.current = url; if (failed) setFailed(false) }
+
+  return (
+    <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-surface">
+      {!url.trim() ? (
+        <ImageIcon size={11} className="text-muted" />
+      ) : failed ? (
+        <X size={11} className="text-danger/60" />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} loading="lazy" />
+      )}
+    </div>
+  )
+}
+
+// ── UrlZone — entradas de URL con preview ─────────────────────────────────────
+
+function UrlZone({
+  onConfirm,
+  onCancel,
+  maxAvailable,
+  labels,
+}: {
+  onConfirm:    (urls: string[]) => void
+  onCancel:     () => void
+  maxAvailable?: number
+  labels: Pick<GalleryContentLabels, 'urlPlaceholder' | 'addAnotherUrl' | 'addUrls'>
+}) {
+  const [entries, setEntries] = useState<UrlEntry[]>(() => [{ id: `u-${Date.now()}`, value: '' }])
+
+  const validUrls = entries.map((e) => e.value.trim()).filter((u) => u.startsWith('http'))
+  const canAddMore = maxAvailable === undefined || entries.length < maxAvailable
+
+  function addEntry() {
+    if (!canAddMore) return
+    setEntries((p) => [...p, { id: `u-${Date.now()}`, value: '' }])
+  }
+
+  function updateEntry(id: string, value: string) {
+    setEntries((p) => p.map((e) => (e.id === id ? { ...e, value } : e)))
+  }
+
+  function removeEntry(id: string) {
+    setEntries((p) => p.filter((e) => e.id !== id))
+  }
+
+  return (
+    <div className="flex flex-col gap-2.5 rounded-md border border-border bg-surface-2 p-3">
+      {/* URL rows */}
+      <div className="flex flex-col gap-2">
+        {entries.map((entry, i) => (
+          <div key={entry.id} className="flex items-center gap-2">
+            <UrlPreview url={entry.value} />
+            <input
+              type="url"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus={i === entries.length - 1 && i > 0}
+              value={entry.value}
+              placeholder={labels.urlPlaceholder}
+              onChange={(e) => updateEntry(entry.id, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canAddMore) addEntry()
+              }}
+              className="min-w-0 flex-1 rounded-md border border-border bg-surface px-2.5 py-1.5 font-mono text-xs text-text placeholder:text-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
+            />
+            <button
+              type="button"
+              disabled={entries.length === 1}
+              onClick={() => removeEntry(entry.id)}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted transition-colors hover:text-danger disabled:pointer-events-none disabled:opacity-30"
+            >
+              <X size={11} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Add another */}
+      {canAddMore && (
+        <button
+          type="button"
+          onClick={addEntry}
+          className="flex items-center gap-1.5 self-start font-mono text-[11px] text-muted transition-colors hover:text-primary"
+        >
+          <Plus size={10} />
+          {labels.addAnotherUrl}
+        </button>
+      )}
+
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t border-border pt-2.5">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex items-center gap-1 font-mono text-xs text-muted transition-colors hover:text-text"
+          aria-label="Cancel"
+        >
+          <ArrowLeft size={12} />
+        </button>
+        <button
+          type="button"
+          disabled={validUrls.length === 0}
+          onClick={() => onConfirm(validUrls)}
+          className="rounded-md bg-primary px-3 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+        >
+          {labels.addUrls}{validUrls.length > 0 ? ` (${validUrls.length})` : ''}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── DropZone — visible when not at max ────────────────────────────────────────
 
 function DropZone({
   onFiles,
   onFromLib,
   onUpload,
+  onFromUrl,
   labels,
 }: {
   onFiles:   (files: File[]) => void
   onFromLib: () => void
   onUpload:  () => void
-  labels:    { selectFromLib: string; uploadNew: string; dragOrSelect?: string }
+  onFromUrl: () => void
+  labels:    { selectFromLib: string; uploadNew: string; dragOrSelect?: string; fromUrl: string }
 }) {
   const [dragging, setDragging] = useState(false)
 
@@ -175,7 +298,7 @@ function DropZone({
       <p className="font-mono text-[10px] text-muted">
         {labels.dragOrSelect ?? 'Drag images here or'}
       </p>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         <button
           type="button"
           onClick={onFromLib}
@@ -191,6 +314,14 @@ function DropZone({
         >
           <Upload size={11} />
           {labels.uploadNew}
+        </button>
+        <button
+          type="button"
+          onClick={onFromUrl}
+          className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-xs text-text transition-colors hover:border-primary hover:text-primary"
+        >
+          <Link size={11} />
+          {labels.fromUrl}
         </button>
       </div>
     </div>
@@ -211,6 +342,7 @@ export function FieldGalleryContent({
   const [uploading,    setUploading]    = useState<UploadingSlot[]>([])
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [libOpen,      setLibOpen]      = useState(false)
+  const [urlMode,      setUrlMode]      = useState(false)
 
   const atMax = maxItems !== undefined && items.length >= maxItems
 
@@ -282,6 +414,18 @@ export function FieldGalleryContent({
     for (const file of files) {
       await processFile(file)
     }
+  }
+
+  // ── From URL ────────────────────────────────────────────────────────────────
+  async function handleUrlConfirm(urls: string[]) {
+    const existingUrls = new Set(items.map((i) => i.url))
+    const available = maxItems !== undefined ? Math.max(0, maxItems - items.length) : urls.length
+    const newItems: GalleryItem[] = urls
+      .filter((url) => !existingUrls.has(url))
+      .slice(0, available)
+      .map((url) => ({ url, mediaId: null }))
+    await onChange([...items, ...newItems])
+    setUrlMode(false)
   }
 
   // ── From library (multi-select) ─────────────────────────────────────────────
@@ -358,14 +502,24 @@ export function FieldGalleryContent({
           </div>
         )}
 
-        {/* Drop zone — hidden when at max */}
+        {/* Drop zone / URL zone — hidden when at max */}
         {!atMax && (
-          <DropZone
-            onFiles={handleDropZoneFiles}
-            onFromLib={() => setLibOpen(true)}
-            onUpload={() => fileRef.current?.click()}
-            labels={labels}
-          />
+          urlMode ? (
+            <UrlZone
+              onConfirm={handleUrlConfirm}
+              onCancel={() => setUrlMode(false)}
+              maxAvailable={maxItems !== undefined ? Math.max(0, maxItems - items.length) : undefined}
+              labels={labels}
+            />
+          ) : (
+            <DropZone
+              onFiles={handleDropZoneFiles}
+              onFromLib={() => setLibOpen(true)}
+              onUpload={() => fileRef.current?.click()}
+              onFromUrl={() => setUrlMode(true)}
+              labels={labels}
+            />
+          )
         )}
 
         {/* Hidden file input */}

@@ -740,6 +740,10 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
               uploading:     d?.fieldEdit.galleryContent.uploading     ?? 'Uploading…',
               optimizing:    d?.fieldEdit.galleryContent.optimizing    ?? 'Optimizing…',
               uploadError:   d?.fieldEdit.galleryContent.uploadError   ?? 'Upload failed.',
+              fromUrl:       d?.fieldEdit.galleryContent.fromUrl       ?? 'From URL',
+              urlPlaceholder: d?.fieldEdit.galleryContent.urlPlaceholder ?? 'https://…',
+              addAnotherUrl: d?.fieldEdit.galleryContent.addAnotherUrl ?? 'Add another link',
+              addUrls:       d?.fieldEdit.galleryContent.addUrls       ?? 'Add',
             }}
           />
         ) : (

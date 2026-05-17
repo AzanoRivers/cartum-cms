@@ -604,6 +604,10 @@
         uploading:     'Uploading…',
         optimizing:    'Optimizing…',
         uploadError:   'Upload failed.',
+        fromUrl:       'From URL',
+        urlPlaceholder: 'https://…',
+        addAnotherUrl: 'Add another link',
+        addUrls:       'Add',
       },
     },
     mobileList: {
@@ -1375,6 +1379,7 @@ export type Dictionary = {
         addImage: string; removeImage: string; confirmRemove: string
         selectFromLib: string; uploadNew: string; empty: string; maxReached: string
         uploading: string; optimizing: string; uploadError: string
+        fromUrl: string; urlPlaceholder: string; addAnotherUrl: string; addUrls: string
       }
     }
     mobileList: { empty: string; emptyHint: string; fieldsSeparator: string }

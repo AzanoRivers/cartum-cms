@@ -606,6 +606,10 @@ export const es: Dictionary = {
         uploading:     'Subiendo…',
         optimizing:    'Optimizando…',
         uploadError:   'Error al subir.',
+        fromUrl:       'Desde URL',
+        urlPlaceholder: 'https://…',
+        addAnotherUrl: 'Agregar otro enlace',
+        addUrls:       'Agregar',
       },
     },
     mobileList: {
