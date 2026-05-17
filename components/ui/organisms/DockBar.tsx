@@ -68,7 +68,8 @@ export function DockBar() {
         style={{
           maxWidth:      collapsed ? '0px' : '320px',
           opacity:       collapsed ? 0 : 1,
-          clipPath:      collapsed ? 'inset(-100px 0 0 100%)' : 'inset(-100px 0 0 -100px)',
+          WebkitClipPath: collapsed ? 'inset(-100px 0 0 100%)' : 'inset(-100px 0 0 -100px)',
+          clipPath:       collapsed ? 'inset(-100px 0 0 100%)' : 'inset(-100px 0 0 -100px)',
           overflow:      collapsed ? 'hidden' : 'visible',
           pointerEvents: collapsed ? 'none' : undefined,
         }}

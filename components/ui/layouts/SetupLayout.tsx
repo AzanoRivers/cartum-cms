@@ -39,7 +39,7 @@ export function SetupLayout({ children, currentStep, layoutDict }: SetupLayoutPr
   const backRoute = STEP_BACK_ROUTES[currentStep]
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-dvh bg-bg flex flex-col items-center justify-center px-4 py-12">
 
       {/* Brand header */}
       <div className="flex items-center gap-3 mb-14">

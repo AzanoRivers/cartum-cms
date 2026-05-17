@@ -63,7 +63,7 @@ export function ForgotPasswordClient({ dict, hasResend }: Props) {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-bg">
+    <main className="min-h-dvh flex items-center justify-center bg-bg">
       <VHSTransition duration="full">
         <div className="w-full max-w-sm">
 

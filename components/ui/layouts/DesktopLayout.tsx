@@ -41,7 +41,7 @@ export function DesktopLayout({
   useKeyboardShortcuts()
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-bg">
+    <div className="flex h-dvh flex-col overflow-hidden bg-bg">
       <TopBar projectName={projectName} userInitials={userInitials} />
       <main id="main-content" className="relative flex flex-1 overflow-hidden">
         {/* Breadcrumb bar visible only at mobile widths in responsive dev tools */}

@@ -8,7 +8,7 @@ export default async function NotFound() {
   const d = getDictionary(locale).cms.notFound
 
   return (
-    <div className="min-h-screen bg-background text-text flex items-center justify-center p-6">
+    <div className="min-h-dvh bg-background text-text flex items-center justify-center p-6">
       {/* Scanline overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
