@@ -92,12 +92,12 @@ function Thumbnail({
       </button>
 
       {/* Remove overlay */}
-      <div className="absolute inset-0 flex items-end justify-end p-1 opacity-0 transition-opacity hover:opacity-100">
+      <div className="pointer-events-none absolute inset-0 flex items-end justify-end p-1 opacity-0 transition-opacity group-hover:opacity-100">
         <button
           type="button"
           onClick={() => onRemoveClick(item.url)}
           className={[
-            'flex h-6 items-center gap-1 rounded px-1.5 font-mono text-[9px] transition-all',
+            'pointer-events-auto flex h-6 items-center gap-1 rounded px-1.5 font-mono text-[9px] transition-all',
             isConfirming
               ? 'bg-danger text-white'
               : 'bg-black/70 text-white hover:bg-danger',
