@@ -115,7 +115,8 @@ function FunMessage({ messages }: { messages: string[] }) {
 
   return (
     <p
-      className={`min-h-[2.5rem] font-mono text-[11px] leading-relaxed text-center italic text-text/70 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}
+      className={`min-h-[2.5rem] font-mono text-[11px] leading-relaxed text-center italic text-primary/80 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}
+      style={{ textShadow: '0 0 8px var(--color-primary), 0 0 20px var(--color-primary)' }}
     >
       {messages[idx]}
     </p>
@@ -143,11 +144,12 @@ const CHALK_FILTER_ID = 'chalk-bar-filter'
 
 function ChalkProgressBar({ pct }: { pct: number }) {
   return (
-    <div className="relative h-[10px] w-full overflow-hidden rounded-[3px] border border-border bg-bg">
+    // No overflow-hidden aquí — el drop-shadow glow necesita sangrar fuera del track
+    <div className="relative h-[10px] w-full">
       {/* SVG displacement filter — gives rough chalk edge */}
       <svg width="0" height="0" className="absolute pointer-events-none">
         <defs>
-          <filter id={CHALK_FILTER_ID} x="-4%" y="-20%" width="108%" height="140%">
+          <filter id={CHALK_FILTER_ID} x="-4%" y="-40%" width="108%" height="180%">
             <feTurbulence
               type="fractalNoise"
               baseFrequency="0.75 0.3"
@@ -166,16 +168,18 @@ function ChalkProgressBar({ pct }: { pct: number }) {
         </defs>
       </svg>
 
-      {/* Phase milestone ticks — light up when passed */}
-      {PHASE_MILESTONES.map((m) => (
-        <div
-          key={m}
-          className={`absolute top-0 z-10 h-full w-[2px] transition-colors duration-500 ${pct >= m ? 'bg-white/25' : 'bg-border/60'}`}
-          style={{ left: `${m}%` }}
-        />
-      ))}
+      {/* Track background — overflow-hidden aquí para clipear sólo el fondo y los ticks */}
+      <div className="absolute inset-0 overflow-hidden rounded-[3px] border border-border bg-bg">
+        {PHASE_MILESTONES.map((m) => (
+          <div
+            key={m}
+            className={`absolute top-0 h-full w-[2px] transition-colors duration-500 ${pct >= m ? 'bg-white/25' : 'bg-border/60'}`}
+            style={{ left: `${m}%` }}
+          />
+        ))}
+      </div>
 
-      {/* Chalk fill */}
+      {/* Chalk fill — fuera del overflow-hidden, el drop-shadow glow sangra libremente */}
       <div
         className="absolute inset-y-0 left-0 rounded-[3px] bg-primary"
         style={{
