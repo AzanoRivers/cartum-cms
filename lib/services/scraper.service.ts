@@ -57,8 +57,17 @@ async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let message = `HTTP ${res.status}`
     try {
-      const body = (await res.json()) as { error?: string; message?: string }
-      message = body.error ?? body.message ?? message
+      const body = (await res.json()) as { error?: string; message?: string; detail?: unknown }
+      if (body.error) {
+        message = body.error
+      } else if (body.message) {
+        message = body.message
+      } else if (body.detail) {
+        // Pydantic validation errors arrive as detail array
+        message = typeof body.detail === 'string'
+          ? body.detail
+          : JSON.stringify(body.detail)
+      }
     } catch {
       /* ignore parse error */
     }
