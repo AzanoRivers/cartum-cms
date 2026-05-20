@@ -422,7 +422,10 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
                   {progress && (
                     <>
                       <p>{t(d, 'phaseLabel', { phase: progress.phase })}</p>
-                      <p>{t(d, 'pagesProgress', { done: progress.pages_done, total: progress.pages_total })}</p>
+                      <p>{progress.phase === 'analyzing'
+                        ? t(d, 'stepsProgress', { done: progress.pages_done, total: progress.pages_total })
+                        : t(d, 'pagesProgress',  { done: progress.pages_done, total: progress.pages_total })
+                      }</p>
                     </>
                   )}
                   {jobState?.estimated_remaining_seconds ? (

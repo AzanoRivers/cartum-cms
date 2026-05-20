@@ -1082,6 +1082,7 @@
       progressTitle:        'Scraping in progress',
       phaseLabel:           'Phase: {phase}',
       pagesProgress:        '{done} / {total} pages',
+      stepsProgress:        'Step {done} of {total}',
       estimatedTime:        '~{seconds}s remaining',
       cancel:               'Cancel',
       // Result
@@ -1676,7 +1677,7 @@ export type Dictionary = {
       connectionOk: string; connectionFail: string
       urlLabel: string; urlPlaceholder: string; maxPages: string; downloadImages: string
       startMigration: string; starting: string
-      progressTitle: string; phaseLabel: string; pagesProgress: string; estimatedTime: string; cancel: string
+      progressTitle: string; phaseLabel: string; pagesProgress: string; stepsProgress: string; estimatedTime: string; cancel: string
       resultTitle: string; coverage: string; ttlWarning: string
       importTitle: string; strategyBusinessOnly: string; strategyWithPages: string
       importButton: string; importing: string

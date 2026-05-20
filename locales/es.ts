@@ -1084,6 +1084,7 @@ export const es: Dictionary = {
       progressTitle:        'Scraping en progreso',
       phaseLabel:           'Fase: {phase}',
       pagesProgress:        '{done} / {total} páginas',
+      stepsProgress:        'Paso {done} de {total}',
       estimatedTime:        '~{seconds}s restantes',
       cancel:               'Cancelar',
       // Result
