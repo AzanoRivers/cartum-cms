@@ -68,13 +68,15 @@ export async function runBootValidation(): Promise<void> {
     const { checkSchemaIntegrity } = await import('@/db/adapters/check-schema')
     const ready = await checkSchemaIntegrity()
     if (!ready) {
-      fatal('CARTUM_E005', 'Database migrations have not been applied.', 'Run: pnpm db:migrate')
-      process.stdout.write('\n')
-      process.exit(1)
+      info('CARTUM_I002', 'Schema missing — running migrations automatically...')
+      const { runMigrations } = await import('@/db/adapters/run-migrations')
+      await runMigrations()
+      ok('Auto-migration — OK')
+    } else {
+      ok('Schema integrity — OK')
     }
-    ok('Schema integrity — OK')
   } catch {
-    fatal('CARTUM_E005', 'Could not verify schema integrity.', 'Run: pnpm db:migrate')
+    fatal('CARTUM_E005', 'Auto-migration failed.', 'Check DATABASE_URL and run: pnpm db:migrate')
     process.stdout.write('\n')
     process.exit(1)
   }
@@ -112,6 +114,23 @@ export async function runBootValidation(): Promise<void> {
       ok('Vercel Blob — OK')
     } else {
       info('CARTUM_I001', 'Vercel Blob not configured. Optional — set BLOB_READ_WRITE_TOKEN to enable.')
+    }
+  }
+
+  // ── N. DealerScraper (optional) ───────────────────────────────────────────
+  try {
+    const { getSetting: gs3 } = await import('@/lib/settings/get-setting')
+    const scraperKey = await gs3('scraper_api_key', process.env.SCRAPER_API_KEY)
+    if (scraperKey) {
+      ok('DealerScraper — OK')
+    } else {
+      info('CARTUM_I002', 'DealerScraper not configured. Optional — configure in Settings > Web Migration.')
+    }
+  } catch {
+    if (process.env.SCRAPER_API_KEY) {
+      ok('DealerScraper — OK')
+    } else {
+      info('CARTUM_I002', 'DealerScraper not configured. Optional — configure in Settings > Web Migration.')
     }
   }
 

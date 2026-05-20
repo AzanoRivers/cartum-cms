@@ -31,3 +31,8 @@ export interface RolePermissionMatrix {
     actions: Array<'read' | 'create' | 'update' | 'delete'>
   }>
 }
+
+export type WebMigrationSettings = {
+  scraperApiUrl?: string
+  scraperApiKey?: string
+}

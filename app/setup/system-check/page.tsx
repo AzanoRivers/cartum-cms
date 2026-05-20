@@ -63,6 +63,15 @@ async function runChecks(dict: SysCheckDict): Promise<CheckResult[]> {
     warning: optimusConfigured ? undefined : dict.optimusWarning,
   })
 
+  // DealerScraper web migration — optional; shown with warning if not configured
+  // During setup only the env var is available (DB doesn't exist yet or was just reset)
+  const scraperConfigured = Boolean(process.env.SCRAPER_API_KEY)
+  results.push({
+    label:   dict.scraperLabel,
+    ok:      true,
+    warning: scraperConfigured ? undefined : dict.scraperWarning,
+  })
+
   return results
 }
 

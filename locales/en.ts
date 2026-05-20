@@ -16,6 +16,8 @@
       blobWarning:    'Not configured. You can set it up later in Settings.',
       optimusLabel:   'Media optimization (Optimus)',
       optimusWarning: 'Not configured. Image/video compression will use client-side fallback.',
+      scraperLabel:   'Web Migration (DealerScraper)',
+      scraperWarning: 'Not configured. You can set it up later in Settings → Web Migration.',
       allOk:          'All systems nominal',
       continue: 'Continue',
       fixFirst: 'Fix this first',
@@ -1050,9 +1052,114 @@
       },
     },
     webMigration: {
-      title:       'Web Migration',
-      description: 'Enter a local or remote URL and Cartum will analyze the page structure and content, then automatically recreate it as nodes and fields in the current Board.',
-      comingSoon:  'Coming soon',
+      title:                'Web Migration',
+      // Accordion section headers
+      dealerSection:        'Dealer Scrapper',
+      dealerDescription:    'Tool where you provide a website URL to replicate its data into Cartum\'s Mazos and Cartas system.',
+      configSection:        'API Config',
+      statusConfigured:     'Configured',
+      statusNotConfigured:  'Not configured',
+      apiUrl:               'API URL',
+      apiKey:               'API Key',
+      testConnection:       'Test connection',
+      save:                 'Save',
+      saving:               'Saving…',
+      show:                 'Show',
+      hide:                 'Hide',
+      serverAvailable:      'Server available ({active}/{max} active jobs)',
+      serverBusy:           'Server busy — try again in a few minutes',
+      serverNotConfigured:  'Server not configured',
+      connectionOk:         'Connection OK ({latencyMs}ms)',
+      connectionFail:       'Connection failed',
+      // Migration form
+      urlLabel:             'Target URL',
+      urlPlaceholder:       'https://example.com',
+      maxPages:             'Max pages',
+      downloadImages:       'Download images',
+      startMigration:       'Start migration',
+      starting:             'Starting…',
+      // Progress
+      progressTitle:        'Scraping in progress',
+      phaseLabel:           'Phase: {phase}',
+      pagesProgress:        '{done} / {total} pages',
+      estimatedTime:        '~{seconds}s remaining',
+      cancel:               'Cancel',
+      // Result
+      resultTitle:          'Result',
+      coverage:             'Coverage: {pct}% · {pages} pages analyzed',
+      ttlWarning:           'Expires in {minutes} min',
+      // Import strategy
+      importTitle:          'Import as:',
+      strategyBusinessOnly: 'Business data only (1 mazo, 1 record)',
+      strategyWithPages:    'Business + key pages ({n} mazos, {m} records)',
+      importButton:         'Import to Cartum',
+      importing:            'Importing…',
+      // Confirmation
+      importedTitle:        'Import completed',
+      mazoCreated:          'Mazo "{name}" created',
+      recordsImported:      '{n} record(s) imported',
+      newMigration:         'New migration',
+      viewOnBoard:          'View on board',
+      // Errors
+      errorJobFailed:       'Scraping failed: {message}',
+      errorRetryAfter:      'Retry after ~{seconds}s',
+      errorImport:          'Import failed. Try again.',
+      errorNotConfigured:   'Configure API credentials first',
+      errorServerBusy:      'Server is busy. Try again later.',
+      errorInvalidResult:   'The Dealer didn\'t know how to deliver the cards correctly.',
+      errorTimeout:         'Migration timed out after 15 minutes. The site may have too many pages.',
+      funMessages: [
+        'Dealing cards at the speed of HTTP. Your poker face is already impressive.',
+        'The Dealer is shuffling through pages like a pro. No cheating allowed.',
+        'Science fact: a website with 50 pages contains approximately 50 pages.',
+        'Teaching AI to read websites is like teaching a dog to play poker. It is going well.',
+        'Fetching pages at warp speed. Einstein would be proud. Probably.',
+        'The Dealer is reading every page. Even the Terms and Conditions. A true hero.',
+        'Your cards are being sorted. No jokers were harmed in this process.',
+        'The scraper found a page with 14 nested divs. It needed a moment to breathe.',
+        'Cartum is converting HTML soup into beautiful Cartas. Bon appetit.',
+        'The first website had zero images. Those were simpler, more honest times.',
+        'The Dealer shuffles faster than your Wi-Fi. Respect the craft.',
+        'The AI is reading the About Us page with genuine manufactured enthusiasm.',
+        'Fun fact: nobody has ever read a cookie consent banner. Science agrees.',
+        'Dealing digital cards since 2024. Zero paper cuts reported so far.',
+        'The scraper is analyzing navigation menus. Big menus. Big dreams.',
+        'Your Mazo is being assembled. The house always wins, but this time you do too.',
+        'The AI asked for a coffee break. We told it to keep shuffling.',
+        'Science suggests staring at the progress bar makes it faster. Unverified.',
+        'The Dealer found a carousel slider and scrolled through it stoically.',
+        'Cartum turns raw web data into structured knowledge. Basically alchemy.',
+        'The scraper found a Coming Soon page. It wept briefly and moved on.',
+        'Every page crawled is one Carta closer to glory. Or something poetic like that.',
+        'The AI is reading meta tags. The most thrilling literature currently available.',
+        'Your website just got dealt a full house. Aces in the data, baby.',
+        'The Dealer does not bluff. Unlike several sites we have visited today.',
+        'A developer once named their CSS class thisIsTemporary. It was not.',
+        'Scraping at the speed of the VPS. Practically the speed of light.',
+        'The robots.txt was checked. Rules were followed. Mostly.',
+        'Building your Mazo one fetch at a time. Persistence is a slow virtue.',
+        'The AI discovered a blog with two posts from 2019. It felt something.',
+        'Cartum: turning the web into a deck of infinite possibility.',
+        'The Dealer shuffled, cut the deck, and dealt your data without dropping a card.',
+        'The average website has 47 broken links. We found every single one.',
+        'The scraper saw a parallax effect and kept scrolling without making eye contact.',
+        'Lorem ipsum is the most-read text in human civilization. Allegedly.',
+        'The Dealer is on a hot streak. Seven pages of actual content in a row.',
+        'Cartum believes every site has a story. Some stories are written in table tags.',
+        'The AI ignores pop-ups masterfully. A skill we all should cultivate.',
+        'The scraper followed a redirect politely without asking where it led.',
+        'We found a footer with 11 links to the Privacy Policy. Someone really cares.',
+        'The Dealer never reveals which pages it found tedious. Professional ethics.',
+        'The hamsters powering the VPS are doing great. Hydrated and motivated.',
+        'The AI read an FAQ with 87 questions. None were frequently asked.',
+        'Your data is handled with the precision of a world-class card mechanic.',
+        'Science confirms: good things take time. This is a loose paraphrase.',
+        'The scraper is having a statistically exceptional day.',
+        'Your Cartas are being filled with knowledge scraped from the digital ether.',
+        'The Dealer once read a 404 page. It was the most honest page on the site.',
+        'Almost there. The Dealer is finishing the shuffle. Your Cartas are nearly ready.',
+        'This is fine. The data is incoming. Everything is absolutely fine.',
+      ],
     },
     info: {
       title:          'Info',
@@ -1148,6 +1255,7 @@ export type Dictionary = {
       schema: string; storageLabel: string; storageWarning: string
       blobLabel: string; blobWarning: string
       optimusLabel: string; optimusWarning: string
+      scraperLabel: string; scraperWarning: string
       allOk: string; continue: string; fixFirst: string
     }
     locale: { title: string; subtitle: string; continue: string }
@@ -1557,7 +1665,26 @@ export type Dictionary = {
       }
     }
     webMigration: {
-      title: string; description: string; comingSoon: string
+      title: string
+      // Accordion section headers
+      dealerSection: string; dealerDescription: string
+      configSection: string; statusConfigured: string; statusNotConfigured: string
+      apiUrl: string; apiKey: string; testConnection: string; save: string; saving: string
+      show: string; hide: string
+      serverAvailable: string; serverBusy: string; serverNotConfigured: string
+      connectionOk: string; connectionFail: string
+      urlLabel: string; urlPlaceholder: string; maxPages: string; downloadImages: string
+      startMigration: string; starting: string
+      progressTitle: string; phaseLabel: string; pagesProgress: string; estimatedTime: string; cancel: string
+      resultTitle: string; coverage: string; ttlWarning: string
+      importTitle: string; strategyBusinessOnly: string; strategyWithPages: string
+      importButton: string; importing: string
+      importedTitle: string; mazoCreated: string; recordsImported: string
+      newMigration: string; viewOnBoard: string
+      errorJobFailed: string; errorRetryAfter: string; errorImport: string
+      errorNotConfigured: string; errorServerBusy: string; errorInvalidResult: string
+      errorTimeout: string
+      funMessages: string[]
     }
     info: {
       title: string; version: string; versionLabel: string; releasedOn: string; releaseDate: string

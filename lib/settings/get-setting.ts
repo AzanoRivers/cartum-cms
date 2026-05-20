@@ -14,12 +14,16 @@ export async function getSetting(
   key: string,
   envFallback?: string,
 ): Promise<string | undefined> {
-  const [row] = await db
-    .select()
-    .from(appSettings)
-    .where(eq(appSettings.key, key))
-    .limit(1)
-  return row?.value ?? envFallback ?? undefined
+  try {
+    const [row] = await db
+      .select()
+      .from(appSettings)
+      .where(eq(appSettings.key, key))
+      .limit(1)
+    return row?.value ?? envFallback ?? undefined
+  } catch {
+    return envFallback ?? undefined
+  }
 }
 
 /**

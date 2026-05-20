@@ -20,6 +20,7 @@ import type {
   UpdateStorageInput,
   InviteUserInput,
   RolePermissionMatrix,
+  WebMigrationSettings,
 } from '@/types/settings'
 import { type ThemeId, THEMES } from '@/types/theme'
 import { revalidatePath } from 'next/cache'
@@ -553,6 +554,42 @@ export async function saveRolePermissions(
       }
     }
 
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+// ── Web Migration ──────────────────────────────────────────────────────────────
+
+export async function getWebMigrationSettings(): Promise<ActionResult<WebMigrationSettings>> {
+  try {
+    await requireSuperAdmin()
+    const [url, key] = await Promise.all([
+      getSetting('scraper_api_url', process.env.SCRAPER_API_URL),
+      getSetting('scraper_api_key', process.env.SCRAPER_API_KEY),
+    ])
+    return {
+      success: true,
+      data: {
+        scraperApiUrl: url ?? 'https://scraper.azanolabs.com',
+        scraperApiKey: key ?? '',
+      },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function updateWebMigrationSettings(
+  settings: WebMigrationSettings,
+): Promise<ActionResult<void>> {
+  try {
+    const session = await requireSuperAdmin()
+    await Promise.all([
+      setSetting('scraper_api_url', settings.scraperApiUrl || undefined, session.user.id),
+      setSetting('scraper_api_key', settings.scraperApiKey || undefined, session.user.id),
+    ])
     return { success: true, data: undefined }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
