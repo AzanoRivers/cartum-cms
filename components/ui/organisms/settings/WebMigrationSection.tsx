@@ -311,7 +311,8 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
 
   function handleStart() {
     if (!targetUrl) return
-    startMigration(targetUrl, { max_pages: maxPages, download_images: downloadImages })
+    const normalizedUrl = /^https?:\/\//i.test(targetUrl) ? targetUrl : `https://${targetUrl}`
+    startMigration(normalizedUrl, { max_pages: maxPages, download_images: downloadImages })
   }
 
   // ── Loading skeleton ───────────────────────────────────────────────────────
