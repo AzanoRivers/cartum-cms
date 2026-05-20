@@ -1091,13 +1091,14 @@
       // Import strategy
       importTitle:          'Import as:',
       strategyBusinessOnly: 'Business data only (1 mazo, 1 record)',
-      strategyWithPages:    'Business + key pages ({n} mazos, {m} records)',
+      strategyWithPages:    'Business + site structure ({n} sections)',
       importButton:         'Import to Cartum',
       importing:            'Importing…',
       // Confirmation
       importedTitle:        'Import completed',
       mazoCreated:          'Mazo "{name}" created',
       recordsImported:      '{n} node(s) imported',
+      sectionsImported:     '{n} section(s) created',
       newMigration:         'New migration',
       viewOnBoard:          'View on board',
       // Errors
@@ -1679,7 +1680,7 @@ export type Dictionary = {
       resultTitle: string; coverage: string; ttlWarning: string
       importTitle: string; strategyBusinessOnly: string; strategyWithPages: string
       importButton: string; importing: string
-      importedTitle: string; mazoCreated: string; recordsImported: string
+      importedTitle: string; mazoCreated: string; recordsImported: string; sectionsImported: string
       newMigration: string; viewOnBoard: string
       errorJobFailed: string; errorRetryAfter: string; errorImport: string
       errorNotConfigured: string; errorServerBusy: string; errorInvalidResult: string

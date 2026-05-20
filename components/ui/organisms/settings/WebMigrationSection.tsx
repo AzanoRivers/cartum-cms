@@ -505,8 +505,7 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
                   />
                   <span className="font-mono text-xs text-text">
                     {t(d, 'strategyWithPages', {
-                      n: 2,
-                      m: result.data.key_pages.length + 1,
+                      n: result.data.nav_sections.length,
                     })}
                   </span>
                 </label>
@@ -535,23 +534,21 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
               <ul className="space-y-1.5">
                 <li className="flex items-center gap-2 font-mono text-xs text-text">
                   <CheckCircle2 size={12} className="text-success shrink-0" />
-                  {t(d, 'mazoCreated', { name: `Business: ${result?.data.business_name ?? 'Unnamed'}` })}
+                  {t(d, 'mazoCreated', {
+                    name: importSummary.sectionsCount != null
+                      ? `Site: ${result?.data.business_name ?? 'Unnamed'}`
+                      : `Info: ${result?.data.business_name ?? 'Unnamed'}`,
+                  })}
                 </li>
                 <li className="flex items-center gap-2 font-mono text-xs text-text">
                   <CheckCircle2 size={12} className="text-success shrink-0" />
                   {t(d, 'recordsImported', { n: importSummary.attrCount })}
                 </li>
-                {importSummary.pagesNodeId && (
-                  <>
-                    <li className="flex items-center gap-2 font-mono text-xs text-text">
-                      <CheckCircle2 size={12} className="text-success shrink-0" />
-                      {t(d, 'mazoCreated', { name: `Pages: ${result?.data.business_name ?? 'Unnamed'}` })}
-                    </li>
-                    <li className="flex items-center gap-2 font-mono text-xs text-text">
-                      <CheckCircle2 size={12} className="text-success shrink-0" />
-                      {t(d, 'recordsImported', { n: importSummary.pagesCount ?? 0 })}
-                    </li>
-                  </>
+                {importSummary.sectionsCount != null && (
+                  <li className="flex items-center gap-2 font-mono text-xs text-text">
+                    <CheckCircle2 size={12} className="text-success shrink-0" />
+                    {t(d, 'sectionsImported', { n: importSummary.sectionsCount })}
+                  </li>
                 )}
               </ul>
               <div className="flex justify-end gap-2">

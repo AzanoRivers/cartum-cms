@@ -1093,13 +1093,14 @@ export const es: Dictionary = {
       // Import strategy
       importTitle:          'Importar como:',
       strategyBusinessOnly: 'Solo datos de negocio (1 mazo, 1 registro)',
-      strategyWithPages:    'Negocio + páginas clave ({n} mazos, {m} registros)',
+      strategyWithPages:    'Negocio + estructura del sitio ({n} secciones)',
       importButton:         'Importar a Cartum',
       importing:            'Importando…',
       // Confirmation
       importedTitle:        'Importación completada',
       mazoCreated:          'Mazo "{name}" creado',
       recordsImported:      '{n} nodo(s) importado(s)',
+      sectionsImported:     '{n} sección(es) creada(s)',
       newMigration:         'Nueva migración',
       viewOnBoard:          'Ver en el tablero',
       // Errors

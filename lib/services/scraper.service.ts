@@ -25,13 +25,12 @@ export const CARTUM_RESPONSE_SCHEMA = {
   email:         null,
   social_links:  ['...'],
   main_topics:   ['...'],
-  key_pages: [
+  nav_sections: [
     {
-      url:        '...',
-      title:      '...',
-      summary:    '...',
-      key_points: ['...'],
-      elements:   [{ type: '...', text: '...' }],
+      section_type: '...',
+      label:        '...',
+      url:          '...',
+      elements:     [{ type: '...', text: '...' }],
     },
   ],
 } as const
@@ -99,6 +98,7 @@ export const scraperService = {
           download_images: options?.download_images ?? false,
           llm_provider:    options?.llm_provider    ?? null,
           llm_model:       options?.llm_model       ?? null,
+          max_tokens:      options?.max_tokens      ?? 12000,
         },
       }),
     })

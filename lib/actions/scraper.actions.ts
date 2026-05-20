@@ -123,15 +123,7 @@ export async function importScrapedData(
 
     const businessName = result.data.business_name ?? 'Unnamed'
 
-    // ── 1. Contenedor principal Business ──────────────────────────────────────
-    const businessContainer = await nodeService.createContainer({
-      name:      `Business: ${businessName}`,
-      parentId:  null,
-      positionX: 80,
-      positionY: 80,
-    })
-
-    // ── 2. Fields de negocio — identifier como nombre, valor en defaultValue ──
+    // ── Business metadata fields ───────────────────────────────────────────────
     const businessFields: [string, string][] = (
       [
         ['business_name',  result.data.business_name],
@@ -150,102 +142,103 @@ export async function importScrapedData(
       return typeof v === 'string' && v.trim().length > 0
     })
 
-    for (let i = 0; i < businessFields.length; i++) {
-      const [key, value] = businessFields[i]
-      const col = i % 2
-      const row = Math.floor(i / 2)
-      await nodeService.createField({
-        name:         key,
-        parentId:     businessContainer.id,
-        fieldType:    'text',
-        isRequired:   false,
-        defaultValue: value.substring(0, 255),
-        positionX:    col * 320,
-        positionY:    row * 52,
-      })
-    }
-
-    const summary: ImportedSummary = {
-      businessNodeId: businessContainer.id,
-      attrCount:      businessFields.length,
-    }
-
+    // ── strategy: business_only — flat Info container ──────────────────────────
     if (strategy === 'business_only') {
+      const infoContainer = await nodeService.createContainer({
+        name:      `Info: ${businessName}`,
+        parentId:  null,
+        positionX: 80,
+        positionY: 80,
+      })
+      for (let i = 0; i < businessFields.length; i++) {
+        const [key, value] = businessFields[i]
+        await nodeService.createField({
+          name:         key,
+          parentId:     infoContainer.id,
+          fieldType:    'text',
+          isRequired:   false,
+          defaultValue: value.substring(0, 255),
+          positionX:    (i % 2) * 320,
+          positionY:    Math.floor(i / 2) * 52,
+        })
+      }
       revalidatePath('/cms/board')
-      return { success: true, data: summary }
+      return { success: true, data: { siteNodeId: infoContainer.id, attrCount: businessFields.length } }
     }
 
-    // ── 3. Contenedor principal Pages ──────────────────────────────────────────
-    const pagesContainer = await nodeService.createContainer({
-      name:      `Pages: ${businessName}`,
+    // ── strategy: business_and_pages — 3-level hierarchy ──────────────────────
+    // Site (root) → Info + nav section containers → field nodes
+
+    const siteContainer = await nodeService.createContainer({
+      name:      `Site: ${businessName}`,
       parentId:  null,
-      positionX: 780,
+      positionX: 80,
       positionY: 80,
     })
 
-    // ── 4. Sub-contenedor por página → fields de sus elementos ─────────────────
-    let pageCount = 0
-    for (let i = 0; i < result.data.key_pages.length; i++) {
-      const page  = result.data.key_pages[i]
-      const col   = i % 3
-      const row   = Math.floor(i / 3)
-      const title = (page.title || page.url || `Page ${i + 1}`).substring(0, 60)
-      const isDup = result.data.key_pages.some(
-        (p, j) => j < i && (p.title || p.url) === (page.title || page.url),
-      )
-      const pageName = isDup ? `${title} (${i + 1})` : title
+    const infoContainer = await nodeService.createContainer({
+      name:      'Info',
+      parentId:  siteContainer.id,
+      positionX: 0,
+      positionY: 0,
+    })
 
-      const pageNode = await nodeService.createContainer({
-        name:      pageName,
-        parentId:  pagesContainer.id,
+    for (let i = 0; i < businessFields.length; i++) {
+      const [key, value] = businessFields[i]
+      await nodeService.createField({
+        name:         key,
+        parentId:     infoContainer.id,
+        fieldType:    'text',
+        isRequired:   false,
+        defaultValue: value.substring(0, 255),
+        positionX:    (i % 2) * 320,
+        positionY:    Math.floor(i / 2) * 52,
+      })
+    }
+
+    const navSections = result.data.nav_sections ?? []
+    let sectionsCount = 0
+
+    for (let i = 0; i < navSections.length; i++) {
+      const section = navSections[i]
+      // +1 offset to leave slot 0 for Info container
+      const col = (i + 1) % 3
+      const row = Math.floor((i + 1) / 3)
+      const label = (section.label || section.section_type || `Section ${i + 1}`).substring(0, 60)
+
+      const sectionNode = await nodeService.createContainer({
+        name:      label,
+        parentId:  siteContainer.id,
         positionX: col * 420,
         positionY: row * 200,
       })
 
-      // Campos: desde elements[] si disponible, si no fallback a url/summary/key_points
-      const elements = page.elements ?? []
-      const pageFields: [string, string][] = []
-
-      if (elements.length > 0) {
-        // Deduplica tipos repetidos: h1 → h1, h1_1, h1_2 …
-        const typeCounts: Record<string, number> = {}
-        for (const el of elements) {
-          if (!el.text?.trim()) continue
-          const count = typeCounts[el.type] ?? 0
-          typeCounts[el.type] = count + 1
-          const fieldName = count === 0 ? el.type : `${el.type}_${count}`
-          pageFields.push([fieldName, el.text])
-        }
-      } else {
-        // Fallback para resultados sin elements
-        if (page.url?.trim())     pageFields.push(['url',        page.url])
-        if (page.summary?.trim()) pageFields.push(['summary',    page.summary])
-        const kp = Array.isArray(page.key_points)
-          ? page.key_points.join(' • ')
-          : (page.key_points ?? '')
-        if (kp.trim()) pageFields.push(['key_points', kp])
-      }
-
-      for (let j = 0; j < pageFields.length; j++) {
-        const [name, value] = pageFields[j]
+      const elements = section.elements ?? []
+      const typeCounts: Record<string, number> = {}
+      for (let j = 0; j < elements.length; j++) {
+        const el = elements[j]
+        if (!el.text?.trim()) continue
+        const count = typeCounts[el.type] ?? 0
+        typeCounts[el.type] = count + 1
+        const fieldName = count === 0 ? el.type : `${el.type}_${count}`
         await nodeService.createField({
-          name,
-          parentId:     pageNode.id,
+          name:         fieldName,
+          parentId:     sectionNode.id,
           fieldType:    'text',
           isRequired:   false,
-          defaultValue: value.substring(0, 255),
+          defaultValue: el.text.substring(0, 255),
           positionX:    0,
           positionY:    j * 52,
         })
       }
 
-      pageCount++
+      sectionsCount++
     }
 
     revalidatePath('/cms/board')
     return {
       success: true,
-      data: { ...summary, pagesNodeId: pagesContainer.id, pagesCount: pageCount },
+      data: { siteNodeId: siteContainer.id, attrCount: businessFields.length, sectionsCount },
     }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Import failed' }

@@ -1,10 +1,3 @@
-export type ScrapeOptions = {
-  max_pages?: number
-  download_images?: boolean
-  llm_provider?: string | null
-  llm_model?: string | null
-}
-
 export type ScrapeJobStatus =
   | 'queued'
   | 'exploring'
@@ -45,16 +38,15 @@ export type ScrapeJobState = {
 }
 
 export type ScrapeResultPageElement = {
-  type: string   // semantic identifier: "h1", "h2", "subtitle", "description", etc.
+  type: string   // semantic identifier: "h1", "h2", "description", "cta", "service", etc.
   text: string   // actual scraped text value
 }
 
-export type ScrapeResultKeyPage = {
-  url:        string
-  title:      string
-  summary:    string
-  key_points: string[]
-  elements:   ScrapeResultPageElement[]
+export type SiteSection = {
+  section_type: string   // 'home', 'about', 'services', 'contact', 'blog', 'other', etc.
+  label:        string   // display name from nav/page
+  url:          string
+  elements:     ScrapeResultPageElement[]
 }
 
 // Flat LLM output — keys match CARTUM_RESPONSE_SCHEMA sent in the POST body
@@ -68,7 +60,7 @@ export type ScrapeResultData = {
   email:         string | null
   social_links:  string[]
   main_topics:   string[]
-  key_pages:     ScrapeResultKeyPage[]
+  nav_sections:  SiteSection[]
 }
 
 export type ScrapeResult = {
@@ -100,12 +92,19 @@ export type WebMigrationSettings = {
   scraperApiKey?: string
 }
 
+export type ScrapeOptions = {
+  max_pages?: number
+  download_images?: boolean
+  llm_provider?: string | null
+  llm_model?: string | null
+  max_tokens?: number | null
+}
+
 // Estrategia de importación elegida por el usuario
 export type ImportStrategy = 'business_only' | 'business_and_pages'
 
 export type ImportedSummary = {
-  businessNodeId: string
-  attrCount:      number
-  pagesNodeId?:   string
-  pagesCount?:    number
+  siteNodeId:    string
+  attrCount:     number
+  sectionsCount?: number
 }

@@ -17,13 +17,11 @@ const ScrapeResultPageElementSchema = z.object({
   text: z.string(),
 })
 
-const ScrapeResultKeyPageSchema = z.object({
-  url:        z.string(),
-  title:      z.string(),
-  summary:    z.string(),
-  key_points: z.array(z.string()),
-  // elements is new — older results may not have it; default to empty array
-  elements:   z.array(ScrapeResultPageElementSchema).optional().default([]),
+const SiteSectionSchema = z.object({
+  section_type: z.string(),
+  label:        z.string(),
+  url:          z.string(),
+  elements:     z.array(ScrapeResultPageElementSchema).optional().default([]),
 })
 
 // Flat LLM output — matches keys from CARTUM_RESPONSE_SCHEMA
@@ -37,7 +35,7 @@ const ScrapeResultDataSchema = z.object({
   email:         z.string().nullable(),
   social_links:  z.array(z.string()),
   main_topics:   z.array(z.string()),
-  key_pages:     z.array(ScrapeResultKeyPageSchema),
+  nav_sections:  z.array(SiteSectionSchema),
 })
 
 const ScrapeResultMetadataSchema = z.object({
