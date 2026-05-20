@@ -3,6 +3,7 @@
 // Cada action lee scraperApiUrl + scraperApiKey desde getSetting()
 // La API key nunca se expone al cliente
 
+import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import { getSetting } from '@/lib/settings/get-setting'
 import { scraperService } from '@/lib/services/scraper.service'
@@ -125,8 +126,10 @@ export async function importScrapedData(
 
     // ── 1. Create Business container ──────────────────────────────────────────
     const businessContainer = await nodeService.createContainer({
-      name:     `Business: ${businessName}`,
-      parentId: null,
+      name:      `Business: ${businessName}`,
+      parentId:  null,
+      positionX: 80,
+      positionY: 80,
     })
 
     // ── 2. Create Business field nodes ────────────────────────────────────────
@@ -167,13 +170,16 @@ export async function importScrapedData(
 
     // business_only — done
     if (strategy === 'business_only') {
+      revalidatePath('/cms/board')
       return { success: true, data: summary }
     }
 
     // ── 4. Create Pages container ──────────────────────────────────────────────
     const pagesContainer = await nodeService.createContainer({
-      name:     `Pages: ${businessName}`,
-      parentId: null,
+      name:      `Pages: ${businessName}`,
+      parentId:  null,
+      positionX: 680,
+      positionY: 80,
     })
 
     // ── 5. Create Pages field nodes ────────────────────────────────────────────
@@ -201,6 +207,7 @@ export async function importScrapedData(
       pagesRecordIds.push(rec.id)
     }
 
+    revalidatePath('/cms/board')
     return {
       success: true,
       data: {

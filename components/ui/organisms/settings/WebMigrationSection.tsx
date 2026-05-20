@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -115,8 +116,8 @@ function FunMessage({ messages }: { messages: string[] }) {
 
   return (
     <p
-      className={`min-h-[2.5rem] font-mono text-[11px] leading-relaxed text-center italic text-primary/80 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}
-      style={{ textShadow: '0 0 8px var(--color-primary), 0 0 20px var(--color-primary)' }}
+      className={`min-h-[2.5rem] font-mono text-[11px] leading-relaxed text-center italic text-text/65 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}
+      style={{ textShadow: '0 0 10px color-mix(in oklch, var(--color-primary) 45%, transparent)' }}
     >
       {messages[idx]}
     </p>
@@ -144,23 +145,22 @@ const CHALK_FILTER_ID = 'chalk-bar-filter'
 
 function ChalkProgressBar({ pct }: { pct: number }) {
   return (
-    // No overflow-hidden aquí — el drop-shadow glow necesita sangrar fuera del track
-    <div className="relative h-[10px] w-full">
-      {/* SVG displacement filter — gives rough chalk edge */}
+    <div className="relative w-full" style={{ height: '14px' }}>
+      {/* Displacement filter — rough chalk stroke edges, no glow */}
       <svg width="0" height="0" className="absolute pointer-events-none">
         <defs>
-          <filter id={CHALK_FILTER_ID} x="-4%" y="-40%" width="108%" height="180%">
+          <filter id={CHALK_FILTER_ID} x="-2%" y="-60%" width="104%" height="220%">
             <feTurbulence
               type="fractalNoise"
-              baseFrequency="0.75 0.3"
-              numOctaves="3"
-              seed="9"
+              baseFrequency="0.85 0.55"
+              numOctaves="4"
+              seed="11"
               result="noise"
             />
             <feDisplacementMap
               in="SourceGraphic"
               in2="noise"
-              scale="2"
+              scale="1.4"
               xChannelSelector="R"
               yChannelSelector="G"
             />
@@ -168,33 +168,43 @@ function ChalkProgressBar({ pct }: { pct: number }) {
         </defs>
       </svg>
 
-      {/* Track background — overflow-hidden aquí para clipear sólo el fondo y los ticks */}
-      <div className="absolute inset-0 overflow-hidden rounded-[3px] border border-border bg-bg">
+      {/* Blackboard track — dark bg + milestone ticks */}
+      <div className="absolute inset-0 overflow-hidden rounded-[3px] border border-border bg-[#0c111a]">
         {PHASE_MILESTONES.map((m) => (
           <div
             key={m}
-            className={`absolute top-0 h-full w-[2px] transition-colors duration-500 ${pct >= m ? 'bg-white/25' : 'bg-border/60'}`}
+            className={`absolute top-0 h-full w-px transition-colors duration-500 ${pct >= m ? 'bg-white/20' : 'bg-white/7'}`}
             style={{ left: `${m}%` }}
           />
         ))}
       </div>
 
-      {/* Chalk fill — fuera del overflow-hidden, el drop-shadow glow sangra libremente */}
-      <div
-        className="absolute inset-y-0 left-0 rounded-[3px] bg-primary"
-        style={{
-          width: `${pct}%`,
-          filter: `url(#${CHALK_FILTER_ID}) drop-shadow(0 0 4px var(--color-primary)) drop-shadow(0 0 9px var(--color-primary))`,
-          transition: 'width 600ms cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-      />
-
-      {/* Chalk tip glow — bright white core like a real chalk tip */}
-      {pct > 0 && (
+      {/* Chalk strokes — 3 thin overlapping lines = chalk texture, no glow */}
+      {([
+        { top: 2,  h: 2, opacity: 0.65 },
+        { top: 6,  h: 3, opacity: 0.88 },
+        { top: 10, h: 2, opacity: 0.50 },
+      ] as const).map((s, i) => (
         <div
-          className="absolute top-0 h-full w-[5px] rounded-full bg-white/90 blur-[2px]"
+          key={i}
+          className="absolute left-0 bg-primary"
           style={{
-            left: `calc(${pct}% - 3px)`,
+            top:        s.top,
+            height:     s.h,
+            width:      `${pct}%`,
+            opacity:    s.opacity,
+            filter:     `url(#${CHALK_FILTER_ID})`,
+            transition: 'width 600ms cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        />
+      ))}
+
+      {/* Chalk tip — bright white end, no blur */}
+      {pct > 1 && pct < 99 && (
+        <div
+          className="absolute top-1/2 -translate-y-1/2 h-[9px] w-[3px] rounded-full bg-white/55"
+          style={{
+            left:       `calc(${pct}% - 1.5px)`,
             transition: 'left 600ms cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         />
@@ -234,7 +244,8 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
 
   // ── Global store ───────────────────────────────────────────────────────────
   const closeSettings = useUIStore((s) => s.closeSettings)
-  const toast = useToast()
+  const toast  = useToast()
+  const router = useRouter()
 
   // ── Load settings on mount ────────────────────────────────────────────────
   useEffect(() => {
@@ -535,7 +546,7 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
                   {d.newMigration}
                 </button>
                 <button
-                  onClick={closeSettings}
+                  onClick={() => { router.refresh(); closeSettings() }}
                   className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 cursor-pointer"
                 >
                   {d.viewOnBoard}
