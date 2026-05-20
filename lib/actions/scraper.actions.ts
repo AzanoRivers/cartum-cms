@@ -120,6 +120,15 @@ export async function importScrapedData(
   try {
     await requireAuth()
 
+    // ── DEBUG: log raw VPS result ─────────────────────────────────────────────
+    console.log('[importScrapedData] raw result.data:', JSON.stringify(result.data, null, 2))
+    console.log('[importScrapedData] metadata:', JSON.stringify(result.metadata, null, 2))
+    console.log('[importScrapedData] key_pages count:', result.data.key_pages?.length ?? 0)
+    if (result.data.key_pages?.length) {
+      console.log('[importScrapedData] first key_page:', JSON.stringify(result.data.key_pages[0], null, 2))
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const businessName = result.data.business_name ?? 'Unnamed'
     // Helper: null/undefined → empty string
     const s = (v: string | null | undefined): string => v ?? ''
@@ -147,21 +156,21 @@ export async function importScrapedData(
     }
 
     // ── 3. Create Business record ─────────────────────────────────────────────
-    const businessRecord = await recordsService.create(businessContainer.id, {
-      data: {
-        name:         s(result.data.business_name),
-        type:         s(result.data.business_type),
-        description:  s(result.data.description),
-        language:     s(result.data.language),
-        address:      s(result.data.address),
-        phone:        s(result.data.phone),
-        email:        s(result.data.email),
-        social_links: JSON.stringify(result.data.social_links),
-        main_topics:  result.data.main_topics.join(', '),
-        scraped_url:  result.url,
-        scraped_at:   result.scraped_at,
-      },
-    })
+    const businessRecordData = {
+      name:         s(result.data.business_name),
+      type:         s(result.data.business_type),
+      description:  s(result.data.description),
+      language:     s(result.data.language),
+      address:      s(result.data.address),
+      phone:        s(result.data.phone),
+      email:        s(result.data.email),
+      social_links: JSON.stringify(result.data.social_links),
+      main_topics:  result.data.main_topics?.join(', ') ?? '',
+      scraped_url:  result.url,
+      scraped_at:   result.scraped_at,
+    }
+    console.log('[importScrapedData] businessRecordData:', JSON.stringify(businessRecordData, null, 2))
+    const businessRecord = await recordsService.create(businessContainer.id, { data: businessRecordData })
 
     const summary: ImportedSummary = {
       businessNodeId:   businessContainer.id,
