@@ -196,7 +196,7 @@ export async function importScrapedData(
       })
     }
 
-    const navSections = result.data.nav_sections ?? []
+    const navSections = (result.data.nav_sections ?? []).filter(s => s.url != null)
     let sectionsCount = 0
 
     for (let i = 0; i < navSections.length; i++) {

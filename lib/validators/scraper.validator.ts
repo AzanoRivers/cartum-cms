@@ -20,7 +20,7 @@ const ScrapeResultPageElementSchema = z.object({
 const SiteSectionSchema = z.object({
   section_type: z.string(),
   label:        z.string(),
-  url:          z.string(),
+  url:          z.string().nullable(),
   elements:     z.array(ScrapeResultPageElementSchema).optional().default([]),
 })
 
