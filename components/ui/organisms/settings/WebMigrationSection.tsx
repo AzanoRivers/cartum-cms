@@ -523,7 +523,7 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
                 </li>
                 <li className="flex items-center gap-2 font-mono text-xs text-text">
                   <CheckCircle2 size={12} className="text-success shrink-0" />
-                  {t(d, 'recordsImported', { n: 1 })}
+                  {t(d, 'recordsImported', { n: importSummary.attrCount })}
                 </li>
                 {importSummary.pagesNodeId && (
                   <>
@@ -533,7 +533,7 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
                     </li>
                     <li className="flex items-center gap-2 font-mono text-xs text-text">
                       <CheckCircle2 size={12} className="text-success shrink-0" />
-                      {t(d, 'recordsImported', { n: importSummary.pagesRecordIds?.length ?? 0 })}
+                      {t(d, 'recordsImported', { n: importSummary.pagesCount ?? 0 })}
                     </li>
                   </>
                 )}

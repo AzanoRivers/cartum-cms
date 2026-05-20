@@ -1099,7 +1099,7 @@ export const es: Dictionary = {
       // Confirmation
       importedTitle:        'Importación completada',
       mazoCreated:          'Mazo "{name}" creado',
-      recordsImported:      '{n} registro(s) importado(s)',
+      recordsImported:      '{n} nodo(s) importado(s)',
       newMigration:         'Nueva migración',
       viewOnBoard:          'Ver en el tablero',
       // Errors

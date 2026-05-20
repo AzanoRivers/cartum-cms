@@ -1097,7 +1097,7 @@
       // Confirmation
       importedTitle:        'Import completed',
       mazoCreated:          'Mazo "{name}" created',
-      recordsImported:      '{n} record(s) imported',
+      recordsImported:      '{n} node(s) imported',
       newMigration:         'New migration',
       viewOnBoard:          'View on board',
       // Errors

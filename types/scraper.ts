@@ -99,7 +99,7 @@ export type ImportStrategy = 'business_only' | 'business_and_pages'
 
 export type ImportedSummary = {
   businessNodeId: string
-  businessRecordId: string
-  pagesNodeId?: string
-  pagesRecordIds?: string[]
+  attrCount:      number
+  pagesNodeId?:   string
+  pagesCount?:    number
 }

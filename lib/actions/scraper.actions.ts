@@ -8,7 +8,6 @@ import { auth } from '@/auth'
 import { getSetting } from '@/lib/settings/get-setting'
 import { scraperService } from '@/lib/services/scraper.service'
 import { nodeService } from '@/lib/services/nodes.service'
-import { recordsService } from '@/lib/services/records.service'
 import { validateScrapeResult } from '@/lib/validators/scraper.validator'
 import type { ActionResult } from '@/types/actions'
 import type {
@@ -110,8 +109,30 @@ export async function cancelScrapeJob(
 }
 
 // ── Import ─────────────────────────────────────────────────────────────────────
-// Crea mazo(s) + cartas + registros a partir del resultado scrapeado.
-// Valores null del scraper → string vacío '' (nunca null en records).
+// Arquitectura: cada atributo del resultado = sub-contenedor cuya carta
+// tiene el VALOR como nombre → datos visibles directamente en el tablero.
+
+/** Crea un sub-contenedor con una sola carta cuyo nombre ES el valor. */
+async function createAttrNode(
+  key: string,
+  value: string,
+  parentId: string,
+  positionX: number,
+  positionY: number,
+): Promise<void> {
+  const sub = await nodeService.createContainer({
+    name: key,
+    parentId,
+    positionX,
+    positionY,
+  })
+  await nodeService.createField({
+    name:       value.substring(0, 120),
+    parentId:   sub.id,
+    fieldType:  'text',
+    isRequired: false,
+  })
+}
 
 export async function importScrapedData(
   result: ScrapeResult,
@@ -120,20 +141,9 @@ export async function importScrapedData(
   try {
     await requireAuth()
 
-    // ── DEBUG: log raw VPS result ─────────────────────────────────────────────
-    console.log('[importScrapedData] raw result.data:', JSON.stringify(result.data, null, 2))
-    console.log('[importScrapedData] metadata:', JSON.stringify(result.metadata, null, 2))
-    console.log('[importScrapedData] key_pages count:', result.data.key_pages?.length ?? 0)
-    if (result.data.key_pages?.length) {
-      console.log('[importScrapedData] first key_page:', JSON.stringify(result.data.key_pages[0], null, 2))
-    }
-    // ─────────────────────────────────────────────────────────────────────────
-
     const businessName = result.data.business_name ?? 'Unnamed'
-    // Helper: null/undefined → empty string
-    const s = (v: string | null | undefined): string => v ?? ''
 
-    // ── 1. Create Business container ──────────────────────────────────────────
+    // ── 1. Contenedor principal Business ──────────────────────────────────────
     const businessContainer = await nodeService.createContainer({
       name:      `Business: ${businessName}`,
       parentId:  null,
@@ -141,49 +151,43 @@ export async function importScrapedData(
       positionY: 80,
     })
 
-    // ── 2. Create Business field nodes ────────────────────────────────────────
-    const businessFieldNames = [
-      'name', 'type', 'description', 'language', 'address',
-      'phone', 'email', 'social_links', 'main_topics', 'scraped_url', 'scraped_at',
-    ]
-    for (const fieldName of businessFieldNames) {
-      await nodeService.createField({
-        name:       fieldName,
-        parentId:   businessContainer.id,
-        fieldType:  'text',
-        isRequired: false,
-      })
-    }
+    // ── 2. Sub-contenedor por cada atributo no vacío ───────────────────────────
+    const businessAttrs: [string, string][] = (
+      [
+        ['name',         result.data.business_name],
+        ['type',         result.data.business_type],
+        ['description',  result.data.description],
+        ['language',     result.data.language],
+        ['address',      result.data.address],
+        ['phone',        result.data.phone],
+        ['email',        result.data.email],
+        ['main_topics',  result.data.main_topics?.join(', ')],
+        ['social_links', result.data.social_links?.join(' | ')],
+        ['scraped_url',  result.url],
+      ] as [string, string | null | undefined][]
+    ).filter((pair): pair is [string, string] => {
+      const v = pair[1]
+      return typeof v === 'string' && v.trim().length > 0
+    })
 
-    // ── 3. Create Business record ─────────────────────────────────────────────
-    const businessRecordData = {
-      name:         s(result.data.business_name),
-      type:         s(result.data.business_type),
-      description:  s(result.data.description),
-      language:     s(result.data.language),
-      address:      s(result.data.address),
-      phone:        s(result.data.phone),
-      email:        s(result.data.email),
-      social_links: JSON.stringify(result.data.social_links),
-      main_topics:  result.data.main_topics?.join(', ') ?? '',
-      scraped_url:  result.url,
-      scraped_at:   result.scraped_at,
+    for (let i = 0; i < businessAttrs.length; i++) {
+      const [key, value] = businessAttrs[i]
+      const col = i % 3
+      const row = Math.floor(i / 3)
+      await createAttrNode(key, value, businessContainer.id, col * 340, row * 140)
     }
-    console.log('[importScrapedData] businessRecordData:', JSON.stringify(businessRecordData, null, 2))
-    const businessRecord = await recordsService.create(businessContainer.id, { data: businessRecordData })
 
     const summary: ImportedSummary = {
-      businessNodeId:   businessContainer.id,
-      businessRecordId: businessRecord.id,
+      businessNodeId: businessContainer.id,
+      attrCount:      businessAttrs.length,
     }
 
-    // business_only — done
     if (strategy === 'business_only') {
       revalidatePath('/cms/board')
       return { success: true, data: summary }
     }
 
-    // ── 4. Create Pages container ──────────────────────────────────────────────
+    // ── 3. Contenedor principal Pages ──────────────────────────────────────────
     const pagesContainer = await nodeService.createContainer({
       name:      `Pages: ${businessName}`,
       parentId:  null,
@@ -191,39 +195,49 @@ export async function importScrapedData(
       positionY: 80,
     })
 
-    // ── 5. Create Pages field nodes ────────────────────────────────────────────
-    const pageFieldNames = ['url', 'title', 'summary', 'key_points']
-    for (const fieldName of pageFieldNames) {
-      await nodeService.createField({
-        name:       fieldName,
-        parentId:   pagesContainer.id,
-        fieldType:  'text',
-        isRequired: false,
-      })
-    }
+    // ── 4. Sub-contenedor por cada página, con sus atributos anidados ──────────
+    let pageCount = 0
+    for (let i = 0; i < result.data.key_pages.length; i++) {
+      const page  = result.data.key_pages[i]
+      const col   = i % 3
+      const row   = Math.floor(i / 3)
+      const title = (page.title || page.url || `Page ${i + 1}`).substring(0, 60)
+      // Add index suffix to avoid duplicate names if titles repeat
+      const pageName = result.data.key_pages.filter((p, j) => j < i && (p.title || p.url) === (page.title || page.url)).length > 0
+        ? `${title} (${i + 1})`
+        : title
 
-    // ── 6. Create one record per key_page ─────────────────────────────────────
-    const pagesRecordIds: string[] = []
-    for (const page of result.data.key_pages) {
-      const rec = await recordsService.create(pagesContainer.id, {
-        data: {
-          url:        page.url,
-          title:      page.title,
-          summary:    page.summary,
-          key_points: JSON.stringify(page.key_points),
-        },
+      const pageNode = await nodeService.createContainer({
+        name:      pageName,
+        parentId:  pagesContainer.id,
+        positionX: col * 380,
+        positionY: row * 160,
       })
-      pagesRecordIds.push(rec.id)
+
+      const pageAttrs: [string, string][] = (
+        [
+          ['url',        page.url],
+          ['summary',    page.summary],
+          ['key_points', Array.isArray(page.key_points)
+            ? page.key_points.join(' • ')
+            : page.key_points],
+        ] as [string, string | null | undefined][]
+      ).filter((pair): pair is [string, string] => {
+        const v = pair[1]
+        return typeof v === 'string' && v.trim().length > 0
+      })
+
+      for (let j = 0; j < pageAttrs.length; j++) {
+        const [key, value] = pageAttrs[j]
+        await createAttrNode(key, value, pageNode.id, j * 340, 0)
+      }
+      pageCount++
     }
 
     revalidatePath('/cms/board')
     return {
       success: true,
-      data: {
-        ...summary,
-        pagesNodeId:   pagesContainer.id,
-        pagesRecordIds,
-      },
+      data: { ...summary, pagesNodeId: pagesContainer.id, pagesCount: pageCount },
     }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Import failed' }
