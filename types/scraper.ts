@@ -44,11 +44,17 @@ export type ScrapeJobState = {
   estimated_remaining_seconds: number
 }
 
+export type ScrapeResultPageElement = {
+  type: string   // semantic identifier: "h1", "h2", "subtitle", "description", etc.
+  text: string   // actual scraped text value
+}
+
 export type ScrapeResultKeyPage = {
-  url: string
-  title: string
-  summary: string
+  url:        string
+  title:      string
+  summary:    string
   key_points: string[]
+  elements:   ScrapeResultPageElement[]
 }
 
 // Flat LLM output — keys match CARTUM_RESPONSE_SCHEMA sent in the POST body

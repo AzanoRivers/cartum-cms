@@ -12,11 +12,18 @@ import { z } from 'zod'
 
 // ── Leaf schemas ────────────────────────────────────────────────────────────────
 
+const ScrapeResultPageElementSchema = z.object({
+  type: z.string(),
+  text: z.string(),
+})
+
 const ScrapeResultKeyPageSchema = z.object({
   url:        z.string(),
   title:      z.string(),
   summary:    z.string(),
   key_points: z.array(z.string()),
+  // elements is new — older results may not have it; default to empty array
+  elements:   z.array(ScrapeResultPageElementSchema).optional().default([]),
 })
 
 // Flat LLM output — matches keys from CARTUM_RESPONSE_SCHEMA

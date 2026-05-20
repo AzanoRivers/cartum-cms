@@ -9,7 +9,7 @@ import { FullscreenLoader } from '@/components/ui/atoms/FullscreenLoader'
 import { ConnectorPort } from '@/components/ui/molecules/ConnectorPort'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useNodeBoardStore } from '@/lib/stores/nodeBoardStore'
-import type { AnyNode, FieldType, PortSide } from '@/types/nodes'
+import type { AnyNode, FieldNode, FieldType, PortSide } from '@/types/nodes'
 
 const FIELD_TYPE_ICON: Record<FieldType, string> = {
   text:     'ALargeSmall',
@@ -166,6 +166,11 @@ function NodeCardInner({
         <Icon name={iconName} size="md" className={`${iconClass} shrink-0`} />
         <span className="font-mono text-sm text-text truncate">{node.name}</span>
       </div>
+      {node.defaultValue && (
+        <p className="mt-0.5 text-[10px] text-muted leading-snug truncate" title={node.defaultValue}>
+          {node.defaultValue}
+        </p>
+      )}
       <div className="mt-1.5 flex gap-1.5">
         <Badge variant="muted" size="sm">{d?.nodeCard.types[node.fieldType] ?? FIELD_TYPE_LABEL[node.fieldType]}</Badge>
         {node.isRequired && <Badge variant="warning" size="sm">{d?.nodeCard.required ?? '*'}</Badge>}
@@ -181,6 +186,8 @@ function areNodeCardPropsEqual(prev: NodeCardProps, next: NodeCardProps): boolea
     prev.node.name        === next.node.name        &&
     prev.node.positionX   === next.node.positionX   &&
     prev.node.positionY   === next.node.positionY   &&
+    // For field nodes: re-render when defaultValue changes; undefined===undefined for containers
+    (prev.node as FieldNode).defaultValue === (next.node as FieldNode).defaultValue &&
     prev.selected         === next.selected         &&
     prev.isValidTarget    === next.isValidTarget    &&
     prev.connectionCount  === next.connectionCount  &&

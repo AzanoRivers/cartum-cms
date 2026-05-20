@@ -143,13 +143,24 @@ const STATUS_MIN_PCT: Partial<Record<ScrapeJobStatus, number>> = {
 
 const CHALK_FILTER_ID = 'chalk-bar-filter'
 
+// 6 disordered strokes: varying vertical position, thickness, opacity, animation timing.
+// wOff = % subtracted from pct so some strokes appear slightly shorter (imperfect chalk coverage).
+const CHALK_STROKES = [
+  { top: 1,  h: 1, op: 0.40, dur: 2.1, delay: 0.0, wOff: -1.5 },
+  { top: 3,  h: 2, op: 0.85, dur: 2.7, delay: 0.5, wOff:  0.0 },
+  { top: 5,  h: 1, op: 0.55, dur: 1.9, delay: 1.1, wOff: -0.5 },
+  { top: 8,  h: 3, op: 0.95, dur: 3.2, delay: 0.3, wOff:  0.0 },
+  { top: 11, h: 2, op: 0.60, dur: 2.4, delay: 1.6, wOff: -1.0 },
+  { top: 14, h: 1, op: 0.30, dur: 2.9, delay: 0.8, wOff: -2.0 },
+] as const
+
 function ChalkProgressBar({ pct }: { pct: number }) {
   return (
-    <div className="relative w-full" style={{ height: '14px' }}>
-      {/* Displacement filter — rough chalk stroke edges, no glow */}
+    <div className="relative w-full" style={{ height: '18px' }}>
+      {/* Displacement filter — rough chalk stroke edges */}
       <svg width="0" height="0" className="absolute pointer-events-none">
         <defs>
-          <filter id={CHALK_FILTER_ID} x="-2%" y="-60%" width="104%" height="220%">
+          <filter id={CHALK_FILTER_ID} x="-2%" y="-80%" width="104%" height="260%">
             <feTurbulence
               type="fractalNoise"
               baseFrequency="0.85 0.55"
@@ -160,7 +171,7 @@ function ChalkProgressBar({ pct }: { pct: number }) {
             <feDisplacementMap
               in="SourceGraphic"
               in2="noise"
-              scale="1.4"
+              scale="1.6"
               xChannelSelector="R"
               yChannelSelector="G"
             />
@@ -179,30 +190,35 @@ function ChalkProgressBar({ pct }: { pct: number }) {
         ))}
       </div>
 
-      {/* Chalk strokes — 3 thin overlapping lines = chalk texture, no glow */}
-      {([
-        { top: 2,  h: 2, opacity: 0.65 },
-        { top: 6,  h: 3, opacity: 0.88 },
-        { top: 10, h: 2, opacity: 0.50 },
-      ] as const).map((s, i) => (
+      {/* Chalk strokes — 6 disordered lines with staggered chalk-flicker animation.
+          Wrapper sets base opacity + width; inner div carries bg + filter + animation.
+          Effective opacity = s.op × animation value (multiplicative) — safe on iOS 9+. */}
+      {CHALK_STROKES.map((s, i) => (
         <div
           key={i}
-          className="absolute left-0 bg-primary"
+          className="absolute left-0"
           style={{
             top:        s.top,
             height:     s.h,
-            width:      `${pct}%`,
-            opacity:    s.opacity,
-            filter:     `url(#${CHALK_FILTER_ID})`,
+            width:      `${Math.max(0, pct + s.wOff)}%`,
+            opacity:    s.op,
             transition: 'width 600ms cubic-bezier(0.4, 0, 0.2, 1)',
           }}
-        />
+        >
+          <div
+            className="absolute inset-0 bg-primary"
+            style={{
+              filter:    `url(#${CHALK_FILTER_ID})`,
+              animation: `chalk-flicker ${s.dur}s ease-in-out ${s.delay}s infinite`,
+            }}
+          />
+        </div>
       ))}
 
-      {/* Chalk tip — bright white end, no blur */}
+      {/* Chalk tip — white end mark */}
       {pct > 1 && pct < 99 && (
         <div
-          className="absolute top-1/2 -translate-y-1/2 h-[9px] w-[3px] rounded-full bg-white/55"
+          className="absolute top-1/2 -translate-y-1/2 h-[11px] w-[3px] rounded-full bg-white/55"
           style={{
             left:       `calc(${pct}% - 1.5px)`,
             transition: 'left 600ms cubic-bezier(0.4, 0, 0.2, 1)',

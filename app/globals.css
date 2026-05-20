@@ -420,3 +420,12 @@ canvas,
     will-change: transform;
     z-index: 50;
 }
+
+/* === CHALK PROGRESS BAR ===
+   Each stroke uses --chalk-op (CSS custom property) so the flicker
+   modulates around each stroke's individual base opacity. */
+@keyframes chalk-flicker {
+    0%, 100% { opacity: 1; }
+    35%       { opacity: 0.5; }
+    70%       { opacity: 0.82; }
+}

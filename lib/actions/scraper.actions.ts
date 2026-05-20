@@ -109,30 +109,10 @@ export async function cancelScrapeJob(
 }
 
 // ── Import ─────────────────────────────────────────────────────────────────────
-// Arquitectura: cada atributo del resultado = sub-contenedor cuya carta
-// tiene el VALOR como nombre → datos visibles directamente en el tablero.
-
-/** Crea un sub-contenedor con una sola carta cuyo nombre ES el valor. */
-async function createAttrNode(
-  key: string,
-  value: string,
-  parentId: string,
-  positionX: number,
-  positionY: number,
-): Promise<void> {
-  const sub = await nodeService.createContainer({
-    name: key,
-    parentId,
-    positionX,
-    positionY,
-  })
-  await nodeService.createField({
-    name:       value.substring(0, 120),
-    parentId:   sub.id,
-    fieldType:  'text',
-    isRequired: false,
-  })
-}
+// Arquitectura:
+//   Business → fields directamente en el contenedor (identifier=name, value=defaultValue)
+//   Pages    → sub-contenedor por página → fields desde elements[] (identifier=name, value=defaultValue)
+//              Fallback si elements vacío: url / summary / key_points como fields
 
 export async function importScrapedData(
   result: ScrapeResult,
@@ -151,35 +131,43 @@ export async function importScrapedData(
       positionY: 80,
     })
 
-    // ── 2. Sub-contenedor por cada atributo no vacío ───────────────────────────
-    const businessAttrs: [string, string][] = (
+    // ── 2. Fields de negocio — identifier como nombre, valor en defaultValue ──
+    const businessFields: [string, string][] = (
       [
-        ['name',         result.data.business_name],
-        ['type',         result.data.business_type],
-        ['description',  result.data.description],
-        ['language',     result.data.language],
-        ['address',      result.data.address],
-        ['phone',        result.data.phone],
-        ['email',        result.data.email],
-        ['main_topics',  result.data.main_topics?.join(', ')],
-        ['social_links', result.data.social_links?.join(' | ')],
-        ['scraped_url',  result.url],
+        ['business_name',  result.data.business_name],
+        ['business_type',  result.data.business_type],
+        ['description',    result.data.description],
+        ['language',       result.data.language],
+        ['address',        result.data.address],
+        ['phone',          result.data.phone],
+        ['email',          result.data.email],
+        ['main_topics',    result.data.main_topics?.join(', ')],
+        ['social_links',   result.data.social_links?.join(' | ')],
+        ['scraped_url',    result.url],
       ] as [string, string | null | undefined][]
     ).filter((pair): pair is [string, string] => {
       const v = pair[1]
       return typeof v === 'string' && v.trim().length > 0
     })
 
-    for (let i = 0; i < businessAttrs.length; i++) {
-      const [key, value] = businessAttrs[i]
-      const col = i % 3
-      const row = Math.floor(i / 3)
-      await createAttrNode(key, value, businessContainer.id, col * 340, row * 140)
+    for (let i = 0; i < businessFields.length; i++) {
+      const [key, value] = businessFields[i]
+      const col = i % 2
+      const row = Math.floor(i / 2)
+      await nodeService.createField({
+        name:         key,
+        parentId:     businessContainer.id,
+        fieldType:    'text',
+        isRequired:   false,
+        defaultValue: value.substring(0, 255),
+        positionX:    col * 320,
+        positionY:    row * 52,
+      })
     }
 
     const summary: ImportedSummary = {
       businessNodeId: businessContainer.id,
-      attrCount:      businessAttrs.length,
+      attrCount:      businessFields.length,
     }
 
     if (strategy === 'business_only') {
@@ -191,46 +179,66 @@ export async function importScrapedData(
     const pagesContainer = await nodeService.createContainer({
       name:      `Pages: ${businessName}`,
       parentId:  null,
-      positionX: 680,
+      positionX: 780,
       positionY: 80,
     })
 
-    // ── 4. Sub-contenedor por cada página, con sus atributos anidados ──────────
+    // ── 4. Sub-contenedor por página → fields de sus elementos ─────────────────
     let pageCount = 0
     for (let i = 0; i < result.data.key_pages.length; i++) {
       const page  = result.data.key_pages[i]
       const col   = i % 3
       const row   = Math.floor(i / 3)
       const title = (page.title || page.url || `Page ${i + 1}`).substring(0, 60)
-      // Add index suffix to avoid duplicate names if titles repeat
-      const pageName = result.data.key_pages.filter((p, j) => j < i && (p.title || p.url) === (page.title || page.url)).length > 0
-        ? `${title} (${i + 1})`
-        : title
+      const isDup = result.data.key_pages.some(
+        (p, j) => j < i && (p.title || p.url) === (page.title || page.url),
+      )
+      const pageName = isDup ? `${title} (${i + 1})` : title
 
       const pageNode = await nodeService.createContainer({
         name:      pageName,
         parentId:  pagesContainer.id,
-        positionX: col * 380,
-        positionY: row * 160,
+        positionX: col * 420,
+        positionY: row * 200,
       })
 
-      const pageAttrs: [string, string][] = (
-        [
-          ['url',        page.url],
-          ['summary',    page.summary],
-          ['key_points', Array.isArray(page.key_points)
-            ? page.key_points.join(' • ')
-            : page.key_points],
-        ] as [string, string | null | undefined][]
-      ).filter((pair): pair is [string, string] => {
-        const v = pair[1]
-        return typeof v === 'string' && v.trim().length > 0
-      })
+      // Campos: desde elements[] si disponible, si no fallback a url/summary/key_points
+      const elements = page.elements ?? []
+      const pageFields: [string, string][] = []
 
-      for (let j = 0; j < pageAttrs.length; j++) {
-        const [key, value] = pageAttrs[j]
-        await createAttrNode(key, value, pageNode.id, j * 340, 0)
+      if (elements.length > 0) {
+        // Deduplica tipos repetidos: h1 → h1, h1_1, h1_2 …
+        const typeCounts: Record<string, number> = {}
+        for (const el of elements) {
+          if (!el.text?.trim()) continue
+          const count = typeCounts[el.type] ?? 0
+          typeCounts[el.type] = count + 1
+          const fieldName = count === 0 ? el.type : `${el.type}_${count}`
+          pageFields.push([fieldName, el.text])
+        }
+      } else {
+        // Fallback para resultados sin elements
+        if (page.url?.trim())     pageFields.push(['url',        page.url])
+        if (page.summary?.trim()) pageFields.push(['summary',    page.summary])
+        const kp = Array.isArray(page.key_points)
+          ? page.key_points.join(' • ')
+          : (page.key_points ?? '')
+        if (kp.trim()) pageFields.push(['key_points', kp])
       }
+
+      for (let j = 0; j < pageFields.length; j++) {
+        const [name, value] = pageFields[j]
+        await nodeService.createField({
+          name,
+          parentId:     pageNode.id,
+          fieldType:    'text',
+          isRequired:   false,
+          defaultValue: value.substring(0, 255),
+          positionX:    0,
+          positionY:    j * 52,
+        })
+      }
+
       pageCount++
     }
 
