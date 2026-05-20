@@ -159,7 +159,7 @@ function NodeCardInner({
       {isNew && <div aria-hidden="true" className="absolute -inset-[1.5px] rounded-[9.5px] node-rainbow-border pointer-events-none" />}
       <article
         onClick={handleClick}
-        className={`${baseClasses} ${stateClasses} min-w-44`}
+        className={`${baseClasses} ${stateClasses} w-52`}
         aria-selected={selected}
       >
       <div className="flex items-center gap-2 min-w-0">
