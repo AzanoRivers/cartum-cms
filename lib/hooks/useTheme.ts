@@ -26,7 +26,7 @@ export function useTheme() {
 
   const currentTheme = useCallback((): ThemeId => {
     const current = document.documentElement.dataset.theme
-    if (current === 'dark' || current === 'cyber-soft' || current === 'light') {
+    if (current === 'dark' || current === 'cyber-soft' || current === 'light' || current === 'dusk' || current === 'matrix') {
       return current
     }
     return 'dark'

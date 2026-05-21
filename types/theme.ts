@@ -1,4 +1,4 @@
-export type ThemeId = 'dark' | 'cyber-soft' | 'light'
+export type ThemeId = 'dark' | 'cyber-soft' | 'light' | 'dusk' | 'matrix'
 
 export interface ThemeDefinition {
   id:          ThemeId
@@ -45,6 +45,28 @@ export const THEMES: ThemeDefinition[] = [
       surface: '#ffffff',
       primary: '#6366f1',
       accent:  '#0ea5e9',
+    },
+  },
+  {
+    id:          'dusk',
+    label:       'Dusk',
+    description: 'Muted navy. Between dark and light.',
+    preview: {
+      bg:      '#1f2d42',
+      surface: '#273652',
+      primary: '#818cf8',
+      accent:  '#38bdf8',
+    },
+  },
+  {
+    id:          'matrix',
+    label:       'Matrix',
+    description: 'Phosphor green. Classic terminal.',
+    preview: {
+      bg:      '#000a00',
+      surface: '#060f06',
+      primary: '#00c41e',
+      accent:  '#39ff14',
     },
   },
 ]

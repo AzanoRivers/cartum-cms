@@ -59,6 +59,8 @@
         dark:       { label: 'Dark',       description: 'Deep cyberpunk. Max contrast.' },
         cyberSoft:  { label: 'Cyber Soft', description: 'Deep blue-grey. Pro mode.' },
         light:      { label: 'Light',      description: 'Slate white. Bright environments.' },
+        dusk:       { label: 'Dusk',       description: 'Muted navy. Between dark and light.' },
+        matrix:     { label: 'Matrix',     description: 'Phosphor green. Classic terminal.' },
       },
     },
     initializing: {
@@ -783,6 +785,7 @@
       },
       deleteDialog: {
         title:                  'Delete "{name}"?',
+        safeMessage:            'This action cannot be undone.',
         warnMessage:            'This will remove related data and cannot be undone.',
         dangerMessage:          'This has dangerous consequences and cannot be undone.',
         cancel:                 'Cancel',
@@ -823,10 +826,11 @@
   },
   settings: {
     nav: {
-      account:    'Account',
-      appearance: 'Appearance',
-      project:    'Project',
-      storage:    'Storage',
+      account:      'Account',
+      appearance:   'Appearance',
+      project:      'Project',
+      subscription: 'Subscription',
+      storage:      'Storage',
       email:      'Sending',
       api:        'API Tokens',
       users:      'Users',
@@ -845,6 +849,8 @@
         dark:      { label: 'Dark',       description: 'Deep cyberpunk. Max contrast.' },
         cyberSoft: { label: 'Cyber Soft', description: 'Deep blue-grey. Pro mode.' },
         light:     { label: 'Light',      description: 'Slate white. Bright environments.' },
+        dusk:      { label: 'Dusk',       description: 'Muted navy. Between dark and light.' },
+        matrix:    { label: 'Matrix',     description: 'Phosphor green. Classic terminal.' },
       },
     },
     project: {
@@ -1083,17 +1089,24 @@
       phaseLabel:           'Phase: {phase}',
       pagesProgress:        '{done} / {total} pages',
       stepsProgress:        'Step {done} of {total}',
+      imagesImported:       '{n} image(s) imported',
       estimatedTime:        '~{seconds}s remaining',
       cancel:               'Cancel',
       // Result
       resultTitle:          'Result',
       coverage:             'Coverage: {pct}% · {pages} pages analyzed',
       ttlWarning:           'Expires in {minutes} min',
-      // Import strategy
+      // Result summary stats
+      summaryPages:         '{n} pages analyzed',
+      summarySections:      '{n} sections',
+      summaryElements:      '{n} elements',
+      summaryImages:        '{n} images',
+      // Import strategy (kept for reference, not rendered)
       importTitle:          'Import as:',
       strategyBusinessOnly: 'Business data only (1 mazo, 1 record)',
       strategyWithPages:    'Business + site structure ({n} sections)',
       importButton:         'Import to Cartum',
+      importingTitle:       'Importing to Cartum',
       importing:            'Importing…',
       // Confirmation
       importedTitle:        'Import completed',
@@ -1162,6 +1175,20 @@
         'Almost there. The Dealer is finishing the shuffle. Your Cartas are nearly ready.',
         'This is fine. The data is incoming. Everything is absolutely fine.',
       ],
+      importMessages: [
+        'Creating your Mazos and Cartas. The board is being assembled.',
+        'Structuring sections and attributes. Almost feels like magic.',
+        'Organizing data into the node board. Patience is a virtue.',
+        'Writing fields to the database. Each one placed with intent.',
+        'The Cartum Dealer is placing your cards on the board.',
+        'Building your site structure from scratch. Node by node.',
+        'Assigning attributes to sections. Precision work in progress.',
+        'Uploading images to your storage. Bytes are moving swiftly.',
+        'Connecting sections to the board. The map is taking shape.',
+        'Your Mazos are being populated. The board awakens.',
+        'Inserting records into the node graph. Almost there.',
+        'Final touches on your Cartas. Worth every millisecond.',
+      ],
     },
     info: {
       title:          'Info',
@@ -1197,6 +1224,21 @@
       exportWithMediaNote:   'Includes all images and videos from Cloudflare R2 and Vercel Blob.',
       exportError:        'Export failed. Please try again.',
       resetError:         'Reset failed. Please try again.',
+      purgeImagesTitle:   'Delete all images',
+      purgeImagesDesc:    'Permanently delete all media files (images and videos) from storage. Node data and records are preserved.',
+      purgeImagesButton:  'Delete all images',
+      purgeImagesDialog: {
+        title:         'Delete all images?',
+        desc:          'This will permanently erase all images and videos from Cloudflare R2 and Vercel Blob storage. Media records in the database will also be removed.',
+        storageNote:   'Node structures, records and settings will NOT be affected.',
+        placeholder:   'Type to confirm',
+        confirmPhrase: 'DELETE IMAGES',
+        cancel:        'Cancel',
+        confirm:       'Yes, delete all images',
+        confirming:    'Deleting...',
+        purgedSummary: 'Files purged: {deleted}. Errors: {failed}.',
+        purgeFailWarn: '{failed} file(s) could not be deleted from storage and may remain as orphans.',
+      },
       dangerTitle:        'Danger zone',
       dangerDesc:         'Permanently delete all CMS data, users and settings. This cannot be undone.',
       dangerButton:       'Delete all data',
@@ -1212,6 +1254,11 @@
         purgedSummary:      'Files purged: {deleted}. Errors: {failed}.',
         purgeFailWarn:      '{failed} file(s) could not be deleted from storage and may remain as orphans.',
       },
+    },
+    subscription: {
+      title:       'Subscription',
+      description: 'Here you will manage your Cartum CMS subscription. AzanoLabs is currently supported solely by AzanoRivers and it\'s a tremendous effort — your support is an incredible play!',
+      comingSoon:  'Coming soon',
     },
   },
   email: {
@@ -1278,6 +1325,8 @@ export type Dictionary = {
         dark:      { label: string; description: string }
         cyberSoft: { label: string; description: string }
         light:     { label: string; description: string }
+        dusk:      { label: string; description: string }
+        matrix:    { label: string; description: string }
       }
     }
     initializing: {
@@ -1557,7 +1606,7 @@ export type Dictionary = {
       canvasMenu: { back: string; forward: string; fitAll: string }
       contextMenu: { rename: string; duplicate: string; deleteNode: string }
       deleteDialog: {
-        title: string; warnMessage: string; dangerMessage: string
+        title: string; safeMessage: string; warnMessage: string; dangerMessage: string
         cancel: string; confirm: string; confirmDanger: string; deleting: string
         factorChildren: string; factorConnections: string
         factorRecordsContainer: string; factorRecordsField: string; factorRelations: string
@@ -1577,7 +1626,7 @@ export type Dictionary = {
   settings: {
     panelTitle: string
     nav: {
-      account: string; appearance: string; project: string; storage: string; email: string
+      account: string; appearance: string; project: string; subscription: string; storage: string; email: string
       api: string; users: string; roles: string; info: string; db: string; webMigration: string
     }
     appearance: {
@@ -1586,6 +1635,8 @@ export type Dictionary = {
         dark:      { label: string; description: string }
         cyberSoft: { label: string; description: string }
         light:     { label: string; description: string }
+        dusk:      { label: string; description: string }
+        matrix:    { label: string; description: string }
       }
     }
     project: {
@@ -1679,14 +1730,16 @@ export type Dictionary = {
       startMigration: string; starting: string
       progressTitle: string; phaseLabel: string; pagesProgress: string; stepsProgress: string; estimatedTime: string; cancel: string
       resultTitle: string; coverage: string; ttlWarning: string
+      summaryPages: string; summarySections: string; summaryElements: string; summaryImages: string
       importTitle: string; strategyBusinessOnly: string; strategyWithPages: string
-      importButton: string; importing: string
-      importedTitle: string; mazoCreated: string; recordsImported: string; sectionsImported: string
+      importButton: string; importingTitle: string; importing: string
+      importedTitle: string; mazoCreated: string; recordsImported: string; sectionsImported: string; imagesImported: string
       newMigration: string; viewOnBoard: string
       errorJobFailed: string; errorRetryAfter: string; errorImport: string
       errorNotConfigured: string; errorServerBusy: string; errorInvalidResult: string
       errorTimeout: string
       funMessages: string[]
+      importMessages: string[]
     }
     info: {
       title: string; version: string; versionLabel: string; releasedOn: string; releaseDate: string
@@ -1701,12 +1754,23 @@ export type Dictionary = {
       importOverwriteWarn: string; importSuccess: string; importError: string
       exportWithMediaButton: string; exportWithMediaing: string; exportWithMediaNote: string
       exportError: string; resetError: string
+      purgeImagesTitle: string; purgeImagesDesc: string; purgeImagesButton: string
+      purgeImagesDialog: {
+        title: string; desc: string; storageNote: string; placeholder: string
+        confirmPhrase: string; cancel: string; confirm: string; confirming: string
+        purgedSummary: string; purgeFailWarn: string
+      }
       dangerTitle: string; dangerDesc: string; dangerButton: string
       resetDialog: {
         title: string; desc: string; storageNote: string; placeholder: string
         confirmPhrase: string; cancel: string; confirm: string; confirming: string
         purgedSummary: string; purgeFailWarn: string
       }
+    }
+    subscription: {
+      title: string
+      description: string
+      comingSoon: string
     }
   }
   email: {

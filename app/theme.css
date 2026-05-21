@@ -280,6 +280,48 @@
   ================================================================
 */
 
+/*
+  ================================================================
+  Dusk — muted navy, noticeably lighter than Cyber Soft but
+  clearly still a dark theme. Comfortable for mixed-light setups.
+  ================================================================
+*/
+[data-theme="dusk"] {
+  --color-bg: #1f2d42;
+  --color-surface: #273652;
+  --color-surface-2: #2f4060;
+  --color-border: #3d5270;
+  --color-primary: #818cf8;
+  --color-primary-glow: #818cf825;
+  --color-accent: #38bdf8;
+  --color-text: #dce8f5;
+  --color-muted: #6d8fa8;
+  --color-danger: #f87171;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+}
+
+/*
+  ================================================================
+  Matrix — phosphor green on near-black. Classic cascade terminal.
+  Inspired by the OpenCode Matrix theme aesthetic.
+  ================================================================
+*/
+[data-theme="matrix"] {
+  --color-bg: #000a00;
+  --color-surface: #060f06;
+  --color-surface-2: #0c180c;
+  --color-border: #163316;
+  --color-primary: #00c41e;
+  --color-primary-glow: #00c41e28;
+  --color-accent: #39ff14;
+  --color-text: #b8f0b8;
+  --color-muted: #4d8f4d;
+  --color-danger: #ff4444;
+  --color-success: #00ff41;
+  --color-warning: #ccff33;
+}
+
 [data-theme="cyber-soft"] {
   --color-bg: #0d1117;
   --color-surface: #161b27;

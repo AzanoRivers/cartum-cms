@@ -376,6 +376,25 @@ export async function importDatabaseAction(raw: unknown): Promise<ActionResult<n
   return { success: true, data: null }
 }
 
+// ── Purge images ──────────────────────────────────────────────────────────────
+
+export async function purgeAllImagesAction(): Promise<ActionResult<{ storagePurge: StoragePurgeResult }>> {
+  const userId = await requireSuperAdmin()
+  if (!userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    // Delete storage files first (DB rows are the inventory — purge before truncate)
+    const storagePurge = await purgeAllMediaStorage()
+
+    // Truncate the media table only — all other data stays intact
+    await safeDelete(media)
+
+    return { success: true, data: { storagePurge } }
+  } catch {
+    return { success: false, error: 'db_error' }
+  }
+}
+
 // ── Reset ─────────────────────────────────────────────────────────────────────
 
 // Deletes all rows from a table, ignoring "relation does not exist" (42P01).

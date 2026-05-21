@@ -3,7 +3,7 @@ import { db } from '@/db'
 import { appSettings } from '@/db/schema'
 import type { ThemeId } from '@/types/theme'
 
-const VALID_THEMES: ThemeId[] = ['dark', 'cyber-soft', 'light']
+const VALID_THEMES: ThemeId[] = ['dark', 'cyber-soft', 'light', 'dusk', 'matrix']
 
 /**
  * Resolves a runtime setting.

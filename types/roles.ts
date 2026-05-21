@@ -45,7 +45,7 @@ export interface CreateRoleInput {
 }
 
 export type SectionKey =
-  | 'project' | 'appearance' | 'account' | 'email' | 'storage'
+  | 'project' | 'subscription' | 'appearance' | 'account' | 'email' | 'storage'
   | 'users' | 'roles' | 'api' | 'db' | 'webMigration' | 'info'
 
 export interface SectionPermission {

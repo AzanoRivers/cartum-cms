@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from 'react'
 import { Download, Upload, Trash2, Archive } from 'lucide-react'
 import { Spinner } from '@/components/ui/atoms/Spinner'
 import { DangerResetDialog } from '@/components/ui/molecules/DangerResetDialog'
-import { exportDatabaseAction, importDatabaseAction, resetCmsAction } from '@/lib/actions/db.actions'
+import { exportDatabaseAction, importDatabaseAction, resetCmsAction, purgeAllImagesAction } from '@/lib/actions/db.actions'
 import { signOut } from 'next-auth/react'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { toast } from 'sonner'
@@ -22,7 +22,9 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
   const [isExportingMedia,  startExportMedia]  = useTransition()
   const [isImporting,       startImport]       = useTransition()
   const [isResetting,       startReset]        = useTransition()
-  const [showResetDialog, setShowResetDialog] = useState(false)
+  const [isPurgingImages,   startPurgeImages]  = useTransition()
+  const [showResetDialog,      setShowResetDialog]      = useState(false)
+  const [showPurgeImagesDialog, setShowPurgeImagesDialog] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -153,6 +155,32 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
     })
   }
 
+  // ── Purge images ────────────────────────────────────────────────────────────
+  function handlePurgeImagesConfirm() {
+    setShowPurgeImagesDialog(false)
+    startPurgeImages(async () => {
+      const res = await purgeAllImagesAction()
+      if (!res.success) {
+        toast.error(d.resetError)
+        return
+      }
+      if (res.data?.storagePurge) {
+        const { deleted, failed, r2Orphans, blobOrphans } = res.data.storagePurge
+        const summary = d.purgeImagesDialog.purgedSummary
+          .replace('{deleted}', String(deleted))
+          .replace('{failed}',  String(failed))
+        toast.success(summary)
+        if (failed > 0) {
+          toast.warning(d.purgeImagesDialog.purgeFailWarn.replace('{failed}', String(failed)))
+        }
+        const orphans = r2Orphans + blobOrphans
+        if (orphans > 0) {
+          toast.info(`Storage sweep: ${orphans} orphan file(s) removed.`)
+        }
+      }
+    })
+  }
+
   return (
     <section className="space-y-8">
       <div>
@@ -251,7 +279,37 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
         </button>
       </div>
 
-      {/* ── Block C: Danger zone ───────────────────────────────────────────── */}
+      {/* ── Block C: Purge images ─────────────────────────────────────────── */}
+      {isSuperAdmin && (
+        <div className="rounded-lg border border-warning/20 bg-warning/5 p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <Trash2 size={16} className="mt-0.5 text-warning shrink-0" strokeWidth={1.8} />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-mono text-xs font-bold text-warning uppercase tracking-wider mb-1">
+                {d.purgeImagesTitle}
+              </h3>
+              <p className="font-mono text-xs text-muted leading-relaxed">
+                {d.purgeImagesDesc}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPurgeImagesDialog(true)}
+            disabled={isPurgingImages}
+            className="inline-flex items-center gap-2 min-h-8 rounded-md bg-warning/10 border border-warning/30 px-4 py-1.5 font-mono text-xs text-warning hover:bg-warning/20 disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            {isPurgingImages ? (
+              <Spinner size="sm" color="muted" />
+            ) : (
+              <Trash2 size={12} strokeWidth={2} />
+            )}
+            {isPurgingImages ? d.purgeImagesDialog.confirming : d.purgeImagesButton}
+          </button>
+        </div>
+      )}
+
+      {/* ── Block D: Danger zone ───────────────────────────────────────────── */}
       {isSuperAdmin && (
         <div className="rounded-lg border border-danger/20 bg-danger/5 p-5 space-y-4">
         <div className="flex items-start gap-3">
@@ -275,6 +333,19 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
           {d.dangerButton}
         </button>
       </div>
+      )}
+
+      {/* ── Purge images dialog ────────────────────────────────────────────── */}
+      {showPurgeImagesDialog && (
+        <DangerResetDialog
+          d={d.purgeImagesDialog}
+          isPending={isPurgingImages}
+          onConfirm={() => {
+            setShowPurgeImagesDialog(false)
+            handlePurgeImagesConfirm()
+          }}
+          onCancel={() => setShowPurgeImagesDialog(false)}
+        />
       )}
 
       {/* ── Danger reset dialog ────────────────────────────────────────────── */}

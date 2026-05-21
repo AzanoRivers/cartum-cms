@@ -44,7 +44,7 @@ export default async function RootLayout({
         <Script
           id="theme-hydration"
           strategy="beforeInteractive"
-        >{`(function(){try{var t=localStorage.getItem('cartum-theme');if(t==='dark'||t==='cyber-soft'||t==='light'){document.documentElement.dataset.theme=t;}}catch(e){}})();`}</Script>
+        >{`(function(){try{var t=localStorage.getItem('cartum-theme');if(t==='dark'||t==='cyber-soft'||t==='light'||t==='dusk'||t==='matrix'){document.documentElement.dataset.theme=t;}}catch(e){}})();`}</Script>
       </head>
       <body>
         <a href="#main-content" className="skip-link">Skip to content</a>

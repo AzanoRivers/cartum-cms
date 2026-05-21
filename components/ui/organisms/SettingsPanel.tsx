@@ -17,6 +17,7 @@ import { RolesSection } from '@/components/ui/organisms/settings/RolesSection'
 import { InfoSection } from '@/components/ui/organisms/settings/InfoSection'
 import { WebMigrationSection } from '@/components/ui/organisms/settings/WebMigrationSection'
 import { DbSection } from '@/components/ui/organisms/settings/DbSection'
+import { SubscriptionSection } from '@/components/ui/organisms/settings/SubscriptionSection'
 import type { Dictionary } from '@/locales/en'
 import type { SectionKey } from '@/types/roles'
 
@@ -31,8 +32,9 @@ export type SettingsPanelProps = {
 }
 
 const ALL_SECTIONS: Array<{ key: SectionKey }> = [
-  { key: 'project'    },
-  { key: 'appearance' },
+  { key: 'project'      },
+  { key: 'subscription' },
+  { key: 'appearance'   },
   { key: 'account'    },
   { key: 'email'      },
   { key: 'storage'    },
@@ -86,6 +88,9 @@ export function SettingsPanel({
     <>
       {activeSection === 'account' && (
         <AccountSection currentEmail={userEmail} d={d.account} />
+      )}
+      {activeSection === 'subscription' && (
+        <SubscriptionSection d={d.subscription} />
       )}
       {activeSection === 'appearance' && (
         <AppearanceSection d={d.appearance} />

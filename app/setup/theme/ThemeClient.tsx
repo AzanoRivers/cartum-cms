@@ -48,6 +48,8 @@ export function ThemeClient({ dict, layoutDict, currentTheme }: Props) {
     'dark':       dict.themes.dark,
     'cyber-soft': dict.themes.cyberSoft,
     'light':      dict.themes.light,
+    'dusk':       dict.themes.dusk,
+    'matrix':     dict.themes.matrix,
   }
 
   return (
