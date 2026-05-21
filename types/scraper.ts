@@ -45,7 +45,7 @@ export type ScrapeResultPageElement = {
 export type SiteSection = {
   section_type: string   // 'home', 'about', 'services', 'contact', 'blog', 'other', etc.
   label:        string   // display name from nav/page
-  url:          string
+  url:          string | null
   elements:     ScrapeResultPageElement[]
 }
 
