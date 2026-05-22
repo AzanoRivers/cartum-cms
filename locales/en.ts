@@ -1408,7 +1408,8 @@ export type Dictionary = {
     }
     project: {
       title: string; subtitle: string; name: string
-      description: string; continue: string
+      namePlaceholder: string; description: string
+      descriptionPlaceholder: string; continue: string
     }
     theme: {
       title: string; subtitle: string; continue: string
