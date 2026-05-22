@@ -55,23 +55,35 @@ export function SettingsPanel({
   sectionPermissions,
   asSheet = false,
 }: SettingsPanelProps) {
-  const open          = useUIStore((s) => s.settingsOpen)
-  const activeSection = useUIStore((s) => s.settingsSection)
-  const openSettings  = useUIStore((s) => s.openSettings)
-  const closeSettings = useUIStore((s) => s.closeSettings)
+  const open                = useUIStore((s) => s.settingsOpen)
+  const activeSection       = useUIStore((s) => s.settingsSection)
+  const openSettings        = useUIStore((s) => s.openSettings)
+  const closeSettings       = useUIStore((s) => s.closeSettings)
+  const migrationActive     = useUIStore((s) => s.migrationActive)
+  const cancelMigrationFn   = useUIStore((s) => s.cancelMigrationFn)
+
+  const [showCloseDialog, setShowCloseDialog] = useState(false)
 
   const panelRef = useRef<HTMLDivElement>(null)
   useFocusTrap(panelRef, !asSheet && open)
+
+  function requestClose() {
+    if (migrationActive) {
+      setShowCloseDialog(true)
+    } else {
+      closeSettings()
+    }
+  }
 
   // Close on Escape
   useEffect(() => {
     if (!open) return
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') closeSettings()
+      if (e.key === 'Escape') requestClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, closeSettings])
+  }, [open, migrationActive]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter visible sections by role
   const visibleSections = ALL_SECTIONS.filter(({ key }) => {
@@ -154,7 +166,7 @@ export function SettingsPanel({
       <div
         className="fixed inset-0 z-40"
         aria-hidden="true"
-        onClick={closeSettings}
+        onClick={requestClose}
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none pb-14 sm:pb-0">
         <VHSTransition duration="fast" trigger={open} className="w-full max-w-3xl h-[82vh]">
@@ -163,12 +175,54 @@ export function SettingsPanel({
             visibleSections={visibleSections}
             activeSection={activeSection}
             openSettings={openSettings}
-            closeSettings={closeSettings}
+            closeSettings={requestClose}
             d={d}
             sectionsContent={sectionsContent}
           />
         </VHSTransition>
       </div>
+
+      {/* Close-while-running warning dialog (no-overlay, above settings panel) */}
+      {showCloseDialog && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            aria-hidden="true"
+            onClick={() => setShowCloseDialog(false)}
+          />
+          <div className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none p-4">
+            <VHSTransition duration="fast" className="w-full max-w-sm">
+              <div
+                role="dialog"
+                aria-modal="true"
+                className="pointer-events-auto rounded-xl border border-warning/40 bg-surface shadow-2xl p-5 space-y-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="font-mono text-sm font-semibold text-text">
+                  {d.webMigration.closeDialog.title}
+                </h3>
+                <p className="font-mono text-xs text-muted leading-relaxed">
+                  {d.webMigration.closeDialog.message}
+                </p>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowCloseDialog(false)}
+                    className="rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
+                  >
+                    {d.webMigration.closeDialog.stay}
+                  </button>
+                  <button
+                    onClick={() => { cancelMigrationFn?.(); setShowCloseDialog(false); closeSettings() }}
+                    className="rounded-md bg-warning/90 px-4 py-1.5 font-mono text-xs text-white hover:bg-warning transition-colors cursor-pointer"
+                  >
+                    {d.webMigration.closeDialog.cancelAndClose}
+                  </button>
+                </div>
+              </div>
+            </VHSTransition>
+          </div>
+        </>
+      )}
     </>
   )
 }

@@ -23,7 +23,7 @@ import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { Badge } from '@/components/ui/atoms/Badge'
 import { t } from '@/lib/i18n/t'
 import type { Dictionary } from '@/locales/en'
-import type { ImportStrategy, ScraperServerStatus, ScrapeJobStatus } from '@/types/scraper'
+import type { ScraperServerStatus, ScrapeJobStatus } from '@/types/scraper'
 
 export type WebMigrationSectionProps = {
   d: Dictionary['settings']['webMigration']
@@ -116,7 +116,7 @@ function FunMessage({ messages }: { messages: string[] }) {
 
   return (
     <p
-      className={`min-h-[2.5rem] font-mono text-[11px] leading-relaxed text-center italic text-text/65 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}
+      className={`min-h-10 font-mono text-[11px] leading-relaxed text-center italic text-text/65 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}
       style={{ textShadow: '0 0 10px color-mix(in oklch, var(--color-primary) 45%, transparent)' }}
     >
       {messages[idx]}
@@ -218,7 +218,7 @@ function ChalkProgressBar({ pct }: { pct: number }) {
       {/* Chalk tip — white end mark */}
       {pct > 1 && pct < 99 && (
         <div
-          className="absolute top-1/2 -translate-y-1/2 h-[11px] w-[3px] rounded-full bg-white/55"
+          className="absolute top-1/2 -translate-y-1/2 h-2.75 w-0.75 rounded-full bg-white/55"
           style={{
             left:       `calc(${pct}% - 1.5px)`,
             transition: 'left 600ms cubic-bezier(0.4, 0, 0.2, 1)',
@@ -255,11 +255,15 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
   // ── Migration form state ───────────────────────────────────────────────────
   const [targetUrl,      setTargetUrl]      = useState('')
   const [maxPages,       setMaxPages]       = useState(50)
-  const [downloadImages, setDownloadImages] = useState(false)
-  const [strategy,       setStrategy]       = useState<ImportStrategy>('business_only')
+  const [downloadImages, setDownloadImages] = useState(true)
+  const [importPct,      setImportPct]      = useState(0)
+
+  // ── Cancel dialog ──────────────────────────────────────────────────────────
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
 
   // ── Global store ───────────────────────────────────────────────────────────
-  const closeSettings = useUIStore((s) => s.closeSettings)
+  const closeSettings      = useUIStore((s) => s.closeSettings)
+  const setMigrationState  = useUIStore((s) => s.setMigrationState)
   const toast  = useToast()
   const router = useRouter()
 
@@ -274,12 +278,29 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
     })
   }, [])
 
+  // ── Sync migration active state to uiStore ────────────────────────────────
+  useEffect(() => {
+    const active = step === 'running' || step === 'importing'
+    setMigrationState(active, active ? cancelMigration : null)
+    return () => { setMigrationState(false) }
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Toast for invalid scraper result ──────────────────────────────────────
   useEffect(() => {
     if (step === 'error' && error === 'SCRAPER_INVALID_RESULT') {
       toast.error(d.errorInvalidResult)
     }
   }, [step, error]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Simulated import progress ─────────────────────────────────────────────
+  useEffect(() => {
+    if (step !== 'importing') { setImportPct(0); return }
+    setImportPct(3)
+    const id = setInterval(() => {
+      setImportPct((prev) => prev >= 92 ? prev : Math.min(92, prev + Math.random() * 5 + 1))
+    }, 700)
+    return () => clearInterval(id)
+  }, [step])
 
   const isConfigured = Boolean(apiKey)
 
@@ -367,27 +388,20 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
               />
             </Field>
 
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="font-mono text-xs text-muted shrink-0">{d.maxPages}</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={maxPages}
-                  onChange={(e) => setMaxPages(Number(e.target.value))}
-                  className="text-base w-20 rounded-md border border-border bg-bg px-2 py-1.5 font-mono text-sm text-text outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
-                />
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={downloadImages}
-                  onChange={(e) => setDownloadImages(e.target.checked)}
-                  className="h-4 w-4 rounded border-border accent-primary"
-                />
-                <span className="font-mono text-xs text-muted">{d.downloadImages}</span>
-              </label>
+            <div className="flex items-center gap-2">
+              <label className="font-mono text-xs text-muted shrink-0">{d.maxPages}</label>
+              <input
+                type="number"
+                min={1}
+                max={200}
+                value={maxPages}
+                onChange={(e) => setMaxPages(Number(e.target.value))}
+                className="w-20 rounded-md border border-border bg-bg px-2 py-1.5 font-mono text-sm text-text outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
+              />
+            </div>
+
+            <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 font-mono text-[11px] text-warning/80 leading-relaxed">
+              ⚠ {d.accuracyWarning}
             </div>
 
             <div className="flex justify-end">
@@ -422,11 +436,18 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
                 <div className="space-y-0.5 font-mono text-xs text-muted">
                   {progress && (
                     <>
-                      <p>{t(d, 'phaseLabel', { phase: progress.phase })}</p>
-                      <p>{progress.phase === 'analyzing'
-                        ? t(d, 'stepsProgress', { done: progress.pages_done, total: progress.pages_total })
-                        : t(d, 'pagesProgress',  { done: progress.pages_done, total: progress.pages_total })
+                      <p>{progress.phase === 'analyzing:fallback'
+                        ? d.phaseFallback
+                        : progress.phase === 'queued'
+                        ? d.phaseQueued
+                        : t(d, 'phaseLabel', { phase: progress.phase })
                       }</p>
+                      {progress.phase !== 'queued' && (
+                        <p>{progress.phase === 'analyzing' || progress.phase === 'analyzing:fallback'
+                          ? t(d, 'stepsProgress', { done: progress.pages_done, total: progress.pages_total })
+                          : t(d, 'pagesProgress',  { done: progress.pages_done, total: progress.pages_total })
+                        }</p>
+                      )}
                     </>
                   )}
                   {jobState?.estimated_remaining_seconds ? (
@@ -434,7 +455,7 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
                   ) : null}
                 </div>
                 <button
-                  onClick={cancelMigration}
+                  onClick={() => setShowCancelDialog(true)}
                   disabled={isPending}
                   className="rounded-md border border-border px-3 py-1.5 font-mono text-xs text-danger hover:bg-danger/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -445,88 +466,92 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
           </VHSTransition>
         )}
 
-        {/* ── Importing spinner ────────────────────────────────────────── */}
+        {/* ── Importing progress ───────────────────────────────────────── */}
         {step === 'importing' && (
           <VHSTransition duration="fast" trigger={step}>
-            <div className="flex items-center gap-3">
-              <Loader2 size={14} className="animate-spin text-muted shrink-0" />
-              <p className="font-mono text-xs text-muted">{d.importing}</p>
+            <div className="space-y-3">
+              <p className="font-mono text-xs text-muted uppercase tracking-widest">
+                {d.importingTitle}
+              </p>
+              <ChalkProgressBar pct={importPct} />
+              <FunMessage messages={d.importMessages} />
             </div>
           </VHSTransition>
         )}
 
-        {/* ── D: Result + import strategy (done) ──────────────────────── */}
-        {step === 'done' && result && (
-          <VHSTransition duration="fast" trigger={step}>
-            <div className="space-y-4">
-              <p className="font-mono text-xs text-muted uppercase tracking-widest">{d.resultTitle}</p>
+        {/* ── D: Result + import (done) ────────────────────────────────── */}
+        {step === 'done' && result && (() => {
+          const sectionCount = result.data.nav_sections.length
+          const elementCount = result.data.nav_sections.reduce((acc, s) => acc + s.elements.length, 0)
+          const imageCount   = result.data.nav_sections.reduce((acc, s) => acc + (s.images?.length ?? 0), 0)
+          return (
+            <VHSTransition duration="fast" trigger={step}>
+              <div className="space-y-4">
+                <p className="font-mono text-xs text-muted uppercase tracking-widest">{d.resultTitle}</p>
 
-              <div className="space-y-1">
-                <p className="font-mono text-sm font-medium text-text">
-                  {result.data.business_name ?? '—'}
-                  {result.data.business_type && (
-                    <span className="ml-2 font-normal text-muted text-xs">— {result.data.business_type}</span>
-                  )}
-                  {result.data.language && (
-                    <span className="ml-1 font-normal text-muted text-xs">— {result.data.language}</span>
-                  )}
-                </p>
-                <p className="font-mono text-xs text-muted">
-                  {t(d, 'coverage', {
-                    pct:   Math.round(result.metadata.coverage_percent),
-                    pages: result.metadata.pages_analyzed,
-                  })}
-                </p>
-                {ttlMin !== null && ttlMin <= 10 && (
-                  <p className="flex items-center gap-1 font-mono text-xs text-warning">
-                    <AlertTriangle size={12} className="shrink-0" />
-                    {t(d, 'ttlWarning', { minutes: ttlMin })}
+                <div className="space-y-1">
+                  <p className="font-mono text-sm font-medium text-text">
+                    {result.data.business_name ?? '—'}
+                    {result.data.business_type && (
+                      <span className="ml-2 font-normal text-muted text-xs">— {result.data.business_type}</span>
+                    )}
+                    {result.data.language && (
+                      <span className="ml-1 font-normal text-muted text-xs">— {result.data.language}</span>
+                    )}
                   </p>
-                )}
-              </div>
-
-              <fieldset className="space-y-2">
-                <legend className="font-mono text-xs text-muted">{d.importTitle}</legend>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="strategy"
-                    value="business_only"
-                    checked={strategy === 'business_only'}
-                    onChange={() => setStrategy('business_only')}
-                    className="mt-0.5 accent-primary"
-                  />
-                  <span className="font-mono text-xs text-text">{d.strategyBusinessOnly}</span>
-                </label>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="strategy"
-                    value="business_and_pages"
-                    checked={strategy === 'business_and_pages'}
-                    onChange={() => setStrategy('business_and_pages')}
-                    className="mt-0.5 accent-primary"
-                  />
-                  <span className="font-mono text-xs text-text">
-                    {t(d, 'strategyWithPages', {
-                      n: result.data.nav_sections.length,
+                  <p className="font-mono text-xs text-muted">
+                    {t(d, 'coverage', {
+                      pct:   Math.round(result.metadata.coverage_percent),
+                      pages: result.metadata.pages_analyzed,
                     })}
-                  </span>
-                </label>
-              </fieldset>
+                  </p>
+                  {ttlMin !== null && ttlMin <= 10 && (
+                    <p className="flex items-center gap-1 font-mono text-xs text-warning">
+                      <AlertTriangle size={12} className="shrink-0" />
+                      {t(d, 'ttlWarning', { minutes: ttlMin })}
+                    </p>
+                  )}
+                </div>
 
-              <div className="flex justify-end">
-                <button
-                  onClick={() => importResult(strategy)}
-                  disabled={isPending}
-                  className="rounded-md bg-primary px-5 py-2 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                >
-                  {isPending ? d.importing : d.importButton}
-                </button>
+                {/* Stats grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    t(d, 'summaryPages',    { n: result.metadata.pages_analyzed }),
+                    t(d, 'summarySections', { n: sectionCount }),
+                    t(d, 'summaryElements', { n: elementCount }),
+                    t(d, 'summaryImages',   { n: imageCount }),
+                  ] as string[]).map((label, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-surface-2/40 px-3 py-2">
+                      <CheckCircle2 size={10} className="shrink-0 text-success/70" />
+                      <span className="font-mono text-xs text-text">{label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Download images option */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={downloadImages}
+                    onChange={(e) => setDownloadImages(e.target.checked)}
+                    className="h-4 w-4 rounded border-border accent-primary"
+                  />
+                  <span className="font-mono text-xs text-muted">{d.downloadImages}</span>
+                </label>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => importResult('business_and_pages', downloadImages)}
+                    disabled={isPending}
+                    className="rounded-md bg-primary px-5 py-2 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    {isPending ? d.importing : d.importButton}
+                  </button>
+                </div>
               </div>
-            </div>
-          </VHSTransition>
-        )}
+            </VHSTransition>
+          )
+        })()}
 
         {/* ── E: Imported confirmation ─────────────────────────────────── */}
         {step === 'imported' && importSummary && (
@@ -552,6 +577,12 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
                   <li className="flex items-center gap-2 font-mono text-xs text-text">
                     <CheckCircle2 size={12} className="text-success shrink-0" />
                     {t(d, 'sectionsImported', { n: importSummary.sectionsCount })}
+                  </li>
+                )}
+                {importSummary.imagesImported != null && (
+                  <li className="flex items-center gap-2 font-mono text-xs text-text">
+                    <CheckCircle2 size={12} className="text-success shrink-0" />
+                    {t(d, 'imagesImported', { n: importSummary.imagesImported })}
                   </li>
                 )}
               </ul>
@@ -586,8 +617,10 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
                     <p className="font-mono text-xs text-danger">{d.errorInvalidResult}</p>
                   ) : jobState?.error ? (
                     <>
-                      <p className="font-mono text-xs font-medium text-danger">{jobState.error.code}</p>
-                      <p className="font-mono text-xs text-muted">{jobState.error.message}</p>
+                      <p className="font-mono text-xs font-medium text-danger">
+                        {d.errorCodes[jobState.error.code] ?? d.errorUnknown}
+                      </p>
+                      <p className="font-mono text-[10px] text-muted/50">{jobState.error.code}</p>
                       {jobState.error.retry_after && (
                         <p className="font-mono text-xs text-muted">
                           {t(d, 'errorRetryAfter', { seconds: jobState.error.retry_after })}
@@ -611,6 +644,46 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
           </VHSTransition>
         )}
       </Accordion>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          Cancel migration confirmation dialog (no-overlay pattern)
+      ══════════════════════════════════════════════════════════════════════ */}
+      {showCancelDialog && (
+        <>
+          <div
+            className="fixed inset-0 z-60"
+            aria-hidden="true"
+            onClick={() => setShowCancelDialog(false)}
+          />
+          <div className="fixed inset-0 z-70 flex items-center justify-center pointer-events-none p-4">
+            <VHSTransition duration="fast" className="w-full max-w-sm">
+              <div
+                role="dialog"
+                aria-modal="true"
+                className="pointer-events-auto rounded-xl border border-danger/40 bg-surface shadow-2xl p-5 space-y-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="font-mono text-sm font-semibold text-text">{d.cancelDialog.title}</h3>
+                <p className="font-mono text-xs text-muted leading-relaxed">{d.cancelDialog.message}</p>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowCancelDialog(false)}
+                    className="rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
+                  >
+                    {d.cancelDialog.dismiss}
+                  </button>
+                  <button
+                    onClick={() => { setShowCancelDialog(false); cancelMigration() }}
+                    className="rounded-md bg-danger/90 px-4 py-1.5 font-mono text-xs text-white hover:bg-danger transition-colors cursor-pointer"
+                  >
+                    {d.cancelDialog.confirm}
+                  </button>
+                </div>
+              </div>
+            </VHSTransition>
+          </div>
+        </>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           Accordion 2 — API Config (collapsed by default)

@@ -19,6 +19,10 @@ interface UIState {
   canAccessBuilder: boolean
   globalLoading: boolean
   globalLoadingLabel: string | undefined
+  /** True while a web migration scrape/import job is active. */
+  migrationActive: boolean
+  /** Registered cancel fn from the active WebMigrationSection instance. */
+  cancelMigrationFn: (() => void) | null
   openSettings: (section?: SettingsSection) => void
   closeSettings: () => void
   openHelp: () => void
@@ -31,6 +35,7 @@ interface UIState {
   setCmsDict: (dict: CmsDictionary) => void
   setCanAccessBuilder: (value: boolean) => void
   setGlobalLoading: (loading: boolean, label?: string) => void
+  setMigrationState: (active: boolean, cancelFn?: (() => void) | null) => void
 }
 
 export const useUIStore = create<UIState>()((set) => ({
@@ -46,6 +51,8 @@ export const useUIStore = create<UIState>()((set) => ({
   canAccessBuilder: true,
   globalLoading: false,
   globalLoadingLabel: undefined,
+  migrationActive: false,
+  cancelMigrationFn: null,
   openSettings: (section = 'project') => set({ settingsOpen: true, settingsSection: section }),
   closeSettings: () => set({ settingsOpen: false }),
   openHelp: () => set({ helpOpen: true }),
@@ -58,4 +65,8 @@ export const useUIStore = create<UIState>()((set) => ({
   setCmsDict: (dict) => set({ cmsDict: dict }),
   setCanAccessBuilder: (value) => set({ canAccessBuilder: value }),
   setGlobalLoading: (loading, label) => set({ globalLoading: loading, globalLoadingLabel: label }),
+  setMigrationState: (active, cancelFn) => set({
+    migrationActive: active,
+    cancelMigrationFn: active ? (cancelFn ?? null) : null,
+  }),
 }))

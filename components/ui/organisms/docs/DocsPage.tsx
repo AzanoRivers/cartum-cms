@@ -238,6 +238,98 @@ function ContentSection({ d }: { d: DocsDict }) {
   )
 }
 
+// ── Section: Web Migration (user-facing) ─────────────────────────────────────
+
+function WebMigrationSection({ d }: { d: DocsDict }) {
+  const s = d.webMigration
+  return (
+    <div className="space-y-4">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      <div>
+        <SubHeading>{s.howTitle}</SubHeading>
+        <UL items={Object.values(s.howItems)} />
+      </div>
+
+      <div>
+        <SubHeading>{s.whatYouGetTitle}</SubHeading>
+        <UL items={Object.values(s.whatYouGetItems)} />
+      </div>
+
+      <Note>{s.aiNote}</Note>
+
+      <div>
+        <SubHeading>{s.bestForTitle}</SubHeading>
+        <UL items={Object.values(s.bestForItems)} />
+      </div>
+
+      <div>
+        <SubHeading>{s.startTitle}</SubHeading>
+        <Prose>{s.startDesc}</Prose>
+      </div>
+
+      <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning/80 leading-5">
+        ⚠ {s.accuracyWarning}
+      </div>
+    </div>
+  )
+}
+
+// ── Section: Web Migration Dev ────────────────────────────────────────────────
+
+function WebMigrationDevSection({ d }: { d: DocsDict }) {
+  const s = d.webMigrationDev
+  return (
+    <div className="space-y-4">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      <div>
+        <SubHeading>{s.crawlTitle}</SubHeading>
+        <Prose>{s.crawlDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.pipelineTitle}</SubHeading>
+        <UL items={Object.values(s.pipelineItems)} />
+      </div>
+
+      <div>
+        <SubHeading>{s.stackTitle}</SubHeading>
+        <UL items={Object.values(s.stackItems)} />
+      </div>
+
+      <div>
+        <SubHeading>{s.configTitle}</SubHeading>
+        <Prose>{s.configDesc}</Prose>
+      </div>
+
+      <Note>{s.aiNote}</Note>
+
+      <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning/80 leading-5">
+        ⚠ {s.accuracyWarning}
+      </div>
+
+      <div>
+        <SubHeading>{s.officialDocsTitle}</SubHeading>
+        <Prose>{s.officialDocsDesc}</Prose>
+        <div className="mt-2">
+          <a
+            href={s.officialDocsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 font-mono text-xs text-primary hover:text-primary/80 transition-colors"
+          >
+            <span>{s.officialDocsLink}</span>
+            <span className="text-[10px] opacity-60">↗</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Section: Relations Guide (client-facing) ──────────────────────────────────
 
 function RelationsGuideSection({ d }: { d: DocsDict }) {
@@ -673,8 +765,10 @@ type SectionId =
   | 'navigation'
   | 'nodesAndFields'
   | 'content'
+  | 'webMigration'
   | 'relationsGuide'
   | 'nodesAndFieldsDev'
+  | 'webMigrationDev'
   | 'media'
   | 'apiForDevs'
   | 'apiSchema'
@@ -687,16 +781,18 @@ export function DocsPage({ d }: DocsPageProps) {
 
   function renderSection() {
     switch (activeId) {
-      case 'gettingStarted': return <GettingStartedSection d={d} />
-      case 'navigation':     return <NavigationSection d={d} />
-      case 'nodesAndFields': return <NodesAndFieldsSection d={d} />
-      case 'content':        return <ContentSection d={d} />
-      case 'relationsGuide':    return <RelationsGuideSection d={d} />
-      case 'nodesAndFieldsDev': return <NodesAndFieldsDevSection d={d} />
-      case 'media':             return <MediaSection d={d} />
-      case 'apiForDevs':     return <ApiForDevsSection d={d} />
-      case 'apiSchema':      return <ApiSchemaSection d={d} />
-      case 'relations':      return <RelationsSection d={d} />
+      case 'gettingStarted':  return <GettingStartedSection d={d} />
+      case 'navigation':      return <NavigationSection d={d} />
+      case 'nodesAndFields':  return <NodesAndFieldsSection d={d} />
+      case 'content':         return <ContentSection d={d} />
+      case 'webMigration':    return <WebMigrationSection d={d} />
+      case 'relationsGuide':     return <RelationsGuideSection d={d} />
+      case 'nodesAndFieldsDev':  return <NodesAndFieldsDevSection d={d} />
+      case 'webMigrationDev':    return <WebMigrationDevSection d={d} />
+      case 'media':              return <MediaSection d={d} />
+      case 'apiForDevs':      return <ApiForDevsSection d={d} />
+      case 'apiSchema':       return <ApiSchemaSection d={d} />
+      case 'relations':       return <RelationsSection d={d} />
     }
   }
 
@@ -711,7 +807,7 @@ export function DocsPage({ d }: DocsPageProps) {
       {/* Content area */}
       <main className="flex-1 overflow-y-auto bg-bg">
         <VHSTransition duration="normal" trigger={activeId}>
-          <div className="mx-auto max-w-2xl px-6 py-8">
+          <div className="mx-auto max-w-2xl px-6 pt-8 pb-28 md:pb-32">
             {renderSection()}
           </div>
         </VHSTransition>

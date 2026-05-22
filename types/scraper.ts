@@ -42,11 +42,21 @@ export type ScrapeResultPageElement = {
   text: string   // actual scraped text value
 }
 
+export type SectionImageRole = 'banner' | 'gallery_item' | 'reference' | 'logo'
+
+export type SectionImage = {
+  src:     string
+  alt:     string
+  role:    SectionImageRole
+  caption: string | null
+}
+
 export type SiteSection = {
   section_type: string   // 'home', 'about', 'services', 'contact', 'blog', 'other', etc.
   label:        string   // display name from nav/page
   url:          string | null
   elements:     ScrapeResultPageElement[]
+  images?:      SectionImage[]
 }
 
 // Flat LLM output — keys match CARTUM_RESPONSE_SCHEMA sent in the POST body
@@ -83,6 +93,7 @@ export type ScraperServerStatus = {
   name: string
   version: string
   active_jobs: number
+  queued_jobs: number
   max_concurrent_jobs: number
   status: 'ok' | 'busy'
 }
@@ -104,7 +115,8 @@ export type ScrapeOptions = {
 export type ImportStrategy = 'business_only' | 'business_and_pages'
 
 export type ImportedSummary = {
-  siteNodeId:    string
-  attrCount:     number
-  sectionsCount?: number
+  siteNodeId:      string
+  attrCount:       number
+  sectionsCount?:  number
+  imagesImported?: number
 }

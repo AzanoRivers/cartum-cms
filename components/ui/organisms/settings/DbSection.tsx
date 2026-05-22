@@ -149,6 +149,8 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
         creationPanelOpen: false,
         editingFieldId:   null,
       })
+      // Clear client-side localStorage keys that would otherwise survive a DB wipe
+      try { localStorage.removeItem('cartum-theme') } catch { /* sandboxed */ }
       // signOut posts to /api/auth/signout → browser receives expired Set-Cookie headers
       // guaranteeing the stale JWT is cleared before the next session begins
       await signOut({ callbackUrl: '/setup/locale' })

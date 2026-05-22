@@ -65,7 +65,7 @@ export async function setSetting(
 }
 
 /**
- * Returns the active theme ID from DB — falls back to 'dark'.
+ * Returns the active theme ID from DB — falls back to 'dusk'.
  * Server-only.
  */
 export async function getTheme(): Promise<ThemeId> {
@@ -73,5 +73,5 @@ export async function getTheme(): Promise<ThemeId> {
   if (stored && (VALID_THEMES as string[]).includes(stored)) {
     return stored as ThemeId
   }
-  return 'dark'
+  return 'dusk'
 }

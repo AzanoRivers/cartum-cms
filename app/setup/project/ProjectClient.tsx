@@ -52,7 +52,7 @@ export function ProjectClient({ dict, layoutDict }: Props) {
               required
               maxLength={40}
               className="bg-surface-2 border border-border rounded-md px-3 py-2 text-text text-sm focus:outline-none focus:border-primary transition-colors"
-              placeholder="My CMS"
+              placeholder={dict.namePlaceholder}
             />
             <span className="text-muted font-mono text-xs text-right">{name.length}/40</span>
           </div>
@@ -67,7 +67,7 @@ export function ProjectClient({ dict, layoutDict }: Props) {
               maxLength={200}
               rows={3}
               className="bg-surface-2 border border-border rounded-md px-3 py-2 text-text text-sm focus:outline-none focus:border-primary transition-colors resize-none"
-              placeholder="A short description of this project..."
+              placeholder={dict.descriptionPlaceholder}
             />
             <span className="text-muted font-mono text-xs text-right">{description.length}/200</span>
           </div>

@@ -12,8 +12,8 @@ export type DocsSidebarProps = {
   onSelect: (id: string) => void
 }
 
-const TOP_IDS  = ['gettingStarted', 'navigation', 'nodesAndFields', 'content', 'relationsGuide'] as const
-const DEV_IDS  = ['nodesAndFieldsDev', 'media', 'apiForDevs', 'apiSchema', 'relations'] as const
+const TOP_IDS  = ['gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration', 'relationsGuide'] as const
+const DEV_IDS  = ['nodesAndFieldsDev', 'webMigrationDev', 'media', 'apiForDevs', 'apiSchema', 'relations'] as const
 const ALL_IDS  = [...TOP_IDS, ...DEV_IDS] as const
 
 type SectionId = typeof ALL_IDS[number]
@@ -21,16 +21,18 @@ type SectionId = typeof ALL_IDS[number]
 const DEV_SET = new Set<string>(DEV_IDS)
 
 const ICONS: Record<SectionId, Parameters<typeof Icon>[0]['name']> = {
-  gettingStarted: 'Rocket',
-  navigation:     'Compass',
-  nodesAndFields: 'Boxes',
-  content:        'FileText',
-  relationsGuide:    'Link',
+  gettingStarted:  'Rocket',
+  navigation:      'Compass',
+  nodesAndFields:  'Boxes',
+  content:         'FileText',
+  webMigration:    'Globe',
+  relationsGuide:  'Link',
   nodesAndFieldsDev: 'Database',
+  webMigrationDev:   'Globe',
   media:             'Image',
-  apiForDevs:     'Code',
-  apiSchema:      'Network',
-  relations:      'GitMerge',
+  apiForDevs:      'Code',
+  apiSchema:       'Network',
+  relations:       'GitMerge',
 }
 
 export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) {

@@ -17,11 +17,20 @@ const ScrapeResultPageElementSchema = z.object({
   text: z.string(),
 })
 
+const SectionImageSchema = z.object({
+  src:     z.string(),
+  alt:     z.string().default(''),
+  role:    z.enum(['banner', 'gallery_item', 'reference', 'logo'])
+             .catch('reference'),  // fallback if LLM returns unknown value
+  caption: z.string().nullable().default(null),
+})
+
 const SiteSectionSchema = z.object({
   section_type: z.string(),
   label:        z.string(),
   url:          z.string().nullable(),
   elements:     z.array(ScrapeResultPageElementSchema).optional().default([]),
+  images:       z.array(SectionImageSchema).optional().default([]),
 })
 
 // Flat LLM output — matches keys from CARTUM_RESPONSE_SCHEMA

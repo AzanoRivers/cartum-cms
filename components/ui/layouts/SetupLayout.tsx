@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { ChevronLeft } from 'lucide-react'
 import type { SetupStep } from '@/types/project'
 import { useRouter } from 'next/navigation'
 import { BrandFooter } from '@/components/ui/atoms/BrandFooter'
@@ -42,7 +43,7 @@ export function SetupLayout({ children, currentStep, layoutDict }: SetupLayoutPr
     <div className="min-h-dvh bg-bg flex flex-col items-center justify-center px-4 py-12">
 
       {/* Brand header */}
-      <div className="flex items-center gap-3 mb-14">
+      <div className="flex items-center gap-3 mb-6">
         <div className="relative h-8 w-8 shrink-0">
           {/* glow halo */}
           <div className="absolute inset-1 rounded-full bg-primary/40 blur-md" />
@@ -71,7 +72,7 @@ export function SetupLayout({ children, currentStep, layoutDict }: SetupLayoutPr
       </div>
 
       {/* Step dots */}
-      <div className="flex items-center gap-2 mb-10">
+      <div className="flex items-center gap-2 mb-4">
         {STEP_IDS.map((id, i) => {
           const isCompleted = i < currentIndex
           const isActive    = i === currentIndex
@@ -91,7 +92,7 @@ export function SetupLayout({ children, currentStep, layoutDict }: SetupLayoutPr
       </div>
 
       {/* Step indicator */}
-      <p className="text-muted font-mono text-xs tracking-widest uppercase mb-8">
+      <p className="text-muted font-mono text-xs tracking-widest uppercase mb-4">
         {currentIndex + 1} · {layoutDict.stepLabels[currentIndex]}
       </p>
 
@@ -104,9 +105,10 @@ export function SetupLayout({ children, currentStep, layoutDict }: SetupLayoutPr
       {backRoute && (
         <button
           onClick={() => router.push(backRoute)}
-          className="mt-6 text-muted hover:text-text font-mono text-sm transition-colors"
+          className="mt-6 inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-4 py-2 font-mono text-xs text-muted hover:border-primary/40 hover:bg-surface-2 hover:text-text transition-all duration-200 cursor-pointer"
         >
-          ← {layoutDict.back}
+          <ChevronLeft size={14} strokeWidth={2} />
+          {layoutDict.back}
         </button>
       )}
       <BrandFooter />

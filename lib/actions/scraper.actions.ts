@@ -3,12 +3,18 @@
 // Cada action lee scraperApiUrl + scraperApiKey desde getSetting()
 // La API key nunca se expone al cliente
 
+import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { auth } from '@/auth'
 import { getSetting } from '@/lib/settings/get-setting'
 import { scraperService } from '@/lib/services/scraper.service'
 import { nodeService } from '@/lib/services/nodes.service'
 import { validateScrapeResult } from '@/lib/validators/scraper.validator'
+import { getR2Client } from '@/lib/media/r2-client'
+import { blobUpload } from '@/lib/media/blob-client'
+import { getActiveProvider } from '@/lib/media/storage-router'
+import { mediaRepository } from '@/db/repositories/media.repository'
 import type { ActionResult } from '@/types/actions'
 import type {
   ScrapeOptions,
@@ -17,9 +23,15 @@ import type {
   ScraperServerStatus,
   ImportStrategy,
   ImportedSummary,
+  SectionImage,
 } from '@/types/scraper'
+import type { ImageFieldConfig, GalleryFieldConfig, GalleryItem } from '@/types/nodes'
 
 const DEFAULT_SCRAPER_URL = 'https://scraper.azanolabs.com'
+
+const _VALID_SCRAPE_IMAGE_MIMES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml',
+])
 
 // ── Auth + config helper ───────────────────────────────────────────────────────
 
@@ -37,6 +49,88 @@ async function getApiConfig(): Promise<{ apiUrl: string; apiKey: string }> {
   ])
   if (!key) throw new Error('SCRAPER_NOT_CONFIGURED')
   return { apiUrl: url ?? DEFAULT_SCRAPER_URL, apiKey: key }
+}
+
+// ── Image upload helper ────────────────────────────────────────────────────────
+
+type _UploadedImage = { publicUrl: string; mediaId: string }
+
+async function _uploadImageFromUrl(
+  img: SectionImage,
+  userId: string,
+  nodeId: string,
+  sectionLabel: string,
+  idx: number,
+): Promise<_UploadedImage | null> {
+  try {
+    const res = await fetch(img.src, {
+      signal: AbortSignal.timeout(20_000),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; CartumBot/1.0)',
+        'Accept': 'image/webp,image/png,image/jpeg,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+    })
+    if (!res.ok) {
+      console.warn(`[scraper-import] image fetch failed ${res.status}: ${img.src}`)
+      return null
+    }
+
+    const contentType = res.headers.get('content-type') ?? ''
+    const mimeType    = contentType.split(';')[0].trim().toLowerCase()
+    if (!_VALID_SCRAPE_IMAGE_MIMES.has(mimeType)) {
+      console.warn(`[scraper-import] invalid mime "${mimeType}": ${img.src}`)
+      return null
+    }
+
+    const buffer = await res.arrayBuffer()
+    if (buffer.byteLength === 0) return null
+
+    const rawExt = mimeType.split('/')[1] ?? 'jpg'
+    const ext    = rawExt === 'jpeg' ? 'jpg' : rawExt === 'svg+xml' ? 'svg' : rawExt
+    const sectionSlug = sectionLabel
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 30) || 'section'
+    const name = `${img.role}-${sectionSlug}-${idx}.${ext}`
+
+    const provider = await getActiveProvider()
+    let publicUrl: string
+    let key: string
+
+    if (provider === 'r2') {
+      const r2 = await getR2Client()
+      key = `uploads/${randomUUID()}.${ext}`
+      await r2.client.send(new PutObjectCommand({
+        Bucket:      r2.bucket,
+        Key:         key,
+        Body:        new Uint8Array(buffer),
+        ContentType: mimeType,
+      }))
+      publicUrl = `${r2.publicUrl}/${key}`
+    } else {
+      const slug   = `uploads/${randomUUID()}.${ext}`
+      const result = await blobUpload(slug, buffer, mimeType)
+      key       = result.key
+      publicUrl = result.publicUrl
+    }
+
+    const record = await mediaRepository.create({
+      key,
+      publicUrl,
+      mimeType,
+      sizeBytes:  buffer.byteLength,
+      name,
+      nodeId,
+      uploadedBy: userId,
+    })
+
+    return { publicUrl, mediaId: record.id }
+  } catch (err) {
+    console.warn(`[scraper-import] image upload error: ${img.src}`, err)
+    return null
+  }
 }
 
 // ── Server Actions ─────────────────────────────────────────────────────────────
@@ -108,18 +202,47 @@ export async function cancelScrapeJob(
   }
 }
 
+// ── Import helpers ─────────────────────────────────────────────────────────────
+
+/** Creates a container with a unique name, appending (2), (3)… on collision. */
+async function _createUniqueContainer(
+  baseName: string,
+  parentId: string | null,
+  positionX: number,
+  positionY: number,
+): Promise<Awaited<ReturnType<typeof nodeService.createContainer>>> {
+  let name    = baseName
+  let attempt = 1
+  while (attempt <= 30) {
+    try {
+      return await nodeService.createContainer({ name, parentId, positionX, positionY })
+    } catch (err) {
+      if (err instanceof Error && err.message === 'NODE_NAME_TAKEN' && attempt < 30) {
+        attempt++
+        name = `${baseName} (${attempt})`
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('NODE_NAME_TAKEN')
+}
+
 // ── Import ─────────────────────────────────────────────────────────────────────
 // Arquitectura:
 //   Business → fields directamente en el contenedor (identifier=name, value=defaultValue)
 //   Pages    → sub-contenedor por página → fields desde elements[] (identifier=name, value=defaultValue)
 //              Fallback si elements vacío: url / summary / key_points como fields
+//   Images   → solo cuando downloadImages=true; banner → image field, gallery_items → gallery field,
+//              reference → image fields; logo se omite
 
 export async function importScrapedData(
   result: ScrapeResult,
   strategy: ImportStrategy,
+  downloadImages = false,
 ): Promise<ActionResult<ImportedSummary>> {
   try {
-    await requireAuth()
+    const userId = await requireAuth()
 
     const businessName = result.data.business_name ?? 'Unnamed'
 
@@ -144,12 +267,7 @@ export async function importScrapedData(
 
     // ── strategy: business_only — flat Info container ──────────────────────────
     if (strategy === 'business_only') {
-      const infoContainer = await nodeService.createContainer({
-        name:      `Info: ${businessName}`,
-        parentId:  null,
-        positionX: 80,
-        positionY: 80,
-      })
+      const infoContainer = await _createUniqueContainer(`Info: ${businessName}`, null, 80, 80)
       for (let i = 0; i < businessFields.length; i++) {
         const [key, value] = businessFields[i]
         await nodeService.createField({
@@ -169,19 +287,8 @@ export async function importScrapedData(
     // ── strategy: business_and_pages — 3-level hierarchy ──────────────────────
     // Site (root) → Info + nav section containers → field nodes
 
-    const siteContainer = await nodeService.createContainer({
-      name:      `Site: ${businessName}`,
-      parentId:  null,
-      positionX: 80,
-      positionY: 80,
-    })
-
-    const infoContainer = await nodeService.createContainer({
-      name:      'Info',
-      parentId:  siteContainer.id,
-      positionX: 0,
-      positionY: 0,
-    })
+    const siteContainer = await _createUniqueContainer(`Site: ${businessName}`, null, 80, 80)
+    const infoContainer = await _createUniqueContainer('Info', siteContainer.id, 0, 0)
 
     for (let i = 0; i < businessFields.length; i++) {
       const [key, value] = businessFields[i]
@@ -197,21 +304,36 @@ export async function importScrapedData(
     }
 
     const navSections = (result.data.nav_sections ?? []).filter(s => s.url != null)
-    let sectionsCount = 0
+    let sectionsCount   = 0
+    let imagesImported  = 0
+
+    const _uploadCache = new Map<string, _UploadedImage | null>()
+    let   _imgIdx      = 0
+    const _upload = async (img: SectionImage, nodeId: string, label: string): Promise<_UploadedImage | null> => {
+      if (_uploadCache.has(img.src)) return _uploadCache.get(img.src) ?? null
+      _imgIdx++
+      const r = await _uploadImageFromUrl(img, userId, nodeId, label, _imgIdx)
+      _uploadCache.set(img.src, r)
+      return r
+    }
+
+    // Track used section labels to avoid sibling name collisions
+    const usedSectionLabels = new Set<string>(['info'])
 
     for (let i = 0; i < navSections.length; i++) {
       const section = navSections[i]
       // +1 offset to leave slot 0 for Info container
       const col = (i + 1) % 3
       const row = Math.floor((i + 1) / 3)
-      const label = (section.label || section.section_type || `Section ${i + 1}`).substring(0, 60)
+      const baseLabel = (section.label || section.section_type || `Section ${i + 1}`).substring(0, 55)
+      let label = baseLabel
+      let sfx = 2
+      while (usedSectionLabels.has(label.toLowerCase())) {
+        label = `${baseLabel} (${sfx++})`
+      }
+      usedSectionLabels.add(label.toLowerCase())
 
-      const sectionNode = await nodeService.createContainer({
-        name:      label,
-        parentId:  siteContainer.id,
-        positionX: col * 420,
-        positionY: row * 200,
-      })
+      const sectionNode = await _createUniqueContainer(label, siteContainer.id, col * 420, row * 200)
 
       const elements = section.elements ?? []
       const typeCounts: Record<string, number> = {}
@@ -232,13 +354,85 @@ export async function importScrapedData(
         })
       }
 
+      // ── Image fields (only when downloadImages=true) ───────────────────────
+      if (downloadImages) {
+        const sectionImages = section.images ?? []
+
+        // Deduplicate by src within this section (cross-section dedup via _uploadCache)
+        const seenInSection = new Set<string>()
+        const uniqueImages = sectionImages.filter(img => {
+          if (!img.src || seenInSection.has(img.src)) return false
+          seenInSection.add(img.src)
+          return true
+        })
+
+        const galleryItems = uniqueImages.filter(img => img.role === 'gallery_item')
+        const nonGallery   = uniqueImages.filter(img => img.role !== 'gallery_item')
+        let imgFieldY = elements.length * 52
+
+        // Gallery field — all gallery_items grouped in one field
+        if (galleryItems.length > 0) {
+          const items: GalleryItem[] = []
+          for (const img of galleryItems) {
+            const uploaded = await _upload(img, sectionNode.id, label)
+            items.push({ url: uploaded?.publicUrl ?? img.src, mediaId: uploaded?.mediaId ?? null })
+            if (uploaded) imagesImported++
+          }
+          const config: GalleryFieldConfig = { items }
+          const field = await nodeService.createField({
+            name:         'gallery',
+            parentId:     sectionNode.id,
+            fieldType:    'gallery',
+            isRequired:   false,
+            defaultValue: '',
+            positionX:    0,
+            positionY:    imgFieldY,
+          })
+          await nodeService.updateFieldMeta(field.id, { config })
+          imgFieldY += 52
+        }
+
+        // Individual image field per non-gallery image (banner, reference, logo, etc.)
+        // Field name: role for first, role_2/role_3... for subsequent same-role images
+        const roleCount: Record<string, number> = {}
+        for (let k = 0; k < nonGallery.length; k++) {
+          const img      = nonGallery[k]
+          const role     = img.role || 'image'
+          const count    = roleCount[role] ?? 0
+          roleCount[role] = count + 1
+          const fieldName = count === 0 ? role : `${role}_${count + 1}`
+
+          const uploaded = await _upload(img, sectionNode.id, label)
+          const config: ImageFieldConfig = {
+            defaultUrl:     uploaded?.publicUrl ?? img.src,
+            defaultMediaId: uploaded?.mediaId   ?? null,
+          }
+          const field = await nodeService.createField({
+            name:         fieldName,
+            parentId:     sectionNode.id,
+            fieldType:    'image',
+            isRequired:   false,
+            defaultValue: uploaded?.publicUrl ?? img.src,
+            positionX:    0,
+            positionY:    imgFieldY + k * 52,
+          })
+          await nodeService.updateFieldMeta(field.id, { config })
+          if (uploaded) imagesImported++
+        }
+      }
+
       sectionsCount++
     }
 
     revalidatePath('/cms/board')
     return {
       success: true,
-      data: { siteNodeId: siteContainer.id, attrCount: businessFields.length, sectionsCount },
+      data: {
+        siteNodeId:     siteContainer.id,
+        attrCount:      businessFields.length,
+        sectionsCount,
+        imagesImported: downloadImages ? imagesImported : undefined,
+      },
     }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Import failed' }

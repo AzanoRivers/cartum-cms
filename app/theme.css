@@ -315,11 +315,11 @@
   --color-primary: #00c41e;
   --color-primary-glow: #00c41e28;
   --color-accent: #39ff14;
-  --color-text: #b8f0b8;
+  --color-text: #e0fce0;
   --color-muted: #4d8f4d;
   --color-danger: #ff4444;
   --color-success: #00ff41;
-  --color-warning: #ccff33;
+  --color-warning: #44aa00;
 }
 
 [data-theme="cyber-soft"] {

@@ -121,6 +121,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   const [deleteRisk,       setDeleteRisk]       = useState<DeletionRisk | null>(null)
   const [deleteIsPending,  setDeleteIsPending]  = useState(false)
   const [isCheckingDelete, setIsCheckingDelete] = useState(false)
+  const [boardReady,       setBoardReady]       = useState(false)
 
   const editingFieldId = useUIStore((s) => s.editingFieldId)
   const openFieldEdit  = useUIStore((s) => s.openFieldEdit)
@@ -198,6 +199,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   // on the first RAF (common on narrow/mobile viewports).
   useEffect(() => {
     setNodes(initialNodes)
+    setBoardReady(true)
 
     if (!initialNodes.length) {
       setOffset(0, 0)
@@ -535,14 +537,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
         return
       }
 
-      if (result.data.level === 'safe') {
-        removeNode(nodeId)
-        const del = await deleteNode({ id: nodeId, confirmed: true })
-        if (del.success) toast.success(isField ? (t?.deleteFieldSuccess ?? 'Card deleted.') : (t?.deleteSuccess ?? 'Deck deleted.'))
-        else toast.error(isField ? (t?.deleteFieldError ?? 'Could not delete card.') : (t?.deleteError ?? 'Could not delete deck.'))
-      } else {
-        setDeleteRisk(result.data)
-      }
+      setDeleteRisk(result.data)
     } finally {
       setIsCheckingDelete(false)
     }
@@ -639,7 +634,15 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
         />
       </div>
 
-      {isEmpty && (
+      {!boardReady && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="font-mono text-xs text-muted animate-pulse">
+            {d?.canvas.loading ?? 'Loading board…'}
+          </span>
+        </div>
+      )}
+
+      {boardReady && isEmpty && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2">
           <span className="font-mono text-base text-text/70">{d?.canvas.empty ?? 'No nodes yet.'}</span>
           <span className="font-mono text-sm text-muted">{d?.canvas.emptyHint ?? 'Use + to create your first container.'}</span>

@@ -115,7 +115,7 @@ export async function createProject(
 
 // ── Step 4: Save theme ────────────────────────────────────────────────────────
 
-const VALID_THEMES: ThemeId[] = ['dark', 'cyber-soft', 'light']
+const VALID_THEMES: ThemeId[] = ['dark', 'cyber-soft', 'light', 'dusk', 'matrix']
 
 export async function saveSetupTheme(
   input: { theme: ThemeId },

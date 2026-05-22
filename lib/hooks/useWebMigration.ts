@@ -146,11 +146,11 @@ export function useWebMigration() {
   }, [jobId])
 
   const importResult = useCallback(
-    (strategy: ImportStrategy) => {
+    (strategy: ImportStrategy, downloadImages = false) => {
       if (!result) return
       setStep('importing')
       startTransition(async () => {
-        const res = await importScrapedData(result, strategy)
+        const res = await importScrapedData(result, strategy, downloadImages)
         if (!res.success) {
           setError(res.error)
           setStep('error')

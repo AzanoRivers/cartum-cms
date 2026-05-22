@@ -40,11 +40,12 @@ export default async function RootLayout({
   return (
     <html lang={locale} data-theme={theme} suppressHydrationWarning>
       <head>
-        {/* Apply stored theme before hydration to avoid flash — must use next/script, not bare <script> in RSC */}
+        {/* Sync localStorage to the server-authoritative theme and apply to DOM.
+            Server (DB) is the source of truth — localStorage is just a cache. */}
         <Script
           id="theme-hydration"
           strategy="beforeInteractive"
-        >{`(function(){try{var t=localStorage.getItem('cartum-theme');if(t==='dark'||t==='cyber-soft'||t==='light'||t==='dusk'||t==='matrix'){document.documentElement.dataset.theme=t;}}catch(e){}})();`}</Script>
+        >{`(function(){try{var t='${theme}';document.documentElement.dataset.theme=t;localStorage.setItem('cartum-theme',t);}catch(e){}})();`}</Script>
       </head>
       <body>
         <a href="#main-content" className="skip-link">Skip to content</a>

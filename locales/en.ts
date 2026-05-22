@@ -45,11 +45,13 @@
       },
     },
     project: {
-      title:       'Set up your Project',
-      subtitle:    'Give your CMS a name. You can update this later.',
-      name:        'Project Name',
-      description: 'Description (optional)',
-      continue:    'Continue',
+      title:                   'Set up your Project',
+      subtitle:                'Give your CMS a name. You can update this later.',
+      name:                    'Project Name',
+      namePlaceholder:         'My CMS',
+      description:             'Description (optional)',
+      descriptionPlaceholder:  'A short description of this project...',
+      continue:                'Continue',
     },
     theme: {
       title:    'Choose a theme',
@@ -59,7 +61,7 @@
         dark:       { label: 'Dark',       description: 'Deep cyberpunk. Max contrast.' },
         cyberSoft:  { label: 'Cyber Soft', description: 'Deep blue-grey. Pro mode.' },
         light:      { label: 'Light',      description: 'Slate white. Bright environments.' },
-        dusk:       { label: 'Dusk',       description: 'Muted navy. Between dark and light.' },
+        dusk:       { label: 'Metal',      description: 'Modern metallic blue. Elegant and cool.' },
         matrix:     { label: 'Matrix',     description: 'Phosphor green. Classic terminal.' },
       },
     },
@@ -177,12 +179,14 @@
         navigation:     'Navigation',
         nodesAndFields: 'Decks & Cards',
         content:        'Content',
+        webMigration:   'Web Migration',
         relationsGuide: 'Relations',
         media:          'Media & Storage',
         apiForDevs:     'API for Developers',
         apiSchema:      'API: Schema Discovery',
         relations:          'Node Relations',
         nodesAndFieldsDev:  'Nodes & Fields',
+        webMigrationDev:    'Web Migration',
       },
       gettingStarted: {
         title:         'Getting Started',
@@ -273,6 +277,33 @@
         validationNote: 'Validation: required attributes and number ranges are enforced.',
         mediaNote:      'Image/video attributes: upload a file or select from the Media Library.',
       },
+      webMigration: {
+        title:   'Web Migration',
+        intro:   'Web Migration lets you import content from any existing website directly into Cartum. Instead of building your content structure from scratch, you point Cartum at a URL and it collects text, images and videos automatically, then recreates them as Decks and Cards.',
+        howTitle: 'How it works',
+        howItems: {
+          a: 'Cartum runs a smart crawl that follows every internal link on the target site.',
+          b: 'It captures text, images and videos from each page it visits.',
+          c: 'An AI model then analyzes the collected data and maps it into Decks and Cards.',
+          d: 'You review the suggested structure, adjust if needed, and confirm the import.',
+        },
+        whatYouGetTitle: 'What you get',
+        whatYouGetItems: {
+          a: 'A Deck structure that mirrors the original site content organization.',
+          b: 'Images and videos attached to the right cards.',
+          c: 'A ready-to-review import you can accept, edit or discard.',
+        },
+        aiNote:      'The AI step is what makes the difference. Without it you get raw extracted data. With it you get a clean, structured schema tailored to Cartum.',
+        bestForTitle: 'Works best on',
+        bestForItems: {
+          a: 'Online stores and product catalogs.',
+          b: 'Portfolios and agency sites.',
+          c: 'Directories, listings and blogs.',
+        },
+        startTitle: 'Getting started',
+        startDesc:  'Open Settings, go to Web Migration, and configure your Dealer Scraper connection. Once set up, a migration option will be available from the Content view.',
+        accuracyWarning: 'Extracted data is not 100% accurate. AI models can miss content, mislabel images or misinterpret a site structure. The goal of this tool is to give you a starting point based on the original site so you do not have to build from scratch. Always review and adjust the result before confirming the import.',
+      },
       relationsGuide: {
         title:        'Relations',
         intro:        'The Cartum board is like a poker table: you can place as many decks on it as you need. Each deck is a node, and each card inside a deck is a record. Relations are the thread that connects a card in one deck to a card in another.',
@@ -293,6 +324,37 @@
         contentTitle: 'How do I use it when editing content?',
         contentDesc:  'When you open a card that has a relation field, you\'ll see a picker to choose a card from the linked deck. Select it and save. No database knowledge required - it works just like filling in any other field.',
         note:         'A relation never duplicates cards: it only stores a link. If you change a card in the target deck, the change appears automatically in every card that references it.',
+      },
+      webMigrationDev: {
+        title: 'Web Migration: Technical Details',
+        intro: 'The Web Migration feature is powered by Cartum\'s own crawling service, Dealer Scraper. It runs as a standalone Python service on a VPS and exposes a REST API that the CMS calls to start and monitor migration jobs.',
+        crawlTitle: 'Crawling, not typical scraping',
+        crawlDesc:  'Dealer Scraper does not scrape individual elements by CSS selector. It first discovers all internal URLs via robots.txt, sitemaps and homepage links, then fetches each page with async HTTP requests (httpx) and extracts structured content using BeautifulSoup and readability-lxml. Because it uses standard HTTP rather than a headless browser, it works on server-rendered sites but does not execute JavaScript.',
+        pipelineTitle: 'Pipeline stages',
+        pipelineItems: {
+          nav:     'Route discovery (Explorer): checks robots.txt, sitemaps and homepage links to build the full list of internal URLs to visit.',
+          fetch:   'Page download (Fetcher): fetches each URL with async HTTP, with retry and exponential backoff. Non-retriable codes (404, 410) are skipped.',
+          extract: 'Content extraction (Extractor): parses each HTML file with BeautifulSoup and readability-lxml to extract title, metadata, Open Graph tags, text content, images (srcset, lazy-load, background-image) and video sources.',
+          catalog: 'Image cataloguing (Image Crawler): deduplicates media across all pages and assigns a semantic role (hero, thumbnail, logo, background, gallery) based on frequency and context.',
+          audit:   'Coverage audit (Auditor): checks what percentage of discovered routes were successfully extracted. Can trigger a second-pass fetch for missed pages.',
+          ai:      'AI review (Reviewer): sends extracted page data and the image catalogue to a configurable LLM provider, which returns a structured schema mapping everything to Cartum Decks and Cards.',
+          import:  'Import: the CMS receives the structured schema for review, adjustment and confirmation before writing to the database.',
+        },
+        stackTitle: 'Python stack',
+        stackItems: {
+          a: 'FastAPI for the REST service layer.',
+          b: 'httpx for async HTTP page fetching with retry and backoff.',
+          c: 'BeautifulSoup and readability-lxml for HTML parsing and content extraction.',
+          d: 'Custom LLM client (no SDK) supporting OpenAI, Anthropic, NVIDIA, Deepseek and Minimax via direct HTTP calls.',
+        },
+        configTitle: 'Configuration',
+        configDesc:  'Set the VPS API URL, bearer token and target AI model in Settings > Web Migration. The CMS passes those values on every job request.',
+        aiNote:      'The AI review step is optional but strongly recommended. It transforms raw crawl data into a clean, ready-to-import Cartum schema. Without it the import contains unstructured page content.',
+        accuracyWarning: 'The extracted data is not guaranteed to be complete or accurate. AI models can miss content, misclassify images or misread a site layout. The purpose of this tool is to provide a structural starting point based on the target site, not a perfect replica. Treat the import result as a draft and review it carefully before confirming.',
+        officialDocsTitle: 'Official Documentation',
+        officialDocsDesc:  'Full setup guide, API reference and configuration options for Dealer Scraper.',
+        officialDocsLink:  'View Dealer Scraper docs',
+        officialDocsUrl:   'https://www.azanolabs.com/cartum/dealer-scraper',
       },
       media: {
         title:         'Media & Storage',
@@ -439,6 +501,7 @@
     },
     canvas: {
       ariaLabel: 'Deck board',
+      loading:   'Loading board…',
       empty:     'No decks yet.',
       emptyHint: 'Use + to create your first deck.',
     },
@@ -792,7 +855,7 @@
         confirm:                'Confirm delete',
         confirmDanger:          'Yes, delete anyway',
         deleting:               'Deleting…',
-        factorChildren:         '{count} attribute(s) in this deck',
+        factorChildren:         '{count} card(s) in this deck',
         factorConnections:      '{count} link(s) to other decks',
         factorRecordsContainer: '{count} card(s) in this deck',
         factorRecordsField:     '{count} card(s) will lose this attribute',
@@ -849,7 +912,7 @@
         dark:      { label: 'Dark',       description: 'Deep cyberpunk. Max contrast.' },
         cyberSoft: { label: 'Cyber Soft', description: 'Deep blue-grey. Pro mode.' },
         light:     { label: 'Light',      description: 'Slate white. Bright environments.' },
-        dusk:      { label: 'Dusk',       description: 'Muted navy. Between dark and light.' },
+        dusk:      { label: 'Metal',      description: 'Modern metallic blue. Elegant and cool.' },
         matrix:    { label: 'Matrix',     description: 'Phosphor green. Classic terminal.' },
       },
     },
@@ -1084,14 +1147,29 @@
       downloadImages:       'Download images',
       startMigration:       'Start migration',
       starting:             'Starting…',
+      accuracyWarning:      'Extracted data is not 100% accurate. AI models can miss content, mislabel images or misread a site structure. This tool provides a starting point so you do not have to build from scratch. Review the result before confirming.',
       // Progress
-      progressTitle:        'Scraping in progress',
+      progressTitle:        'Extraction in progress',
       phaseLabel:           'Phase: {phase}',
+      phaseFallback:        'Asking OpenAI for help, don\'t tell Elon…',
+      phaseQueued:          'Queued, waiting for a free slot…',
       pagesProgress:        '{done} / {total} pages',
       stepsProgress:        'Step {done} of {total}',
       imagesImported:       '{n} image(s) imported',
       estimatedTime:        '~{seconds}s remaining',
       cancel:               'Cancel',
+      cancelDialog: {
+        title:   'Cancel migration?',
+        message: 'The scraping job will be stopped on the server and any unsaved progress will be lost.',
+        confirm: 'Yes, cancel',
+        dismiss: 'Keep running',
+      },
+      closeDialog: {
+        title:         'Migration in progress',
+        message:       'A migration job is currently running. Closing this panel will not stop it on the server.',
+        cancelAndClose: 'Cancel migration & close',
+        stay:           'Stay',
+      },
       // Result
       resultTitle:          'Result',
       coverage:             'Coverage: {pct}% · {pages} pages analyzed',
@@ -1123,6 +1201,19 @@
       errorServerBusy:      'Server is busy. Try again later.',
       errorInvalidResult:   'The Dealer didn\'t know how to deliver the cards correctly.',
       errorTimeout:         'Migration timed out after 15 minutes. The site may have too many pages.',
+      errorUnknown:         'Unknown error. Please try again.',
+      errorCodes: {
+        LLM_AUTH_ERROR:        'Invalid AI credentials or no credits. Check your API key.',
+        LLM_PARSE_ERROR:       'The AI model returned an invalid response. Please retry.',
+        LLM_TIMEOUT:           'The AI model did not respond in time. Try again in a few minutes.',
+        JOB_TIMEOUT:           'Job exceeded 30 minutes and was cancelled. The site may be too large.',
+        INTERNAL_ERROR:        'Internal server error. Retry in ~60s.',
+        RESULT_SCHEMA_MISMATCH:'Result does not match the expected structure. Please retry.',
+        NO_ROUTES_FOUND:       'No pages found to analyze. The site may require JavaScript.',
+        FETCH_ALL_FAILED:      'Could not download any page from the site.',
+        AUDIT_CRITICAL_GAPS:   'Insufficient site coverage to complete the analysis.',
+        EXTRACTION_EMPTY:      'The site has no extractable content or requires JavaScript to render.',
+      },
       funMessages: [
         'Dealing cards at the speed of HTTP. Your poker face is already impressive.',
         'The Dealer is shuffling through pages like a pro. No cheating allowed.',
@@ -1150,7 +1241,7 @@
         'Your website just got dealt a full house. Aces in the data, baby.',
         'The Dealer does not bluff. Unlike several sites we have visited today.',
         'A developer once named their CSS class thisIsTemporary. It was not.',
-        'Scraping at the speed of the VPS. Practically the speed of light.',
+        'Scraping at the speed of the server. Practically the speed of light.',
         'The robots.txt was checked. Rules were followed. Mostly.',
         'Building your Mazo one fetch at a time. Persistence is a slow virtue.',
         'The AI discovered a blog with two posts from 2019. It felt something.',
@@ -1165,7 +1256,7 @@
         'The scraper followed a redirect politely without asking where it led.',
         'We found a footer with 11 links to the Privacy Policy. Someone really cares.',
         'The Dealer never reveals which pages it found tedious. Professional ethics.',
-        'The hamsters powering the VPS are doing great. Hydrated and motivated.',
+        'The hamsters powering the server are doing great. Hydrated and motivated.',
         'The AI read an FAQ with 87 questions. None were frequently asked.',
         'Your data is handled with the precision of a world-class card mechanic.',
         'Science confirms: good things take time. This is a loose paraphrase.',
@@ -1390,8 +1481,8 @@ export type Dictionary = {
       sidebarAriaLabel: string
       sections: {
         gettingStarted: string; navigation: string; nodesAndFields: string
-        content: string; relationsGuide: string
-        media: string; apiForDevs: string; apiSchema: string; relations: string; nodesAndFieldsDev: string
+        content: string; webMigration: string; relationsGuide: string
+        media: string; apiForDevs: string; apiSchema: string; relations: string; nodesAndFieldsDev: string; webMigrationDev: string
       }
       gettingStarted: {
         title: string; intro: string; conceptsTitle: string
@@ -1426,6 +1517,26 @@ export type Dictionary = {
         title: string; step1: string; step2: string
         newRecord: string; editRecord: string; deleteRecord: string
         validationNote: string; mediaNote: string
+      }
+      webMigration: {
+        title: string; intro: string
+        howTitle: string; howItems: { a: string; b: string; c: string; d: string }
+        whatYouGetTitle: string; whatYouGetItems: { a: string; b: string; c: string }
+        aiNote: string
+        bestForTitle: string; bestForItems: { a: string; b: string; c: string }
+        startTitle: string; startDesc: string
+        accuracyWarning: string
+      }
+      webMigrationDev: {
+        title: string; intro: string
+        crawlTitle: string; crawlDesc: string
+        pipelineTitle: string
+        pipelineItems: { nav: string; fetch: string; extract: string; catalog: string; audit: string; ai: string; import: string }
+        stackTitle: string; stackItems: { a: string; b: string; c: string; d: string }
+        configTitle: string; configDesc: string
+        aiNote: string
+        accuracyWarning: string
+        officialDocsTitle: string; officialDocsDesc: string; officialDocsLink: string; officialDocsUrl: string
       }
       relationsGuide: {
         title: string; intro: string
@@ -1504,7 +1615,7 @@ export type Dictionary = {
         exampleTitle: string; exampleNote: string
       }
     }
-    canvas: { ariaLabel: string; empty: string; emptyHint: string }
+    canvas: { ariaLabel: string; loading: string; empty: string; emptyHint: string }
     nodeCard: {
       fields: string; records: string; connections: string; required: string
       types: { text: string; number: string; boolean: string; image: string; video: string; gallery: string; relation: string }
@@ -1727,8 +1838,10 @@ export type Dictionary = {
       serverAvailable: string; serverBusy: string; serverNotConfigured: string
       connectionOk: string; connectionFail: string
       urlLabel: string; urlPlaceholder: string; maxPages: string; downloadImages: string
-      startMigration: string; starting: string
-      progressTitle: string; phaseLabel: string; pagesProgress: string; stepsProgress: string; estimatedTime: string; cancel: string
+      startMigration: string; starting: string; accuracyWarning: string
+      progressTitle: string; phaseLabel: string; phaseFallback: string; phaseQueued: string; pagesProgress: string; stepsProgress: string; estimatedTime: string; cancel: string
+      cancelDialog: { title: string; message: string; confirm: string; dismiss: string }
+      closeDialog: { title: string; message: string; cancelAndClose: string; stay: string }
       resultTitle: string; coverage: string; ttlWarning: string
       summaryPages: string; summarySections: string; summaryElements: string; summaryImages: string
       importTitle: string; strategyBusinessOnly: string; strategyWithPages: string
@@ -1738,6 +1851,8 @@ export type Dictionary = {
       errorJobFailed: string; errorRetryAfter: string; errorImport: string
       errorNotConfigured: string; errorServerBusy: string; errorInvalidResult: string
       errorTimeout: string
+      errorUnknown: string
+      errorCodes: Record<string, string>
       funMessages: string[]
       importMessages: string[]
     }

@@ -7,6 +7,7 @@ import type { DeletionRisk, RiskFactor } from '@/types/integrity'
 
 export type DeleteDialogDict = {
   title:                  string
+  safeMessage:            string
   warnMessage:            string
   dangerMessage:          string
   cancel:                 string
@@ -30,6 +31,7 @@ export type DeleteConfirmDialogProps = {
 
 const FALLBACK: DeleteDialogDict = {
   title:                  'Delete "{name}"?',
+  safeMessage:            'This action cannot be undone.',
   warnMessage:            'This will remove related data and cannot be undone.',
   dangerMessage:          'This has dangerous consequences and cannot be undone.',
   cancel:                 'Cancel',
@@ -87,17 +89,19 @@ export function DeleteConfirmDialog({
     return () => document.removeEventListener('keydown', onKey)
   }, [onCancel])
 
+  const isSafe   = risk.level === 'safe'
   const isDanger = risk.level === 'danger'
   const title    = d.title.replace('{name}', risk.entityName)
 
   // Theme-aware accent colours based on risk level
-  const accentBar   = isDanger ? 'bg-danger'             : 'bg-amber-500'
-  const iconBg      = isDanger ? 'bg-danger/10'          : 'bg-amber-500/10'
-  const iconColor   = isDanger ? 'text-danger'           : 'text-amber-400'
-  const pillBorder  = isDanger ? 'border-danger/20'      : 'border-amber-500/20'
-  const pillBg      = isDanger ? 'bg-danger/5'           : 'bg-amber-500/5'
-  const pillText    = isDanger ? 'text-danger/80'        : 'text-amber-400/90'
+  const accentBar   = isDanger ? 'bg-danger'          : isSafe ? 'bg-border'         : 'bg-amber-500'
+  const iconBg      = isDanger ? 'bg-danger/10'        : isSafe ? 'bg-surface-2'      : 'bg-amber-500/10'
+  const iconColor   = isDanger ? 'text-danger'         : isSafe ? 'text-muted'        : 'text-amber-400'
+  const pillBorder  = isDanger ? 'border-danger/20'    : 'border-amber-500/20'
+  const pillBg      = isDanger ? 'bg-danger/5'         : 'bg-amber-500/5'
+  const pillText    = isDanger ? 'text-danger/80'      : 'text-amber-400/90'
   const confirmBtn  = 'bg-danger hover:bg-danger/85 text-white border border-danger/60'
+  const message     = isSafe ? d.safeMessage : (isDanger ? d.dangerMessage : d.warnMessage)
 
   return (
     <>
@@ -123,6 +127,8 @@ export function DeleteConfirmDialog({
               <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconBg} ${iconColor}`}>
                 {isDanger
                   ? <AlertCircle   size={18} strokeWidth={2} />
+                  : isSafe
+                  ? <Trash2        size={18} strokeWidth={2} />
                   : <AlertTriangle size={18} strokeWidth={2} />
                 }
               </span>
@@ -135,7 +141,7 @@ export function DeleteConfirmDialog({
                   {title}
                 </h2>
                 <p className="mt-1 font-mono text-[11px] leading-relaxed text-muted">
-                  {isDanger ? d.dangerMessage : d.warnMessage}
+                  {message}
                 </p>
               </div>
 

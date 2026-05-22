@@ -31,6 +31,7 @@ export const CARTUM_RESPONSE_SCHEMA = {
       label:        '...',
       url:          '...',
       elements:     [{ type: '...', text: '...' }],
+      images:       [{ src: '...', alt: '...', role: 'reference', caption: null }],
     },
   ],
 } as const
