@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import './globals.css'
 import { getLocale } from '@/lib/i18n/getLocale'
-import { getTheme } from '@/lib/settings/get-setting'
 import { Toaster } from 'sonner'
 
 export const viewport: Viewport = {
@@ -36,16 +35,16 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [locale, theme] = await Promise.all([getLocale(), getTheme()])
+  const locale = await getLocale()
   return (
-    <html lang={locale} data-theme={theme} suppressHydrationWarning>
+    <html lang={locale} data-theme="dusk" suppressHydrationWarning>
       <head>
-        {/* Sync localStorage to the server-authoritative theme and apply to DOM.
-            Server (DB) is the source of truth — localStorage is just a cache. */}
+        {/* Read theme from localStorage (set by user preference or ThemeSync).
+            Falls back to 'dusk' — no DB query needed here. */}
         <Script
           id="theme-hydration"
           strategy="beforeInteractive"
-        >{`(function(){try{var t='${theme}';document.documentElement.dataset.theme=t;localStorage.setItem('cartum-theme',t);}catch(e){}})();`}</Script>
+        >{`(function(){try{var v=['dark','cyber-soft','light','dusk','matrix'];var s=localStorage.getItem('cartum-theme');var t=(s&&v.indexOf(s)!==-1)?s:'dusk';document.documentElement.dataset.theme=t;}catch(e){}})();`}</Script>
       </head>
       <body>
         <a href="#main-content" className="skip-link">Skip to content</a>

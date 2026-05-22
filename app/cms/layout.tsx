@@ -10,8 +10,10 @@ import { DesktopLayout } from '@/components/ui/layouts/DesktopLayout'
 import { MobileLayout } from '@/components/ui/layouts/MobileLayout'
 import { CmsDictionarySetter } from '@/components/ui/molecules/CmsDictionarySetter'
 import { GlobalLoader } from '@/components/ui/atoms/GlobalLoader'
+import { ThemeSync } from '@/components/ui/atoms/ThemeSync'
 import { rolesService } from '@/lib/services/roles.service'
 import { ROLE_ADMIN } from '@/types/roles'
+import { getTheme } from '@/lib/settings/get-setting'
 
 export default async function CMSLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -21,11 +23,12 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
   const isSuperAdmin = session.user.isSuperAdmin ?? false
   const isAdmin     = (session.user.roles ?? []).includes(ROLE_ADMIN)
 
-  const [[proj], sectionPermissions] = await Promise.all([
+  const [[proj], sectionPermissions, theme] = await Promise.all([
     db.select({ name: project.name, defaultLocale: project.defaultLocale }).from(project).limit(1),
     isSuperAdmin
       ? Promise.resolve({} as Awaited<ReturnType<typeof rolesService.getSectionPermissionsForUser>>)
       : rolesService.getSectionPermissionsForUser(userId),
+    getTheme(),
   ])
 
   const projectName = proj?.name ?? 'Cartum'
@@ -45,6 +48,7 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
   if (mobile) {
     return (
       <>
+        <ThemeSync theme={theme} />
         <CmsDictionarySetter dict={cmsDict} canAccessBuilder={canAccessBuilder} />
         <GlobalLoader />
         <MobileLayout
@@ -65,6 +69,7 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
 
   return (
     <>
+      <ThemeSync theme={theme} />
       <CmsDictionarySetter dict={cmsDict} canAccessBuilder={canAccessBuilder} />
       <GlobalLoader />
       <DesktopLayout
