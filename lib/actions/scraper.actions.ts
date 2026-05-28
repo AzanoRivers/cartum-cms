@@ -7,7 +7,9 @@ import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { auth } from '@/auth'
+import { requireProjectId } from '@/lib/auth/get-project-id'
 import { getSetting } from '@/lib/settings/get-setting'
+import { assertTier2Access } from '@/lib/subscription'
 import { scraperService } from '@/lib/services/scraper.service'
 import { nodeService } from '@/lib/services/nodes.service'
 import { validateScrapeResult } from '@/lib/validators/scraper.validator'
@@ -61,6 +63,7 @@ async function _uploadImageFromUrl(
   nodeId: string,
   sectionLabel: string,
   idx: number,
+  projectId: string,
 ): Promise<_UploadedImage | null> {
   try {
     const res = await fetch(img.src, {
@@ -101,7 +104,7 @@ async function _uploadImageFromUrl(
 
     if (provider === 'r2') {
       const r2 = await getR2Client()
-      key = `uploads/${randomUUID()}.${ext}`
+      key = `uploads/${projectId}/${randomUUID()}.${ext}`
       await r2.client.send(new PutObjectCommand({
         Bucket:      r2.bucket,
         Key:         key,
@@ -110,7 +113,7 @@ async function _uploadImageFromUrl(
       }))
       publicUrl = `${r2.publicUrl}/${key}`
     } else {
-      const slug   = `uploads/${randomUUID()}.${ext}`
+      const slug   = `uploads/${projectId}/${randomUUID()}.${ext}`
       const result = await blobUpload(slug, buffer, mimeType)
       key       = result.key
       publicUrl = result.publicUrl
@@ -124,6 +127,7 @@ async function _uploadImageFromUrl(
       name,
       nodeId,
       uploadedBy: userId,
+      projectId,
     })
 
     return { publicUrl, mediaId: record.id }
@@ -150,6 +154,7 @@ export async function startScrapeJob(
   options?: ScrapeOptions,
 ): Promise<ActionResult<{ job_id: string }>> {
   try {
+    await assertTier2Access()
     const { apiUrl, apiKey } = await getApiConfig()
     const job = await scraperService.startJob(apiUrl, apiKey, url, options)
     return { success: true, data: { job_id: job.job_id } }
@@ -210,12 +215,13 @@ async function _createUniqueContainer(
   parentId: string | null,
   positionX: number,
   positionY: number,
+  projectId: string,
 ): Promise<Awaited<ReturnType<typeof nodeService.createContainer>>> {
   let name    = baseName
   let attempt = 1
   while (attempt <= 30) {
     try {
-      return await nodeService.createContainer({ name, parentId, positionX, positionY })
+      return await nodeService.createContainer({ name, parentId, positionX, positionY }, projectId)
     } catch (err) {
       if (err instanceof Error && err.message === 'NODE_NAME_TAKEN' && attempt < 30) {
         attempt++
@@ -242,7 +248,9 @@ export async function importScrapedData(
   downloadImages = false,
 ): Promise<ActionResult<ImportedSummary>> {
   try {
-    const userId = await requireAuth()
+    await assertTier2Access()
+    const userId    = await requireAuth()
+    const projectId = await requireProjectId()
 
     const businessName = result.data.business_name ?? 'Unnamed'
 
@@ -267,7 +275,7 @@ export async function importScrapedData(
 
     // ── strategy: business_only — flat Info container ──────────────────────────
     if (strategy === 'business_only') {
-      const infoContainer = await _createUniqueContainer(`Info: ${businessName}`, null, 80, 80)
+      const infoContainer = await _createUniqueContainer(`Info: ${businessName}`, null, 80, 80, projectId)
       for (let i = 0; i < businessFields.length; i++) {
         const [key, value] = businessFields[i]
         await nodeService.createField({
@@ -278,7 +286,7 @@ export async function importScrapedData(
           defaultValue: value.substring(0, 255),
           positionX:    (i % 2) * 320,
           positionY:    Math.floor(i / 2) * 52,
-        })
+        }, projectId)
       }
       revalidatePath('/cms/board')
       return { success: true, data: { siteNodeId: infoContainer.id, attrCount: businessFields.length } }
@@ -287,8 +295,8 @@ export async function importScrapedData(
     // ── strategy: business_and_pages — 3-level hierarchy ──────────────────────
     // Site (root) → Info + nav section containers → field nodes
 
-    const siteContainer = await _createUniqueContainer(`Site: ${businessName}`, null, 80, 80)
-    const infoContainer = await _createUniqueContainer('Info', siteContainer.id, 0, 0)
+    const siteContainer = await _createUniqueContainer(`Site: ${businessName}`, null, 80, 80, projectId)
+    const infoContainer = await _createUniqueContainer('Info', siteContainer.id, 0, 0, projectId)
 
     for (let i = 0; i < businessFields.length; i++) {
       const [key, value] = businessFields[i]
@@ -300,7 +308,7 @@ export async function importScrapedData(
         defaultValue: value.substring(0, 255),
         positionX:    (i % 2) * 320,
         positionY:    Math.floor(i / 2) * 52,
-      })
+      }, projectId)
     }
 
     const navSections = (result.data.nav_sections ?? []).filter(s => s.url != null)
@@ -312,7 +320,7 @@ export async function importScrapedData(
     const _upload = async (img: SectionImage, nodeId: string, label: string): Promise<_UploadedImage | null> => {
       if (_uploadCache.has(img.src)) return _uploadCache.get(img.src) ?? null
       _imgIdx++
-      const r = await _uploadImageFromUrl(img, userId, nodeId, label, _imgIdx)
+      const r = await _uploadImageFromUrl(img, userId, nodeId, label, _imgIdx, projectId)
       _uploadCache.set(img.src, r)
       return r
     }
@@ -333,7 +341,7 @@ export async function importScrapedData(
       }
       usedSectionLabels.add(label.toLowerCase())
 
-      const sectionNode = await _createUniqueContainer(label, siteContainer.id, col * 420, row * 200)
+      const sectionNode = await _createUniqueContainer(label, siteContainer.id, col * 420, row * 200, projectId)
 
       const elements = section.elements ?? []
       const typeCounts: Record<string, number> = {}
@@ -351,7 +359,7 @@ export async function importScrapedData(
           defaultValue: el.text.substring(0, 255),
           positionX:    0,
           positionY:    j * 52,
-        })
+        }, projectId)
       }
 
       // ── Image fields (only when downloadImages=true) ───────────────────────
@@ -387,8 +395,8 @@ export async function importScrapedData(
             defaultValue: '',
             positionX:    0,
             positionY:    imgFieldY,
-          })
-          await nodeService.updateFieldMeta(field.id, { config })
+          }, projectId)
+          await nodeService.updateFieldMeta(field.id, { config }, projectId)
           imgFieldY += 52
         }
 
@@ -415,8 +423,8 @@ export async function importScrapedData(
             defaultValue: uploaded?.publicUrl ?? img.src,
             positionX:    0,
             positionY:    imgFieldY + k * 52,
-          })
-          await nodeService.updateFieldMeta(field.id, { config })
+          }, projectId)
+          await nodeService.updateFieldMeta(field.id, { config }, projectId)
           if (uploaded) imagesImported++
         }
       }

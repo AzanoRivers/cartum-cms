@@ -1,8 +1,6 @@
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
-import { db } from '@/db'
-import { project } from '@/db/schema'
 import { isMobileUserAgent } from '@/lib/utils/ua'
 import { getDictionary } from '@/locales'
 import type { SupportedLocale } from '@/types/project'
@@ -14,30 +12,39 @@ import { ThemeSync } from '@/components/ui/atoms/ThemeSync'
 import { rolesService } from '@/lib/services/roles.service'
 import { ROLE_ADMIN } from '@/types/roles'
 import { getTheme } from '@/lib/settings/get-setting'
+import { getMyProjects } from '@/lib/actions/project.actions'
+import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 
 export default async function CMSLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   if (!session) redirect('/login')
 
-  const userId      = session.user?.id ?? ''
-  const isSuperAdmin = session.user.isSuperAdmin ?? false
-  const isAdmin     = (session.user.roles ?? []).includes(ROLE_ADMIN)
+  const userId              = session.user?.id ?? ''
+  const isSuperAdmin        = session.user.isSuperAdmin ?? false
+  const isAdmin             = (session.user.roles ?? []).includes(ROLE_ADMIN)
+  const cookieStore         = await cookies()
+  const currentProjectId    = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId ?? null
+  const cartumSuscriptor    = session.user.cartumSuscriptor ?? true
+  const cartumSuscriptorTime = session.user.cartumSuscriptorTime ?? 0
 
-  const [[proj], sectionPermissions, theme] = await Promise.all([
-    db.select({ name: project.name, defaultLocale: project.defaultLocale }).from(project).limit(1),
+  const [sectionPermissions, theme, allProjects] = await Promise.all([
     isSuperAdmin
       ? Promise.resolve({} as Awaited<ReturnType<typeof rolesService.getSectionPermissionsForUser>>)
       : rolesService.getSectionPermissionsForUser(userId),
-    getTheme(),
+    getTheme(currentProjectId),
+    getMyProjects(),
   ])
 
-  const projectName = proj?.name ?? 'Cartum'
-  const locale = (proj?.defaultLocale ?? 'en') as SupportedLocale
+  const projects = allProjects.map((p) => ({ id: p.id, name: p.name, locale: p.defaultLocale ?? 'en' }))
+  const currentProject = projects.find((p) => p.id === currentProjectId)
+    ?? projects[0]
+    ?? { id: '', name: 'Cartum', locale: 'en' }
+
+  const locale = (currentProject.locale ?? 'en') as SupportedLocale
   const dict = getDictionary(locale)
   const cmsDict = dict.cms
   const settingsDict = dict.settings
-  const canAccessBuilder = session.user.isSuperAdmin ?? true
-  const isStorageConfigured = !!process.env.R2_ENDPOINT
+  const canAccessBuilder = (session.user.isSuperAdmin ?? false) || isAdmin
 
   const ua = (await headers()).get('user-agent') ?? ''
   const mobile = isMobileUserAgent(ua)
@@ -52,7 +59,8 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
         <CmsDictionarySetter dict={cmsDict} canAccessBuilder={canAccessBuilder} />
         <GlobalLoader />
         <MobileLayout
-          projectName={projectName}
+          currentProject={currentProject}
+          projects={projects}
           userInitials={userInitials}
           userEmail={userEmail}
           userId={userId}
@@ -60,6 +68,8 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
           isAdmin={isAdmin}
           settingsDict={settingsDict}
           sectionPermissions={sectionPermissions}
+          cartumSuscriptor={cartumSuscriptor}
+          cartumSuscriptorTime={cartumSuscriptorTime}
         >
           {children}
         </MobileLayout>
@@ -73,7 +83,8 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
       <CmsDictionarySetter dict={cmsDict} canAccessBuilder={canAccessBuilder} />
       <GlobalLoader />
       <DesktopLayout
-        projectName={projectName}
+        currentProject={currentProject}
+        projects={projects}
         userInitials={userInitials}
         userEmail={userEmail}
         userId={userId}
@@ -81,6 +92,8 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
         isAdmin={isAdmin}
         settingsDict={settingsDict}
         sectionPermissions={sectionPermissions}
+        cartumSuscriptor={cartumSuscriptor}
+        cartumSuscriptorTime={cartumSuscriptorTime}
       >
         {children}
       </DesktopLayout>

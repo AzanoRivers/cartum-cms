@@ -46,7 +46,8 @@ export interface CreateRoleInput {
 
 export type SectionKey =
   | 'project' | 'subscription' | 'appearance' | 'account' | 'email' | 'storage'
-  | 'users' | 'roles' | 'api' | 'db' | 'webMigration' | 'info'
+  | 'users' | 'roles' | 'api' | 'db' | 'webMigration' | 'info' | 'members'
+  | 'cartumProjects'
 
 export interface SectionPermission {
   section:   SectionKey

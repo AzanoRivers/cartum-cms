@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { setDefaultLocale } from '@/lib/actions/setup.actions'
 import { SetupLayout } from '@/components/ui/layouts/SetupLayout'
@@ -17,6 +17,12 @@ export default function LocalePage() {
   const router = useRouter()
   const [selected, setSelected] = useState<SupportedLocale>('en')
   const [loading, setLoading]   = useState(false)
+
+  // Clear all client state from any previous session — this page is always a fresh start
+  useEffect(() => {
+    try { localStorage.clear() } catch { /* sandboxed */ }
+    document.documentElement.dataset.theme = 'dusk'
+  }, [])
 
   const dict   = getDictionary(selected).setup.locale
   const layout = getDictionary(selected).setup

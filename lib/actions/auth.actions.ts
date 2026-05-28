@@ -2,14 +2,24 @@
 
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
+import { redirect } from 'next/navigation'
+import { signIn } from '@/auth'
 import { db } from '@/db'
 import { project, passwordResetRateLimits } from '@/db/schema'
 import type { ActionResult } from '@/types/actions'
 import type { SupportedLocale } from '@/types/project'
-import { requestPasswordReset, resetPassword } from '@/lib/services/auth.service'
+import { requestPasswordReset, resetPassword, hashPassword } from '@/lib/services/auth.service'
 import { sendPasswordResetEmail } from '@/lib/email/mailer'
 import { verifyCaptcha } from '@/lib/services/captcha.service'
 import { hashToken } from '@/lib/api/auth'
+import { RegisterPlayerSchema } from '@/lib/actions/auth.schemas'
+import { usersRepository } from '@/db/repositories/users.repository'
+import { rolesRepository } from '@/db/repositories/roles.repository'
+import { createProjectService } from '@/lib/services/project.service'
+import { initializeSchemaService } from '@/lib/services/setup.service'
+import { setSetting } from '@/lib/settings/get-setting'
+import { sendWelcomeEmail } from '@/lib/email/mailer'
+import { ROLE_ADMIN } from '@/types/roles'
 
 const RATE_LIMIT_MS = 15 * 60 * 1000
 
@@ -74,6 +84,69 @@ export async function requestPasswordResetAction(
   }
 
   return { success: true }
+}
+
+export async function registerPlayer(
+  _prev: unknown,
+  formData: FormData,
+): Promise<{ error: string } | never> {
+  if (process.env.CARTUM_NEW_PLAYER !== 'true') {
+    return { error: 'Registration is currently disabled.' }
+  }
+
+  const parsed = RegisterPlayerSchema.safeParse({
+    email:       formData.get('email'),
+    password:    formData.get('password'),
+    projectName: formData.get('projectName'),
+    description: formData.get('description'),
+    theme:       formData.get('theme'),
+    locale:      formData.get('locale'),
+  })
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
+  }
+
+  const { email, password, projectName, description, theme, locale } = parsed.data
+
+  const existing = await usersRepository.findByEmail(email.toLowerCase().trim())
+  if (existing) return { error: 'Email already in use.' }
+
+  const passwordHash = await hashPassword(password)
+  const user = await usersRepository.create({ email: email.toLowerCase().trim(), passwordHash, isSuperAdmin: false })
+
+  await initializeSchemaService()
+
+  await createProjectService({
+    name:        projectName,
+    description: description ?? '',
+    locale:      (locale ?? 'en') as SupportedLocale,
+    creatorId:   user.id,
+  })
+
+  // Assign admin role in usersRoles (global table read by JWT to populate session.user.roles)
+  const adminRole = await rolesRepository.findByName(ROLE_ADMIN)
+  if (adminRole) {
+    await usersRepository.assignRole(user.id, adminRole.id)
+  }
+
+  await setSetting('theme', theme ?? 'dusk', user.id)
+
+  const cmsUrl = (process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+  await sendWelcomeEmail({
+    to:          email.toLowerCase().trim(),
+    password,
+    cmsUrl:      `${cmsUrl}/login`,
+    locale:      (locale ?? 'en') as SupportedLocale,
+    projectName: projectName,
+  })
+
+  await signIn('credentials', {
+    email:      email.toLowerCase().trim(),
+    password,
+    redirect:   false,
+  })
+
+  redirect('/cms/board')
 }
 
 export async function resetPasswordAction(

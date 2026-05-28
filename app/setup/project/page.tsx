@@ -22,5 +22,5 @@ export default async function ProjectPage() {
   const setup  = getDictionary(locale).setup
   const dict   = setup.project
 
-  return <ProjectClient dict={dict} layoutDict={{ stepLabels: setup.stepLabels, back: setup.layout.back }} />
+  return <ProjectClient dict={dict} locale={locale} layoutDict={{ stepLabels: setup.stepLabels, back: setup.layout.back }} />
 }

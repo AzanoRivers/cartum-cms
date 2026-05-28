@@ -1,10 +1,13 @@
 import bcrypt from 'bcryptjs'
 import { usersRepository } from '@/db/repositories/users.repository'
 import { db } from '@/db'
-import { project, roles, roleSectionPermissions } from '@/db/schema'
+import { project, roles, roleSectionPermissions, projectMemberships, users } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import type { SupportedLocale } from '@/types/project'
 import { ROLE_ADMIN, ROLE_EDITOR, ROLE_VIEWER, ROLE_RESTRICTED } from '@/types/roles'
+import { ensureTriggers } from '@/db/adapters/ensure-triggers'
+import { ensureSchemaColumns } from '@/db/adapters/ensure-schema-columns'
+import { runMigrations } from '@/db/adapters/run-migrations'
 
 // ── Create Super Admin ────────────────────────────────────────────────────────
 
@@ -46,10 +49,17 @@ export async function createProjectService(input: CreateProjectInput): Promise<v
   const existing = await db.select().from(project).limit(1)
   if (existing.length > 0) return
 
+  const [superAdmin] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.isSuperAdmin, true))
+    .limit(1)
+
   await db.insert(project).values({
     name:          input.name,
     description:   input.description ?? null,
     defaultLocale: input.locale,
+    ownerId:       superAdmin?.id ?? null,
   })
 }
 
@@ -57,7 +67,7 @@ export async function createProjectService(input: CreateProjectInput): Promise<v
 
 const SECTIONS = [
   'project', 'appearance', 'account', 'email', 'storage',
-  'users', 'roles', 'api', 'db', 'info',
+  'members', 'users', 'roles', 'api', 'db', 'info',
 ] as const
 
 type SectionKey = typeof SECTIONS[number]
@@ -70,7 +80,7 @@ const DEFAULT_ROLES = [
 ] as const
 
 const SECTION_PERMISSIONS: Record<string, Partial<Record<SectionKey, boolean>>> = {
-  [ROLE_ADMIN]:      { project: true, appearance: true, account: true, email: true, storage: true, users: true, roles: true, api: true, db: true, info: true },
+  [ROLE_ADMIN]:      { project: true, appearance: true, account: true, email: true, storage: true, members: true, users: true, roles: true, api: true, db: true, info: true },
   [ROLE_EDITOR]:     { appearance: true, account: true, info: true },
   [ROLE_VIEWER]:     { appearance: true, account: true, info: true },
   [ROLE_RESTRICTED]: {},
@@ -81,6 +91,15 @@ export async function initializeSchemaService(): Promise<void> {
   if (!projectRow) {
     throw new Error('Project must be created before initializing.')
   }
+
+  // Apply any pending migrations (idempotent — Drizzle skips already-applied ones)
+  await runMigrations()
+
+  // Ensure columns/tables that the migration runner may have skipped
+  await ensureSchemaColumns()
+
+  // Ensure DB-level triggers/functions that the migration runner can't execute (PL/pgSQL)
+  await ensureTriggers()
 
   // Create default roles (idempotent)
   for (const role of DEFAULT_ROLES) {
@@ -103,6 +122,21 @@ export async function initializeSchemaService(): Promise<void> {
           target: [roleSectionPermissions.roleId, roleSectionPermissions.section],
           set:    { canAccess },
         })
+    }
+  }
+
+  // Add every super_admin as project member with admin role (idempotent)
+  const adminRole = defaultRoles.find((r) => r.name === ROLE_ADMIN)
+  if (adminRole) {
+    const superAdmins = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.isSuperAdmin, true))
+    for (const sa of superAdmins) {
+      await db
+        .insert(projectMemberships)
+        .values({ userId: sa.id, projectId: projectRow.id, roleId: adminRole.id })
+        .onConflictDoNothing()
     }
   }
 }

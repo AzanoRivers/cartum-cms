@@ -8,14 +8,18 @@ import { ConnectionLayer } from '@/components/ui/organisms/ConnectionLayer'
 import { FieldEditPanel } from '@/components/ui/organisms/FieldEditPanel'
 import { BoardContextMenu } from '@/components/ui/molecules/BoardContextMenu'
 import { CanvasContextMenu } from '@/components/ui/molecules/CanvasContextMenu'
+import { MultiSelectionContextMenu } from '@/components/ui/molecules/MultiSelectionContextMenu'
+import { MarqueeRect } from '@/components/ui/atoms/MarqueeRect'
+import { Spinner } from '@/components/ui/atoms/Spinner'
 import type { ConnectionLayerHandle } from '@/components/ui/organisms/ConnectionLayer'
 import type { BoardContextMenuState } from '@/components/ui/molecules/BoardContextMenu'
 import type { CanvasContextMenuState, CanvasContextMenuDict } from '@/components/ui/molecules/CanvasContextMenu'
+import type { MultiSelectionContextMenuState } from '@/components/ui/molecules/MultiSelectionContextMenu'
 import { useNodeBoardStore } from '@/lib/stores/nodeBoardStore'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useConnections } from '@/lib/hooks/useConnections'
 import { useMobileNodeGestures } from '@/lib/hooks/useMobileNodeGestures'
-import { updateNodePosition, deleteNode, createContainerNode, createFieldNode, renameNode } from '@/lib/actions/nodes.actions'
+import { updateNodePosition, deleteNode, deleteNodes, createContainerNode, createFieldNode, renameNode } from '@/lib/actions/nodes.actions'
 import { RenameNodeDialog } from '@/components/ui/molecules/RenameNodeDialog'
 import type { RenameNodeDialogDict } from '@/components/ui/molecules/RenameNodeDialog'
 import { checkNodeDeletionRisk } from '@/lib/actions/integrity.actions'
@@ -46,8 +50,6 @@ function getPortPos(node: AnyNode, side: PortSide) {
 }
 
 // ── Fit-to-view helper (mobile-aware) ────────────────────────────────────────
-// Uses clientWidth/clientHeight (layout dimensions) to avoid being affected by
-// parent CSS transforms (e.g. VHSTransition scale animation).
 function computeFitView(w: number, h: number, nodes: AnyNode[]) {
   const isMobile  = w < 768
   const PADDING   = isMobile ? 32  : 64
@@ -63,14 +65,19 @@ function computeFitView(w: number, h: number, nodes: AnyNode[]) {
   const scale  = Math.min(Math.max(Math.min(scaleX, scaleY), MIN_SCALE), MAX_SCALE)
   const contentW = (maxX - minX) * scale
   const contentH = (maxY - minY) * scale
-  // canvas div uses transform-origin:center (cx=w/2, cy=h/2).
-  // A node at (nx,ny) renders at: scale*(nx - cx) + tx + cx
-  // To center: solve for tx → tx = scale*(cx - minX) - contentW/2
   return {
     scale,
     offsetX: scale * (w / 2 - minX) - contentW / 2,
     offsetY: scale * (h / 2 - minY) - contentH / 2,
   }
+}
+
+// ── Rect intersection (canvas-space) ─────────────────────────────────────────
+function rectsIntersect(
+  ax: number, ay: number, aw: number, ah: number,
+  bx: number, by: number, bw: number, bh: number,
+) {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -85,31 +92,46 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   const router    = useRouter()
   const outerRef  = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
+  const marqueeRef = useRef<HTMLDivElement>(null)
   const connectionLayerRef = useRef<ConnectionLayerHandle>(null)
 
   const isPanning     = useRef(false)
   const lastPos       = useRef({ x: 0, y: 0 })
   const dragOriginRef = useRef<{ side: PortSide } | null>(null)
 
-  // Card drag state (all via refs — zero React renders during drag)
-  const cardDragRef   = useRef<{
-    nodeId:       string
-    startMouseX:  number
-    startMouseY:  number
-    startNodeX:   number
-    startNodeY:   number
-    moved:        boolean
-    wrapperEl:    HTMLElement | null
+  // Card drag state — zero React renders during drag
+  const cardDragRef = useRef<{
+    nodeId:      string
+    isMulti:     boolean
+    startMouseX: number
+    startMouseY: number
+    startNodeX:  number
+    startNodeY:  number
+    // Multi-drag: all selected nodes with their starting positions and DOM elements
+    multiNodes?: Array<{ id: string; startX: number; startY: number; el: HTMLElement }>
+    moved:       boolean
+    wrapperEl:   HTMLElement | null
   } | null>(null)
-  // Stores the nodeId that was dragged so onClickCapture can suppress the click
+
   const suppressClickRef = useRef<string | null>(null)
+
+  // Marquee selection state — all via refs/direct DOM for zero re-renders during drag
+  const isMarqueeRef    = useRef(false)
+  const marqueeStartRef = useRef({ x: 0, y: 0 })
+
+  // Right-click drag tracking — suppresses context menu when right-drag activated marquee
+  const rightDragMovedRef = useRef(false)
 
   const setNodes       = useNodeBoardStore((s) => s.setNodes)
   const nodes          = useNodeBoardStore((s) => s.nodes)
   const addNode        = useNodeBoardStore((s) => s.addNode)
   const removeNode     = useNodeBoardStore((s) => s.removeNode)
-  const selectedNodeId = useNodeBoardStore((s) => s.selectedNodeId)
-  const selectNode     = useNodeBoardStore((s) => s.selectNode)
+  const removeNodes    = useNodeBoardStore((s) => s.removeNodes)
+  const selectedNodeIds     = useNodeBoardStore((s) => s.selectedNodeIds)
+  const selectNode          = useNodeBoardStore((s) => s.selectNode)
+  const setSelectedNodeIds  = useNodeBoardStore((s) => s.setSelectedNodeIds)
+  const toggleNodeSelection = useNodeBoardStore((s) => s.toggleNodeSelection)
+  const clearSelection      = useNodeBoardStore((s) => s.clearSelection)
   const setOffset      = useNodeBoardStore((s) => s.setOffset)
   const setScale       = useNodeBoardStore((s) => s.setScale)
   const setCanvasDimensions = useNodeBoardStore((s) => s.setCanvasDimensions)
@@ -117,6 +139,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
 
   const [contextMenu,      setContextMenu]      = useState<BoardContextMenuState | null>(null)
   const [canvasMenu,       setCanvasMenu]       = useState<CanvasContextMenuState | null>(null)
+  const [multiMenu,        setMultiMenu]        = useState<MultiSelectionContextMenuState | null>(null)
   const [renameNodeId,     setRenameNodeId]     = useState<string | null>(null)
   const [deleteRisk,       setDeleteRisk]       = useState<DeletionRisk | null>(null)
   const [deleteIsPending,  setDeleteIsPending]  = useState(false)
@@ -194,9 +217,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     },
   })
 
-  // Seed store — then fit all nodes into view.
-  // Uses ResizeObserver as fallback for when flex-1 hasn't resolved height yet
-  // on the first RAF (common on narrow/mobile viewports).
+  // ── Bootstrap: seed store, fit view ───────────────────────────────────────
   useEffect(() => {
     setNodes(initialNodes)
     setBoardReady(true)
@@ -223,12 +244,9 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       setScale(scale)
     }
 
-    // Double RAF: first frame schedules layout, second frame reads settled dimensions
     let frame2: number
     const frame1 = requestAnimationFrame(() => { frame2 = requestAnimationFrame(doFit) })
 
-    // ResizeObserver fallback: fires once the container has a stable size
-    // (handles cases where flex layout takes more than 2 frames to settle)
     let observer: ResizeObserver | null = null
     if (outerRef.current) {
       observer = new ResizeObserver(doFit)
@@ -243,7 +261,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     }
   }, [initialNodes, setNodes, setOffset, setScale])
 
-  // Subscribe to offset/scale → direct DOM (zero React re-renders on pan)
+  // Subscribe offset/scale → direct DOM (zero React re-renders on pan)
   useEffect(() => {
     return useNodeBoardStore.subscribe(
       (state) => [state.offsetX, state.offsetY, state.scale] as [number, number, number],
@@ -255,8 +273,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     )
   }, [])
 
-  // Track canvas container dimensions in the store so other components (e.g.
-  // NodeCreationPanel) can compute the correct viewport-center in canvas-space.
+  // Track canvas container dimensions
   useEffect(() => {
     const el = outerRef.current
     if (!el) return
@@ -267,10 +284,35 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     return () => ro.disconnect()
   }, [setCanvasDimensions])
 
-  // ── Canvas-space coordinate conversion ──────────────────────────────────────
-  // The canvas div uses `transform-origin: center` (origin-center class) so the
-  // mapping is: screen = scale*(canvas - cx) + cx + offset  where cx = rect.width/2.
-  // Solving for canvas: canvas = (screen - cx - offset) / scale + cx
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      // Ignore if focus is in an input/textarea/contenteditable
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return
+
+      if (e.key === 'Escape') {
+        clearSelection()
+        return
+      }
+
+      if ((e.key === 'Delete' || e.key === 'Backspace')) {
+        const { selectedNodeIds: ids } = useNodeBoardStore.getState()
+        if (ids.length === 0) return
+        e.preventDefault()
+        if (ids.length === 1) {
+          handleDeleteNode(ids[0])
+        } else {
+          handleDeleteMultiple(ids)
+        }
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clearSelection])
+
+  // ── Canvas-space coordinate conversion ─────────────────────────────────────
   function clientToCanvas(clientX: number, clientY: number) {
     const rect = outerRef.current?.getBoundingClientRect()
     if (!rect) return { x: 0, y: 0 }
@@ -281,6 +323,24 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       x: (clientX - rect.left - cx - offsetX) / scale + cx,
       y: (clientY - rect.top  - cy - offsetY) / scale + cy,
     }
+  }
+
+  // ── Marquee helpers ─────────────────────────────────────────────────────────
+  function showMarquee(x: number, y: number, w: number, h: number) {
+    const el = marqueeRef.current
+    if (!el) return
+    el.style.display = 'block'
+    el.style.left    = `${x}px`
+    el.style.top     = `${y}px`
+    el.style.width   = `${w}px`
+    el.style.height  = `${h}px`
+  }
+
+  function hideMarquee() {
+    const el = marqueeRef.current
+    if (!el) return
+    el.style.display = 'none'
+    outerRef.current?.removeAttribute('data-marquee')
   }
 
   // ── Port drag start ──────────────────────────────────────────────────────────
@@ -298,43 +358,114 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
 
   // ── Mouse handlers ───────────────────────────────────────────────────────────
   const onMouseDown = useCallback((e: React.MouseEvent) => {
-    // Ignore port drag starts (handled by ConnectorPort)
     if ((e.target as HTMLElement).closest('[data-port]')) return
 
     const nodeEl = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
 
     if (nodeEl) {
-      // Start card drag
       const nodeId = nodeEl.dataset.nodeid!
       const node   = useNodeBoardStore.getState().nodes.find((n) => n.id === nodeId)
-      if (node) {
+      if (!node) return
+
+      // Ctrl/Meta + click → toggle this node in/out of multi-selection
+      if (e.metaKey || e.ctrlKey) {
+        e.preventDefault()
+        toggleNodeSelection(nodeId)
+        return
+      }
+
+      const { selectedNodeIds: currentSelected } = useNodeBoardStore.getState()
+      const isInMultiSelection = currentSelected.length > 1 && currentSelected.includes(nodeId)
+
+      if (isInMultiSelection) {
+        // Start multi-drag: collect all selected nodes' starting positions and DOM elements
+        const multiNodes = currentSelected.flatMap((id) => {
+          const n = useNodeBoardStore.getState().nodes.find((x) => x.id === id)
+          const el = outerRef.current?.querySelector(`[data-nodeid="${id}"]`) as HTMLElement | null
+          if (!n || !el) return []
+          return [{ id, startX: n.positionX, startY: n.positionY, el }]
+        })
         cardDragRef.current = {
           nodeId,
-          startMouseX:  e.clientX,
-          startMouseY:  e.clientY,
-          startNodeX:   node.positionX,
-          startNodeY:   node.positionY,
-          moved:        false,
-          wrapperEl:    nodeEl,
+          isMulti:    true,
+          startMouseX: e.clientX,
+          startMouseY: e.clientY,
+          startNodeX: node.positionX,
+          startNodeY: node.positionY,
+          wrapperEl:  nodeEl,
+          moved:      false,
+          multiNodes,
+        }
+      } else {
+        // Normal single drag — if clicking a non-selected node, select only it
+        if (!currentSelected.includes(nodeId)) {
+          selectNode(nodeId)
+        }
+        cardDragRef.current = {
+          nodeId,
+          isMulti:    false,
+          startMouseX: e.clientX,
+          startMouseY: e.clientY,
+          startNodeX: node.positionX,
+          startNodeY: node.positionY,
+          wrapperEl:  nodeEl,
+          moved:      false,
         }
       }
       return
     }
 
-    // Block panning while any panel/modal is open
+    // Block while panel/modal open
     const { settingsOpen, editingFieldId } = useUIStore.getState()
     if (settingsOpen || editingFieldId) return
 
-    // Canvas pan
-    isPanning.current = true
-    lastPos.current = { x: e.clientX, y: e.clientY }
-    e.currentTarget.setAttribute('data-panning', '1')
-  }, [])
+    // Left-click drag on background → pan (original behavior)
+    if (e.button === 0) {
+      isPanning.current = true
+      lastPos.current = { x: e.clientX, y: e.clientY }
+      e.currentTarget.setAttribute('data-panning', '1')
+      return
+    }
+
+    // Right-click drag on background → marquee selection
+    // (quick right-click without drag shows context menu via onContextMenu)
+    if (e.button === 2) {
+      e.preventDefault() // prevents browser native drag behavior on images/links
+      const outerRect = outerRef.current?.getBoundingClientRect()
+      if (!outerRect) return
+      marqueeStartRef.current = {
+        x: e.clientX - outerRect.left,
+        y: e.clientY - outerRect.top,
+      }
+      rightDragMovedRef.current = false
+      isMarqueeRef.current = true
+    }
+  }, [selectNode, toggleNodeSelection])
 
   const onMouseMoveRaw = useCallback(
     (e: React.MouseEvent) => {
-      // Card drag — update position via direct DOM (zero React renders)
-      if (cardDragRef.current) {
+      // Multi-drag
+      if (cardDragRef.current?.isMulti && cardDragRef.current.multiNodes) {
+        const { startMouseX, startMouseY, multiNodes } = cardDragRef.current
+        const dx = e.clientX - startMouseX
+        const dy = e.clientY - startMouseY
+
+        if (!cardDragRef.current.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+          cardDragRef.current.moved = true
+        }
+
+        if (cardDragRef.current.moved) {
+          const { scale } = useNodeBoardStore.getState()
+          for (const { startX, startY, el } of multiNodes) {
+            el.style.left = `${startX + dx / scale}px`
+            el.style.top  = `${startY + dy / scale}px`
+          }
+        }
+        return
+      }
+
+      // Single card drag
+      if (cardDragRef.current && !cardDragRef.current.isMulti) {
         const { startMouseX, startMouseY, startNodeX, startNodeY, wrapperEl } = cardDragRef.current
         const dx = e.clientX - startMouseX
         const dy = e.clientY - startMouseY
@@ -351,30 +482,95 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
         return
       }
 
-      // Connection drag — update rope line via ref (zero React state changes)
+      // Connection drag
       if (dragRef.current.isDragging) {
         const canvasPos = clientToCanvas(e.clientX, e.clientY)
         connectionLayerRef.current?.moveDragLine(canvasPos)
         return
       }
 
-      // Pan
-      if (!isPanning.current) return
-      const dx = e.clientX - lastPos.current.x
-      const dy = e.clientY - lastPos.current.y
-      lastPos.current = { x: e.clientX, y: e.clientY }
-      const { offsetX, offsetY } = useNodeBoardStore.getState()
-      setOffset(offsetX + dx, offsetY + dy)
+      // Pan (ctrl+drag)
+      if (isPanning.current) {
+        const dx = e.clientX - lastPos.current.x
+        const dy = e.clientY - lastPos.current.y
+        lastPos.current = { x: e.clientX, y: e.clientY }
+        const { offsetX, offsetY } = useNodeBoardStore.getState()
+        setOffset(offsetX + dx, offsetY + dy)
+        return
+      }
+
+      // Marquee selection (right-click drag)
+      if (!isMarqueeRef.current) return
+
+      const outerRect = outerRef.current?.getBoundingClientRect()
+      if (!outerRect) return
+
+      const curX = e.clientX - outerRect.left
+      const curY = e.clientY - outerRect.top
+      const { x: sx, y: sy } = marqueeStartRef.current
+      const dx = curX - sx
+      const dy = curY - sy
+
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return
+
+      // Mark that right-click dragged → context menu will be suppressed on mouseup
+      rightDragMovedRef.current = true
+      outerRef.current?.setAttribute('data-marquee', '1')
+
+      const rectX = Math.min(sx, curX)
+      const rectY = Math.min(sy, curY)
+      const rectW = Math.abs(dx)
+      const rectH = Math.abs(dy)
+
+      showMarquee(rectX, rectY, rectW, rectH)
+
+      // Convert marquee corners to canvas-space and check node intersections
+      const topLeft     = clientToCanvas(outerRect.left + rectX, outerRect.top + rectY)
+      const bottomRight = clientToCanvas(outerRect.left + rectX + rectW, outerRect.top + rectY + rectH)
+      const mw = bottomRight.x - topLeft.x
+      const mh = bottomRight.y - topLeft.y
+
+      const hit = useNodeBoardStore.getState().nodes
+        .filter((n) => rectsIntersect(topLeft.x, topLeft.y, mw, mh, n.positionX, n.positionY, CARD_W, CARD_H))
+        .map((n) => n.id)
+
+      setSelectedNodeIds(hit)
     },
-    [dragRef, setOffset],
+    [dragRef, setOffset, setSelectedNodeIds],
   )
 
-  // Throttle to ~60fps so synthetic mouse events don't saturate the main thread
   const onMouseMove = useMemo(() => throttle(onMouseMoveRaw, 16), [onMouseMoveRaw])
 
   const onMouseUp = useCallback(
     (e: React.MouseEvent) => {
-      // Card drag end
+      // Multi-drag end
+      if (cardDragRef.current?.isMulti && cardDragRef.current.multiNodes) {
+        const { nodeId: multiNodeId, startMouseX, startMouseY, multiNodes, moved } = cardDragRef.current
+        cardDragRef.current = null
+
+        if (moved) {
+          const { scale } = useNodeBoardStore.getState()
+          const dx = e.clientX - startMouseX
+          const dy = e.clientY - startMouseY
+
+          for (const { id, startX, startY } of multiNodes) {
+            const finalX = startX + dx / scale
+            const finalY = startY + dy / scale
+            updateNodePositionOptimistic(id, finalX, finalY)
+            updateNodePosition({ id, x: finalX, y: finalY })
+          }
+
+          suppressClickRef.current = multiNodeId
+        } else {
+          // Dry click on a multi-selected node: deselect all, don't open
+          suppressClickRef.current = multiNodeId
+          clearSelection()
+        }
+        e.currentTarget.removeAttribute('data-panning')
+        return
+      }
+
+      // Single card drag end
       if (cardDragRef.current) {
         const { nodeId, startMouseX, startMouseY, startNodeX, startNodeY, moved } = cardDragRef.current
         cardDragRef.current = null
@@ -383,14 +579,8 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
           const { scale } = useNodeBoardStore.getState()
           const finalX = startNodeX + (e.clientX - startMouseX) / scale
           const finalY = startNodeY + (e.clientY - startMouseY) / scale
-
-          // Sync Zustand store (triggers React re-render once, settling positions)
           updateNodePositionOptimistic(nodeId, finalX, finalY)
-
-          // Persist to DB (fire-and-forget — optimistic already applied)
           updateNodePosition({ id: nodeId, x: finalX, y: finalY })
-
-          // Mark for click suppression (click fires after mouseup)
           suppressClickRef.current = nodeId
         }
         e.currentTarget.removeAttribute('data-panning')
@@ -400,7 +590,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       if (dragRef.current.isDragging) {
         connectionLayerRef.current?.hideDragLine()
         dragOriginRef.current = null
-        const targetEl = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
+        const targetEl   = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
         const targetType = targetEl?.dataset.nodetype
         const targetId   = targetEl?.dataset.nodeid
         if (targetId && targetType === 'container') {
@@ -411,13 +601,24 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
         return
       }
 
-      isPanning.current = false
-      e.currentTarget.removeAttribute('data-panning')
+      if (isPanning.current) {
+        isPanning.current = false
+        e.currentTarget.removeAttribute('data-panning')
+        return
+      }
+
+      if (isMarqueeRef.current) {
+        isMarqueeRef.current = false
+        hideMarquee()
+        // If no nodes selected from marquee, clear selection on click on background
+        const { selectedNodeIds: ids } = useNodeBoardStore.getState()
+        if (ids.length === 0) clearSelection()
+        return
+      }
     },
-    [dragRef, cancelDrag, completeDrag, updateNodePositionOptimistic],
+    [dragRef, cancelDrag, completeDrag, updateNodePositionOptimistic, clearSelection],
   )
 
-  // Suppress click event fired right after a drag ends
   const onClickCapture = useCallback((e: React.MouseEvent) => {
     if (!suppressClickRef.current) return
     const nodeEl = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
@@ -427,18 +628,29 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     }
   }, [])
 
-  // ── Wheel + touchmove (non-passive, must be imperative) ─────────────────────
+  // Click on background without drag → clear selection
+  const onClickBackground = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('[data-nodeid]')) return
+    if ((e.target as HTMLElement).closest('[data-port]')) return
+    clearSelection()
+  }, [clearSelection])
+
+  // ── Wheel + touchmove ─────────────────────────────────────────────────────
   useEffect(() => {
     const el = outerRef.current
     if (!el) return
     const wheelHandler = (e: WheelEvent) => {
       e.preventDefault()
-      const delta = e.deltaY > 0 ? -0.08 : 0.08
-      const { scale } = useNodeBoardStore.getState()
-      setScale(scale + delta)
+      // Ctrl/Meta + wheel = pan horizontally/vertically; plain wheel = zoom
+      if (e.ctrlKey || e.metaKey) {
+        const { offsetX, offsetY } = useNodeBoardStore.getState()
+        setOffset(offsetX - e.deltaX, offsetY - e.deltaY)
+      } else {
+        const delta = e.deltaY > 0 ? -0.08 : 0.08
+        const { scale } = useNodeBoardStore.getState()
+        setScale(scale + delta)
+      }
     }
-    // touchmove must be non-passive so e.preventDefault() can suppress native scroll
-    // during canvas pan, node drag, pinch-to-zoom, and port connection drag.
     const touchMoveHandler = (e: TouchEvent) => {
       if (shouldPreventScrollRef.current || e.touches.length === 2) e.preventDefault()
     }
@@ -448,9 +660,9 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       el.removeEventListener('wheel', wheelHandler)
       el.removeEventListener('touchmove', touchMoveHandler)
     }
-  }, [setScale, shouldPreventScrollRef])
+  }, [setScale, setOffset, shouldPreventScrollRef])
 
-  // ── Context menu (right-click) ───────────────────────────────────────────────
+  // ── Context menu ──────────────────────────────────────────────────────────
   const handleFitAll = useCallback(() => {
     const { nodes: currentNodes } = useNodeBoardStore.getState()
     if (!currentNodes.length || !outerRef.current) return
@@ -461,6 +673,16 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
 
   const onContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
+
+    // Right-click was used for marquee drag → suppress context menu
+    if (rightDragMovedRef.current) {
+      rightDragMovedRef.current = false
+      isMarqueeRef.current = false
+      hideMarquee()
+      return
+    }
+
+    // Quick right-click (no drag) → show context menu
     const nodeEl = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
     if (!nodeEl) {
       setCanvasMenu({ x: e.clientX, y: e.clientY })
@@ -468,14 +690,19 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     }
     const nodeId   = nodeEl.dataset.nodeid!
     const nodeType = (nodeEl.dataset.nodetype ?? 'container') as 'container' | 'field'
+
+    // Right-click on a multi-selected node → multi-selection context menu
+    const { selectedNodeIds: ids } = useNodeBoardStore.getState()
+    if (ids.length > 1 && ids.includes(nodeId)) {
+      setMultiMenu({ x: e.clientX, y: e.clientY, count: ids.length })
+      return
+    }
+
+    // Single node context menu
     setContextMenu({ x: e.clientX, y: e.clientY, nodeId, nodeType })
   }, [])
 
-  // ── Touch handlers — delegated to useMobileNodeGestures hook ────────────────
-  // The hook manages the full gesture state machine: single/double-tap, long-press
-  // node drag, port connection drag, canvas pan, pinch-to-zoom, and canvas long-press.
-
-  // ── Context menu actions ─────────────────────────────────────────────────────
+  // ── Context menu actions ──────────────────────────────────────────────────
   const toast = useToast()
 
   const handleDuplicate = useCallback(async (nodeId: string) => {
@@ -509,7 +736,6 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     const t = d?.board.toast
     const node = useNodeBoardStore.getState().nodes.find((n) => n.id === nodeId)
     if (!node) return
-    // Optimistic update
     setNodes(useNodeBoardStore.getState().nodes.map((n) =>
       n.id === nodeId ? { ...n, name: newName } : n
     ))
@@ -517,7 +743,6 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     if (result.success) {
       toast.success(t?.renameSuccess ?? 'Node renamed.')
     } else {
-      // Revert optimistic update
       setNodes(useNodeBoardStore.getState().nodes.map((n) =>
         n.id === nodeId ? { ...n, name: node.name } : n
       ))
@@ -529,19 +754,17 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   const handleDeleteNode = useCallback(async (nodeId: string) => {
     setIsCheckingDelete(true)
     const t = d?.board.toast
-    const isField = useNodeBoardStore.getState().nodes.find((n) => n.id === nodeId)?.type === 'field'
     try {
       const result = await checkNodeDeletionRisk({ id: nodeId })
       if (!result.success) {
         toast.error(t?.checkRiskError ?? 'Could not check node dependencies. Please try again.')
         return
       }
-
       setDeleteRisk(result.data)
     } finally {
       setIsCheckingDelete(false)
     }
-  }, [removeNode, toast, d])
+  }, [toast, d])
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteRisk) return
@@ -561,7 +784,23 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     }
   }, [deleteRisk, removeNode, toast, d])
 
-  // Connection count per container node (from live connections)
+  const handleDeleteMultiple = useCallback(async (ids: string[]) => {
+    const t = d?.board.toast
+    setDeleteIsPending(true)
+    try {
+      removeNodes(ids)
+      clearSelection()
+      const result = await deleteNodes({ ids })
+      if (result.success) toast.success(`${ids.length} items deleted.`)
+      else toast.error(result.error ?? 'Could not delete selected items.')
+    } catch {
+      toast.error('Could not delete selected items.')
+    } finally {
+      setDeleteIsPending(false)
+    }
+  }, [removeNodes, clearSelection, toast, d])
+
+  // Connection count per container node
   const connCountMap = liveConnections.reduce<Record<string, number>>((acc, c) => {
     acc[c.sourceNodeId] = (acc[c.sourceNodeId] ?? 0) + 1
     acc[c.targetNodeId] = (acc[c.targetNodeId] ?? 0) + 1
@@ -575,12 +814,14 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       ref={outerRef}
       role="region"
       aria-label={d?.canvas.ariaLabel ?? 'Node canvas'}
-      className="relative flex-1 overflow-hidden bg-bg cursor-grab data-panning:cursor-grabbing"
+      className="relative flex-1 overflow-hidden bg-bg cursor-grab data-panning:cursor-grabbing data-marquee:cursor-crosshair"
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
       onContextMenu={onContextMenu}
+      onClick={onClickBackground}
+      onDragStart={(e) => e.preventDefault()}
       onTouchStart={mobileOnTouchStart}
       onTouchMove={mobileOnTouchMove}
       onTouchEnd={mobileOnTouchEnd}
@@ -602,28 +843,33 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
         className="absolute inset-0 origin-center canvas-layer"
         style={{ transform: 'translate(0px, 0px) scale(1)' }}
       >
-        {nodes.map((node) => (
-          <div
-            key={node.id}
-            data-nodeid={node.id}
-            data-nodetype={node.type}
-            className="absolute cursor-move"
-            style={{ left: node.positionX, top: node.positionY }}
-          >
-            <NodeCard
-              node={node}
-              selected={selectedNodeId === node.id}
-              isValidTarget={drag.isDragging && node.type === 'container' && node.id !== drag.originNodeId}
-              connectionCount={connCountMap[node.id] ?? 0}
-              onSelect={selectNode}
-              onPortDragStart={node.type === 'container' ? handlePortDragStart : undefined}
-              onEditField={node.type === 'field' ? openFieldEdit : undefined}
-              showPorts={mobileHoveredNodeId === node.id}
-            />
-          </div>
-        ))}
+        {nodes.map((node) => {
+          const isSingleSelected = selectedNodeIds.length === 1 && selectedNodeIds[0] === node.id
+          const isMultiSelected  = selectedNodeIds.length > 1  && selectedNodeIds.includes(node.id)
+          return (
+            <div
+              key={node.id}
+              data-nodeid={node.id}
+              data-nodetype={node.type}
+              className="absolute cursor-move"
+              style={{ left: node.positionX, top: node.positionY }}
+            >
+              <NodeCard
+                node={node}
+                selected={isSingleSelected}
+                multiSelected={isMultiSelected}
+                isValidTarget={drag.isDragging && node.type === 'container' && node.id !== drag.originNodeId}
+                connectionCount={connCountMap[node.id] ?? 0}
+                onSelect={selectNode}
+                onPortDragStart={node.type === 'container' ? handlePortDragStart : undefined}
+                onEditField={node.type === 'field' ? openFieldEdit : undefined}
+                showPorts={mobileHoveredNodeId === node.id}
+              />
+            </div>
+          )
+        })}
 
-        {/* SVG connection overlay — inside canvas so it transforms with nodes */}
+        {/* SVG connection overlay */}
         <ConnectionLayer
           ref={connectionLayerRef}
           nodes={nodes}
@@ -634,11 +880,22 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
         />
       </div>
 
+      {/* Marquee selection box — screen-space, outside canvas */}
+      <MarqueeRect ref={marqueeRef} />
+
+      {/* Multi-selection badge (shows count when > 1 selected) */}
+      {selectedNodeIds.length > 1 && (
+        <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full border border-accent/40 bg-surface px-3 py-1.5 shadow-lg">
+          <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+          <span className="font-mono text-xs text-accent">
+            {selectedNodeIds.length} {d?.canvas.multiSelected} · {d?.canvas.multiSelectedHint}
+          </span>
+        </div>
+      )}
+
       {!boardReady && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="font-mono text-xs text-muted animate-pulse">
-            {d?.canvas.loading ?? 'Loading board…'}
-          </span>
+          <Spinner color="muted" className="h-9 w-9" />
         </div>
       )}
 
@@ -673,6 +930,18 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
         />
       )}
 
+      {multiMenu && (
+        <MultiSelectionContextMenu
+          menu={multiMenu}
+          onDeleteAll={() => {
+            const { selectedNodeIds: ids } = useNodeBoardStore.getState()
+            handleDeleteMultiple(ids)
+          }}
+          onDeselectAll={clearSelection}
+          onClose={() => setMultiMenu(null)}
+        />
+      )}
+
       {renameNodeId && (() => {
         const node = nodes.find((n) => n.id === renameNodeId)
         if (!node) return null
@@ -697,9 +966,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       )}
 
       {isCheckingDelete && <FullscreenLoader />}
-
-      {deleteIsPending && <FullscreenLoader />}
+      {deleteIsPending  && <FullscreenLoader />}
     </div>
   )
 }
-

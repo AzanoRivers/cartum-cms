@@ -4,14 +4,12 @@ import { eq } from 'drizzle-orm'
 import { nodeNameToSlug } from '@/nodes/api-generator'
 import type { ResolverContext } from '@/types/nodes'
 
-/**
- * Builds the in-memory resolver context in exactly 3 parallel DB queries.
- * All schema resolution runs against this snapshot — no N+1 queries.
- */
-export async function buildResolverContext(): Promise<ResolverContext> {
+export async function buildResolverContext(projectId: string): Promise<ResolverContext> {
   const [allNodes, allFields, allRelations] = await Promise.all([
-    db.select().from(nodes),
-    db.select().from(nodes).innerJoin(fieldMeta, eq(fieldMeta.nodeId, nodes.id)),
+    db.select().from(nodes).where(eq(nodes.projectId, projectId)),
+    db.select().from(nodes)
+      .innerJoin(fieldMeta, eq(fieldMeta.nodeId, nodes.id))
+      .where(eq(nodes.projectId, projectId)),
     db.select().from(nodeRelations),
   ])
 

@@ -3,21 +3,10 @@ import { connectionsRepository } from '@/db/repositories/connections.repository'
 import { recordsRepository } from '@/db/repositories/records.repository'
 import type { DeletionRisk, RiskFactor, RiskLevel } from '@/types/integrity'
 
-/**
- * Integrity Service
- *
- * Reusable service for checking whether an entity is safe to delete.
- * Runs all checks in parallel and returns a structured `DeletionRisk` result.
- *
- * Usage:
- *   const risk = await integrityService.checkNodeDeletion(nodeId)
- *   if (risk.level !== 'safe') { // prompt user }
- *   await nodeService.delete(nodeId, true)
- */
 export const integrityService = {
 
-  async checkNodeDeletion(nodeId: string): Promise<DeletionRisk> {
-    const node = await nodesRepository.findById(nodeId)
+  async checkNodeDeletion(nodeId: string, projectId: string): Promise<DeletionRisk> {
+    const node = await nodesRepository.findById(nodeId, projectId)
     if (!node) {
       return {
         entityId:   nodeId,
@@ -25,16 +14,15 @@ export const integrityService = {
         entityType: 'container',
         level:      'safe',
         factors:    [],
-        canDelete:  false, // node doesn't exist — nothing to delete
+        canDelete:  false,
       }
     }
 
     const factors: RiskFactor[] = []
 
     if (node.type === 'container') {
-      // Run all checks in parallel
       const [childCount, connectionCount, recordCount, relationRefCount] = await Promise.all([
-        nodesRepository.countChildren(nodeId),
+        nodesRepository.countChildren(nodeId, projectId),
         connectionsRepository.countByNodeId(nodeId),
         recordsRepository.countByNodeId(nodeId),
         nodesRepository.countRelationReferences(nodeId),
@@ -69,7 +57,6 @@ export const integrityService = {
         })
       }
     } else {
-      // Field node — check if any records would be affected via parent
       if (node.parentId) {
         const recordCount = await recordsRepository.countByNodeId(node.parentId)
         if (recordCount > 0) {
@@ -95,8 +82,6 @@ export const integrityService = {
   },
 
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function deriveLevel(factors: RiskFactor[]): RiskLevel {
   if (factors.length === 0) return 'safe'

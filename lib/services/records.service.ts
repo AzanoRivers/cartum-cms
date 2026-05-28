@@ -17,10 +17,11 @@ function mapRow(row: RecordRow): ContentRecord {
 }
 
 async function validateData(
-  nodeId: string,
-  data: Record<string, import('@/types/records').RecordValue>,
+  nodeId:    string,
+  projectId: string,
+  data:      Record<string, import('@/types/records').RecordValue>,
 ): Promise<void> {
-  const children = await nodesRepository.findChildren(nodeId)
+  const children = await nodesRepository.findChildren(nodeId, projectId)
   const fields   = children.filter((n): n is FieldNode => n.type === 'field')
 
   for (const field of fields) {
@@ -67,20 +68,21 @@ async function getById(nodeId: string, recordId: string): Promise<ContentRecord 
   return mapRow(row)
 }
 
-async function create(nodeId: string, input: RecordInput): Promise<ContentRecord> {
-  await validateData(nodeId, input.data)
+async function create(nodeId: string, input: RecordInput, projectId: string): Promise<ContentRecord> {
+  await validateData(nodeId, projectId, input.data)
   const row = await recordsRepository.create({ nodeId, data: input.data })
   return mapRow(row)
 }
 
 async function update(
-  nodeId:   string,
-  recordId: string,
-  input:    RecordInput,
+  nodeId:    string,
+  recordId:  string,
+  input:     RecordInput,
+  projectId: string,
 ): Promise<ContentRecord> {
   const existing = await recordsRepository.findById(recordId)
   if (!existing || existing.nodeId !== nodeId) throw new Error('RECORD_NOT_FOUND')
-  await validateData(nodeId, input.data)
+  await validateData(nodeId, projectId, input.data)
   const row = await recordsRepository.update(recordId, { data: input.data })
   if (!row) throw new Error('RECORD_NOT_FOUND')
   return mapRow(row)
@@ -94,7 +96,7 @@ async function deleteById(nodeId: string, recordId: string): Promise<void> {
 
 async function getPaginated(
   nodeId: string,
-  opts:   { page: number; limit: number; sort: string; order: 'asc' | 'desc' },
+  opts:   { page: number; limit: number; sort: string; order: 'asc' | 'desc'; filters?: Record<string, string> },
 ): Promise<PaginatedRecords> {
   const { rows, total } = await recordsRepository.findByNodeIdPaginated(nodeId, opts)
   return {

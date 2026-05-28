@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveSetupTheme } from '@/lib/actions/setup.actions'
+import { useStrangerThingsSound } from '@/lib/hooks/useStrangerThingsSound'
 
 const THEME_KEY = 'cartum-theme'
 import { SetupLayout } from '@/components/ui/layouts/SetupLayout'
@@ -19,9 +20,17 @@ type Props = {
 
 export function ThemeClient({ dict, layoutDict, currentTheme }: Props) {
   const router  = useRouter()
+  const { playIfST, isPlaying: stPlaying } = useStrangerThingsSound()
   const [selected, setSelected] = useState<ThemeId>(currentTheme)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState<string | null>(null)
+
+  // Same pattern as PlayerRegisterForm — no external stPlaying guard;
+  // playIfST's internal isPlayingRef handles double-play prevention.
+  function handleSelect(themeId: ThemeId) {
+    playIfST(themeId)
+    setSelected(themeId)
+  }
 
   // Live-preview: apply theme immediately on selection
   useEffect(() => {
@@ -40,16 +49,18 @@ export function ThemeClient({ dict, layoutDict, currentTheme }: Props) {
     // Sync localStorage so the beforeInteractive hydration script reflects the
     // selected theme correctly on first load after login.
     try { localStorage.setItem(THEME_KEY, selected) } catch { /* sandboxed */ }
-    router.push('/setup/initializing')
+    router.push('/setup/project')
   }
 
   // Label lookup from locale dict
   const labelMap: Record<ThemeId, { label: string; description: string }> = {
-    'dark':       dict.themes.dark,
-    'cyber-soft': dict.themes.cyberSoft,
-    'light':      dict.themes.light,
-    'dusk':       dict.themes.dusk,
-    'matrix':     dict.themes.matrix,
+    'dark':             dict.themes.dark,
+    'cyber-soft':       dict.themes.cyberSoft,
+    'light':            dict.themes.light,
+    'dusk':             dict.themes.dusk,
+    'matrix':           dict.themes.matrix,
+    'cyber-human':      dict.themes.cyberHuman,
+    'stranger-things':  dict.themes.strangerThings,
   }
 
   return (
@@ -61,28 +72,33 @@ export function ThemeClient({ dict, layoutDict, currentTheme }: Props) {
             <p className="text-muted text-sm mt-1">{dict.subtitle}</p>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {THEMES.map((theme: ThemeDefinition) => {
               const isActive = selected === theme.id
               const info     = labelMap[theme.id]
+              const isST     = theme.id === 'stranger-things'
               return (
                 <button
                   key={theme.id}
                   type="button"
-                  onClick={() => setSelected(theme.id)}
+                  onClick={() => handleSelect(theme.id)}
+                  disabled={stPlaying && !isST}
                   className={[
-                    'relative flex items-center gap-4 rounded-lg border px-4 py-3 text-left transition-all duration-200',
-                    isActive
-                      ? 'border-primary bg-primary/10 shadow-[0_0_12px_var(--color-primary-glow)]'
-                      : 'border-border bg-surface-2 hover:border-primary/40',
+                    'relative flex flex-col gap-2.5 rounded-lg border px-4 py-3 text-left transition-all duration-200 cursor-pointer disabled:cursor-wait',
+                    isST
+                      ? `st-card ${stPlaying ? 'st-flicker' : ''} border-transparent ${isActive ? 'bg-primary/10' : 'bg-surface-2'}`
+                      : isActive
+                        ? 'border-primary bg-primary/10 shadow-[0_0_12px_var(--color-primary-glow)]'
+                        : 'border-border bg-surface-2 hover:border-primary/40',
+                    stPlaying && !isST ? 'opacity-50 cursor-wait' : '',
                   ].join(' ')}
                 >
                   {/* Color swatch strip */}
-                  <div className="flex shrink-0 gap-1 rounded-md overflow-hidden">
-                    <div className="h-10 w-6 rounded-l-sm" style={{ backgroundColor: theme.preview.bg }} />
-                    <div className="h-10 w-4"              style={{ backgroundColor: theme.preview.surface }} />
-                    <div className="h-10 w-3"              style={{ backgroundColor: theme.preview.primary }} />
-                    <div className="h-10 w-2 rounded-r-sm" style={{ backgroundColor: theme.preview.accent }} />
+                  <div className="flex gap-1 rounded-md overflow-hidden w-full">
+                    <div className="h-8 flex-[3] rounded-l-sm" style={{ backgroundColor: theme.preview.bg }} />
+                    <div className="h-8 flex-[2]"              style={{ backgroundColor: theme.preview.surface }} />
+                    <div className="h-8 flex-[1.5]"            style={{ backgroundColor: theme.preview.primary }} />
+                    <div className="h-8 flex-1 rounded-r-sm"   style={{ backgroundColor: theme.preview.accent }} />
                   </div>
 
                   {/* Labels */}
@@ -93,7 +109,7 @@ export function ThemeClient({ dict, layoutDict, currentTheme }: Props) {
 
                   {/* Active indicator */}
                   {isActive && (
-                    <div className="shrink-0 h-2 w-2 rounded-full bg-primary shadow-[0_0_6px_var(--color-primary)]" />
+                    <div className="absolute bottom-2.5 right-2.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_6px_var(--color-primary)]" />
                   )}
                 </button>
               )

@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { ROLE_RESTRICTED } from '@/types/roles'
+import { SWITCH_COOKIE } from '@/lib/auth/constants'
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -17,19 +18,23 @@ export async function proxy(req: NextRequest) {
   // importing DB drivers in the Edge runtime
   const checkUrl = new URL('/api/internal/setup-status', req.url)
   let setupComplete = false
+  let setupState: string = 'no_superadmin'
 
   try {
     const res = await fetch(checkUrl, { headers: { 'x-internal': '1' } })
     if (res.ok) {
-      const json = (await res.json()) as { complete: boolean }
+      const json = (await res.json()) as { complete: boolean; state: string }
       setupComplete = json.complete
+      setupState    = json.state ?? 'no_superadmin'
     }
   } catch {
     setupComplete = false
   }
 
   if (!setupComplete && !isSetupRoute) {
-    return NextResponse.redirect(new URL('/setup', req.url))
+    // Super admin exists but no project yet — skip credentials step
+    const target = setupState === 'no_project' ? '/setup/locale' : '/setup'
+    return NextResponse.redirect(new URL(target, req.url))
   }
 
   if (setupComplete && isSetupRoute) {
@@ -74,11 +79,18 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  return NextResponse.next()
+  // auth() was called for CMS/login/root routes — the jwt() callback already
+  // read the switch cookie and updated currentProjectId in the session JWT.
+  // Delete it so the next request relies on the persisted session value.
+  const res = NextResponse.next()
+  if (req.cookies.has(SWITCH_COOKIE)) {
+    res.cookies.delete(SWITCH_COOKIE)
+  }
+  return res
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|images/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon.svg|images/|sounds/).*)',
   ],
 }

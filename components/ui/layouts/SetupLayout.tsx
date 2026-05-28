@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { ChevronLeft } from 'lucide-react'
 import type { SetupStep } from '@/types/project'
 import { useRouter } from 'next/navigation'
+import { useTransition } from 'react'
 import { BrandFooter } from '@/components/ui/atoms/BrandFooter'
 
 const STEP_IDS: SetupStep[] = [
@@ -19,7 +20,7 @@ const STEP_IDS: SetupStep[] = [
 const STEP_BACK_ROUTES: Partial<Record<SetupStep, string>> = {
   'system-check': '/setup/locale',
   credentials:    '/setup/system-check',
-  'theme':        '/setup/credentials',
+  // theme: no back — admin account is already committed at this point
   project:        '/setup/theme',
 }
 
@@ -36,11 +37,24 @@ type SetupLayoutProps = {
 
 export function SetupLayout({ children, currentStep, layoutDict }: SetupLayoutProps) {
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const currentIndex = STEP_IDS.indexOf(currentStep)
   const backRoute = STEP_BACK_ROUTES[currentStep]
 
   return (
-    <div className="min-h-dvh bg-bg flex flex-col items-center justify-center px-4 py-12">
+    <div className="relative min-h-dvh bg-bg flex flex-col items-center justify-center px-4 py-12">
+
+      {/* Dot grid background */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          backgroundImage: 'radial-gradient(circle, var(--color-border) 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
+        }}
+      />
+
+      {/* Content — above dot grid */}
+      <div className="relative z-[1] flex flex-col items-center w-full">
 
       {/* Brand header */}
       <div className="flex items-center gap-3 mb-6">
@@ -104,14 +118,16 @@ export function SetupLayout({ children, currentStep, layoutDict }: SetupLayoutPr
       {/* Back button */}
       {backRoute && (
         <button
-          onClick={() => router.push(backRoute)}
-          className="mt-6 inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-4 py-2 font-mono text-xs text-muted hover:border-primary/40 hover:bg-surface-2 hover:text-text transition-all duration-200 cursor-pointer"
+          onClick={() => startTransition(() => router.push(backRoute))}
+          disabled={isPending}
+          className="mt-6 inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-4 py-2 font-mono text-xs text-muted hover:border-primary/40 hover:bg-surface-2 hover:text-text transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronLeft size={14} strokeWidth={2} />
-          {layoutDict.back}
+          {isPending ? '...' : layoutDict.back}
         </button>
       )}
       <BrandFooter />
+      </div>
     </div>
   )
 }

@@ -5,39 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createSuperAdmin } from '@/lib/actions/setup.actions'
 import { SetupLayout } from '@/components/ui/layouts/SetupLayout'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
+import { generateSecurePassword } from '@/lib/utils/password'
 import type { Dictionary } from '@/locales/en'
-
-function generateSecurePassword(): string {
-  const upper   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  const lower   = 'abcdefghijklmnopqrstuvwxyz'
-  const digits  = '0123456789'
-  const symbols = '!@#$%^&*-_=+'
-  const charset = upper + lower + digits + symbols
-
-  const length = 20
-  const buf    = new Uint8Array(length + 4)
-  crypto.getRandomValues(buf)
-
-  // Guarantee one of each class
-  const required = [
-    upper  [buf[0] % upper.length],
-    lower  [buf[1] % lower.length],
-    digits [buf[2] % digits.length],
-    symbols[buf[3] % symbols.length],
-  ]
-  const rest = Array.from(buf.slice(4), (b) => charset[b % charset.length])
-
-  // Fisher-Yates shuffle
-  const chars     = [...required, ...rest]
-  const shuffleBuf = new Uint8Array(chars.length)
-  crypto.getRandomValues(shuffleBuf)
-  for (let i = chars.length - 1; i > 0; i--) {
-    const j = shuffleBuf[i] % (i + 1)
-    ;[chars[i], chars[j]] = [chars[j], chars[i]]
-  }
-
-  return chars.join('')
-}
 
 type Props = {
   dict:       Dictionary['setup']['credentials']
@@ -127,7 +96,8 @@ export function CredentialsClient({ dict, layoutDict }: Props) {
                 <input
                   type={visible ? 'text' : 'password'}
                   value={password}
-                  readOnly
+                  onChange={(e) => { setPassword(e.target.value); setCopied(false) }}
+                  required
                   className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-accent font-mono text-sm focus:outline-none focus:border-primary transition-colors pr-14"
                 />
                 <button

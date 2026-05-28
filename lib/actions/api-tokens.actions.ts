@@ -1,10 +1,12 @@
 'use server'
 
+import { cookies } from 'next/headers'
 import { auth } from '@/auth'
 import { generateToken, hashToken } from '@/lib/api/auth'
 import { apiTokensRepository } from '@/db/repositories/api-tokens.repository'
 import type { ActionResult } from '@/types/actions'
 import type { ApiToken, CreateApiTokenInput } from '@/types/api-tokens'
+import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 
 async function requireSuperAdmin() {
   const session = await auth()
@@ -16,19 +18,24 @@ export async function createApiToken(
   input: CreateApiTokenInput,
 ): Promise<ActionResult<{ token: string; meta: ApiToken }>> {
   try {
-    await requireSuperAdmin()
+    const session    = await requireSuperAdmin()
+    const cookieStore = await cookies()
+    const projectId  = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
+    if (!projectId) throw new Error('NO_PROJECT_CONTEXT')
 
     const rawToken = generateToken()
     const tokenHash = hashToken(rawToken)
 
     const meta = await apiTokensRepository.create({
-      name:      input.name,
+      name:            input.name,
       tokenHash,
-      roleId:    input.roleId,
-      expiresAt: input.expiresAt,
+      roleId:          input.roleId,
+      projectId,
+      scope:           input.scope,
+      excludedNodeIds: input.excludedNodeIds,
+      expiresAt:       input.expiresAt,
     })
 
-    // Raw token is returned ONCE — only the hash is stored in DB
     return { success: true, data: { token: rawToken, meta } }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error.' }
@@ -37,8 +44,11 @@ export async function createApiToken(
 
 export async function listApiTokens(): Promise<ActionResult<ApiToken[]>> {
   try {
-    await requireSuperAdmin()
-    const tokens = await apiTokensRepository.findAll()
+    const session    = await requireSuperAdmin()
+    const cookieStore = await cookies()
+    const projectId  = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
+    if (!projectId) throw new Error('NO_PROJECT_CONTEXT')
+    const tokens = await apiTokensRepository.findByProject(projectId)
     return { success: true, data: tokens }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error.' }
@@ -47,8 +57,11 @@ export async function listApiTokens(): Promise<ActionResult<ApiToken[]>> {
 
 export async function revokeApiToken(tokenId: string): Promise<ActionResult<void>> {
   try {
-    await requireSuperAdmin()
-    await apiTokensRepository.revoke(tokenId)
+    const session    = await requireSuperAdmin()
+    const cookieStore = await cookies()
+    const projectId  = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
+    if (!projectId) throw new Error('NO_PROJECT_CONTEXT')
+    await apiTokensRepository.revoke(tokenId, projectId)
     return { success: true, data: undefined }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error.' }

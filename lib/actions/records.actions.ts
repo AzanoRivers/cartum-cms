@@ -1,25 +1,20 @@
 'use server'
 
-import { auth } from '@/auth'
 import { requirePermission } from '@/lib/rbac/guard'
+import { requireProjectId, assertProjectAccess } from '@/lib/auth/get-project-id'
 import { recordsService } from '@/lib/services/records.service'
 import { recordsRepository } from '@/db/repositories/records.repository'
 import type { ActionResult } from '@/types/actions'
 import type { ContentRecord, RecordInput } from '@/types/records'
 
-async function requireSession() {
-  const session = await auth()
-  if (!session) throw new Error('UNAUTHORIZED')
-  return session
-}
-
 export async function createRecord(
   nodeId: string,
-  input: RecordInput,
+  input:  RecordInput,
 ): Promise<ActionResult<ContentRecord>> {
   try {
+    const projectId = await requireProjectId()
     await requirePermission(nodeId, 'create')
-    const record = await recordsService.create(nodeId, input)
+    const record = await recordsService.create(nodeId, input, projectId)
     return { success: true, data: record }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error.' }
@@ -32,8 +27,9 @@ export async function updateRecord(
   input:    RecordInput,
 ): Promise<ActionResult<ContentRecord>> {
   try {
+    const projectId = await requireProjectId()
     await requirePermission(nodeId, 'update')
-    const record = await recordsService.update(nodeId, recordId, input)
+    const record = await recordsService.update(nodeId, recordId, input, projectId)
     return { success: true, data: record }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error.' }
@@ -83,7 +79,8 @@ export async function getRelatedRecords(
   targetNodeId: string,
 ): Promise<ActionResult<ContentRecord[]>> {
   try {
-    await requireSession()
+    const projectId = await requireProjectId()
+    await assertProjectAccess(projectId)
     const rows = await recordsRepository.findByNodeId(targetNodeId)
     const records: ContentRecord[] = rows.map((r) => ({
       id:        r.id,

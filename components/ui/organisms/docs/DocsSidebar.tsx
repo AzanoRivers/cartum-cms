@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Icon } from '@/components/ui/atoms/Icon'
 import type { Dictionary } from '@/locales/en'
 
@@ -12,8 +12,8 @@ export type DocsSidebarProps = {
   onSelect: (id: string) => void
 }
 
-const TOP_IDS  = ['gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration', 'relationsGuide'] as const
-const DEV_IDS  = ['nodesAndFieldsDev', 'webMigrationDev', 'media', 'apiForDevs', 'apiSchema', 'relations'] as const
+const TOP_IDS  = ['gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration', 'relationsGuide', 'multiProject'] as const
+const DEV_IDS  = ['nodesAndFieldsDev', 'webMigrationDev', 'multiProjectDev', 'media', 'apiForDevs', 'apiSchema', 'relations'] as const
 const ALL_IDS  = [...TOP_IDS, ...DEV_IDS] as const
 
 type SectionId = typeof ALL_IDS[number]
@@ -27,8 +27,10 @@ const ICONS: Record<SectionId, Parameters<typeof Icon>[0]['name']> = {
   content:         'FileText',
   webMigration:    'Globe',
   relationsGuide:  'Link',
+  multiProject:    'Layers',
   nodesAndFieldsDev: 'Database',
   webMigrationDev:   'Globe',
+  multiProjectDev:   'Layers',
   media:             'Image',
   apiForDevs:      'Code',
   apiSchema:       'Network',
@@ -37,7 +39,11 @@ const ICONS: Record<SectionId, Parameters<typeof Icon>[0]['name']> = {
 
 export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [devOpen, setDevOpen]       = useState(false)
+  const [devOpen, setDevOpen]       = useState(() => DEV_SET.has(activeId))
+
+  useEffect(() => {
+    if (DEV_SET.has(activeId)) setDevOpen(true)
+  }, [activeId])
 
   const activeLabel = sections[activeId as keyof DocsSections] ?? ''
 

@@ -1,26 +1,15 @@
-import { db } from '@/db'
-import { project } from '@/db/schema'
 import { getDictionary } from '@/locales'
-import type { SupportedLocale } from '@/types/project'
+import { getCurrentLocale } from '@/lib/utils/get-current-locale'
 import { BreadcrumbSetter } from '@/components/ui/molecules/BreadcrumbSetter'
 import { DocsPage } from '@/components/ui/organisms/docs/DocsPage'
 
 export async function generateMetadata() {
-  const [proj] = await db
-    .select({ defaultLocale: project.defaultLocale })
-    .from(project)
-    .limit(1)
-  const locale = (proj?.defaultLocale ?? 'en') as SupportedLocale
+  const locale = await getCurrentLocale()
   return { title: getDictionary(locale).cms.docs.title }
 }
 
 export default async function CmsDocsPage() {
-  const [proj] = await db
-    .select({ defaultLocale: project.defaultLocale })
-    .from(project)
-    .limit(1)
-
-  const locale = (proj?.defaultLocale ?? 'en') as SupportedLocale
+  const locale = await getCurrentLocale()
   const dict = getDictionary(locale)
   const d = dict.cms.docs
 

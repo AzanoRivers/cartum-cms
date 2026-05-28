@@ -25,6 +25,11 @@ async function findById(id: string): Promise<RoleRow | null> {
   return rows[0] ?? null
 }
 
+async function findByName(name: string): Promise<RoleRow | null> {
+  const rows = await db.select().from(roles).where(eq(roles.name, name)).limit(1)
+  return rows[0] ?? null
+}
+
 async function findByUserId(userId: string): Promise<RoleRow[]> {
   return db
     .select({ id: roles.id, name: roles.name, description: roles.description, createdAt: roles.createdAt })
@@ -71,6 +76,7 @@ async function getPermissionsForNode(nodeId: string): Promise<PermissionRow[]> {
 export const rolesRepository = {
   findAll,
   findById,
+  findByName,
   findByUserId,
   create,
   update,

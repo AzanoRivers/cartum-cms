@@ -1,6 +1,7 @@
 import { boolean, check, jsonb, pgTable, real, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import type { PgColumn } from 'drizzle-orm/pg-core'
+import { project } from './project.schema'
 
 // Self-referential table: parentId references nodes.id
 // The callback form is required to avoid circular initializer errors.
@@ -8,6 +9,7 @@ export const nodes = pgTable(
   'nodes',
   {
     id:        uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id').references(() => project.id, { onDelete: 'cascade' }).notNull(),
     name:      text('name').notNull(),
     type:      text('type').notNull(),
     slug:      text('slug').unique(),

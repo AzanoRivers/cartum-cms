@@ -1,4 +1,4 @@
-export type ThemeId = 'dark' | 'cyber-soft' | 'light' | 'dusk' | 'matrix'
+export type ThemeId = 'dark' | 'cyber-soft' | 'light' | 'dusk' | 'matrix' | 'cyber-human' | 'stranger-things'
 
 export interface ThemeDefinition {
   id:          ThemeId
@@ -14,6 +14,39 @@ export interface ThemeDefinition {
 }
 
 export const THEMES: ThemeDefinition[] = [
+  {
+    id:          'cyber-human',
+    label:       'Cyber Human',
+    description: 'Night violet. Fuchsia & cyan.',
+    preview: {
+      bg:      '#150b28',
+      surface: '#1f1040',
+      primary: '#e040fb',
+      accent:  '#00e5ff',
+    },
+  },
+  {
+    id:          'stranger-things',
+    label:       'Stranger Things',
+    description: 'Upside Down. Orange gate & acid green.',
+    preview: {
+      bg:      '#0c0919',
+      surface: '#14102a',
+      primary: '#e84820',
+      accent:  '#b8ff00',
+    },
+  },
+  {
+    id:          'matrix',
+    label:       'Matrix',
+    description: 'Phosphor green. Classic terminal.',
+    preview: {
+      bg:      '#000a00',
+      surface: '#060f06',
+      primary: '#00c41e',
+      accent:  '#39ff14',
+    },
+  },
   {
     id:          'dark',
     label:       'Dark',
@@ -37,17 +70,6 @@ export const THEMES: ThemeDefinition[] = [
     },
   },
   {
-    id:          'light',
-    label:       'Light',
-    description: 'Slate white. Bright environments.',
-    preview: {
-      bg:      '#f8fafc',
-      surface: '#ffffff',
-      primary: '#6366f1',
-      accent:  '#0ea5e9',
-    },
-  },
-  {
     id:          'dusk',
     label:       'Dusk',
     description: 'Muted navy. Between dark and light.',
@@ -59,14 +81,14 @@ export const THEMES: ThemeDefinition[] = [
     },
   },
   {
-    id:          'matrix',
-    label:       'Matrix',
-    description: 'Phosphor green. Classic terminal.',
+    id:          'light',
+    label:       'Light',
+    description: 'Slate white. Bright environments.',
     preview: {
-      bg:      '#000a00',
-      surface: '#060f06',
-      primary: '#00c41e',
-      accent:  '#39ff14',
+      bg:      '#f8fafc',
+      surface: '#ffffff',
+      primary: '#6366f1',
+      accent:  '#0ea5e9',
     },
   },
 ]

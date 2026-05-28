@@ -21,11 +21,16 @@ export async function GET(
 ) {
   const { nodeName, id } = await params
 
-  const node = await nodeService.findBySlug(nodeName)
-  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
-
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
+  if (!apiAuth.scope.includes('read')) return apiError('FORBIDDEN', 'Token scope does not allow read.', 403)
+
+  const node = await nodeService.findBySlug(nodeName, apiAuth.projectId)
+  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
+
+  if (apiAuth.excludedNodeIds.includes(node.id)) {
+    return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
+  }
 
   const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'read')
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
@@ -37,9 +42,9 @@ export async function GET(
   let responseData: Record<string, unknown>
 
   if (include.length > 0) {
-    const children = await nodesRepository.findChildren(node.id)
+    const children = await nodesRepository.findChildren(node.id, apiAuth.projectId)
     const fields   = children.filter((n): n is FieldNode => n.type === 'field')
-    const expanded = await expandRelations(record, fields, include)
+    const expanded = await expandRelations(record, fields, include, apiAuth.projectId)
     responseData   = flattenRecord(record, expanded)
   } else {
     responseData = flattenRecord(record)
@@ -54,11 +59,16 @@ export async function PUT(
 ) {
   const { nodeName, id } = await params
 
-  const node = await nodeService.findBySlug(nodeName)
-  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
-
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
+  if (!apiAuth.scope.includes('update')) return apiError('FORBIDDEN', 'Token scope does not allow update.', 403)
+
+  const node = await nodeService.findBySlug(nodeName, apiAuth.projectId)
+  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
+
+  if (apiAuth.excludedNodeIds.includes(node.id)) {
+    return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
+  }
 
   const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'update')
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
@@ -71,7 +81,7 @@ export async function PUT(
   }
 
   try {
-    const record = await recordsService.update(node.id, id, { data: body })
+    const record = await recordsService.update(node.id, id, { data: body }, apiAuth.projectId)
     return Response.json({ data: flattenRecord(record) }, { headers: corsHeaders() })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error.'
@@ -86,11 +96,16 @@ export async function PATCH(
 ) {
   const { nodeName, id } = await params
 
-  const node = await nodeService.findBySlug(nodeName)
-  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
-
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
+  if (!apiAuth.scope.includes('update')) return apiError('FORBIDDEN', 'Token scope does not allow update.', 403)
+
+  const node = await nodeService.findBySlug(nodeName, apiAuth.projectId)
+  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
+
+  if (apiAuth.excludedNodeIds.includes(node.id)) {
+    return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
+  }
 
   const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'update')
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
@@ -105,11 +120,10 @@ export async function PATCH(
     return apiError('BAD_REQUEST', 'Invalid JSON body.', 400)
   }
 
-  // PATCH: merge with existing data (partial update)
   const merged = { ...existing.data, ...patch }
 
   try {
-    const record = await recordsService.update(node.id, id, { data: merged })
+    const record = await recordsService.update(node.id, id, { data: merged }, apiAuth.projectId)
     return Response.json({ data: flattenRecord(record) }, { headers: corsHeaders() })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error.'
@@ -123,11 +137,16 @@ export async function DELETE(
 ) {
   const { nodeName, id } = await params
 
-  const node = await nodeService.findBySlug(nodeName)
-  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
-
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
+  if (!apiAuth.scope.includes('delete')) return apiError('FORBIDDEN', 'Token scope does not allow delete.', 403)
+
+  const node = await nodeService.findBySlug(nodeName, apiAuth.projectId)
+  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
+
+  if (apiAuth.excludedNodeIds.includes(node.id)) {
+    return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
+  }
 
   const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'delete')
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)

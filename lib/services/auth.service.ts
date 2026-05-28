@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs'
 import { randomBytes, randomInt, createHash } from 'crypto'
 import { eq, and, gt, isNull } from 'drizzle-orm'
 import { db } from '@/db'
-import { passwordResetTokens, users, emailOtpCodes } from '@/db/schema'
+import { passwordResetTokens, users, emailOtpCodes, userEmailRegistry } from '@/db/schema'
 import { usersRepository } from '@/db/repositories/users.repository'
 
 export async function hashPassword(plain: string): Promise<string> {
@@ -125,8 +125,24 @@ export async function confirmEmailChange(
 
   const record = rows[0]
 
+  // Read current user to inherit trial start time for the new email registry entry
+  const [userRow] = await db
+    .select({ cartumSuscriptorTime: users.cartumSuscriptorTime })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+
   await db.update(users).set({ email: record.pendingEmail }).where(eq(users.id, userId))
   await db.update(emailOtpCodes).set({ usedAt: now }).where(eq(emailOtpCodes.id, record.id))
+
+  // Register new email in anti-abuse registry; preserve older trial if email was previously seen
+  const nowUnix = Math.floor(Date.now() / 1000)
+  await db.insert(userEmailRegistry).values({
+    email:        record.pendingEmail,
+    firstSeenAt:  nowUnix,
+    trialStartAt: userRow?.cartumSuscriptorTime ?? nowUnix,
+    trialDays:    7,
+  }).onConflictDoNothing()
 
   return { success: true, newEmail: record.pendingEmail }
 }

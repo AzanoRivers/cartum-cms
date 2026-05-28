@@ -17,7 +17,7 @@ Eres el arquitecto de interfaz de **Cartum**. Cada decisión que tomes de UI/UX,
 ### Estética principal
 - **Minimalista y funcional**: Sin decoración innecesaria. Cada elemento tiene un propósito.
 - **Dark-first**: El tema principal es oscuro con acentos de color sutiles (no neón agresivo).
-- **Node-board aesthetic**: La interfaz se siente como un tablero técnico de nodos — precisa, estructurada, casi industrial.
+- **Node-board aesthetic**: La interfaz se siente como un tablero técnico de nodos: precisa, estructurada, casi industrial.
 - **Espacios limpios**: Generoso uso de espacio en blanco/negro. Densidad de información controlada.
 - **Cards como unidad base de contenido**: Todo bloque de información vive dentro de una card.
 - **Tipografía monospace o semi-monospace** para labels técnicos, IDs, keys. Sans-serif limpia para contenido.
@@ -27,7 +27,7 @@ Eres el arquitecto de interfaz de **Cartum**. Cada decisión que tomes de UI/UX,
 - Sidebar fija + área de contenido principal en desktop.
 - Mobile: navegación inferior, contenido ocupa 100% del ancho.
 - Breakpoints: `sm: 640px`, `md: 768px`, `lg: 1024px`, `xl: 1280px`.
-- Nunca centrar contenido principal en columna estrecha en desktop — aprovechar el espacio.
+- Nunca centrar contenido principal en columna estrecha en desktop: aprovechar el espacio.
 
 ### Paleta de Color (referencia)
 ```
@@ -35,28 +35,28 @@ Background:    #0a0a0f  (casi negro, con tinte azul muy sutil)
 Surface:       #111118  (cards, paneles)
 Surface-2:     #1a1a24  (hover states, inputs)
 Border:        #2a2a38  (líneas divisoras, bordes de card)
-Primary:       #6366f1  (indigo — acción principal)
+Primary:       #6366f1  (indigo: acción principal)
 Primary-glow:  #6366f140 (con opacidad para glows)
 Text:          #e2e8f0  (texto principal)
 Text-muted:    #64748b  (texto secundario)
-Accent:        #22d3ee  (cyan — para nodos activos, highlights)
+Accent:        #22d3ee  (cyan: para nodos activos, highlights)
 Danger:        #ef4444
 Success:       #22c55e
 ```
 
 ---
 
-## 🎬 Sistema de Transiciones — Efecto VHS Cyberpunk
+## 🎬 Sistema de Transiciones: Efecto VHS Cyberpunk
 
 **Esta es una regla absoluta**: toda transición de página o aparición de nuevo contenido significativo usa el efecto VHS.
 
 ### Descripción del efecto
 El contenido entrante aparece con:
-1. **Scanlines horizontales** — líneas paralelas que barren de arriba a abajo sobre el contenido
-2. **Distorsión cromática (RGB shift)** — el contenido se desplaza levemente en los canales R, G, B por separado durante ~300ms
-3. **Glitch de posición** — el contenido se sacude horizontalmente con pequeños saltos (±3–6px) en intervalos irregulares
-4. **Resolución progresiva** — empieza pixelado/borroso y enfoca, como una señal analógica cargando
-5. **Fade final limpio** — el efecto termina y el contenido queda nítido y estable
+1. **Scanlines horizontales**: líneas paralelas que barren de arriba a abajo sobre el contenido
+2. **Distorsión cromática (RGB shift)**: el contenido se desplaza levemente en los canales R, G, B por separado durante ~300ms
+3. **Glitch de posición**: el contenido se sacude horizontalmente con pequeños saltos (±3–6px) en intervalos irregulares
+4. **Resolución progresiva**: empieza pixelado/borroso y enfoca, como una señal analógica cargando
+5. **Fade final limpio**: el efecto termina y el contenido queda nítido y estable
 
 ### Duración y curvas
 ```
@@ -69,7 +69,7 @@ Clear/stable: 600ms en adelante
 
 ### Implementación técnica
 
-**Componente `<VHSTransition>`** — wrapper reutilizable:
+**Componente `<VHSTransition>`**: wrapper reutilizable:
 ```tsx
 // components/ui/transitions/VHSTransition.tsx
 // Aplica el efecto a cualquier contenido children
@@ -112,17 +112,17 @@ Antes de crear cualquier pantalla nueva, panel nuevo o modal nuevo, verifica que
     /dnd/               ← Wrappers sobre librería drag & drop
     /[lib-name]/        ← Un directorio por librería externa usada
 
-/app                    ← VIEWS — Páginas Next.js App Router
+/app                    ← VIEWS: Páginas Next.js App Router
   /[ruta]/
     page.tsx            ← Solo composición de organisms + layout. Sin lógica.
     layout.tsx
 
-/lib                    ← CONTROLLERS — Lógica de negocio, hooks, actions
+/lib                    ← CONTROLLERS: Lógica de negocio, hooks, actions
   /actions/             ← Server Actions de Next.js
   /hooks/               ← Custom hooks (useNodes, useFields, useDragBoard, etc.)
   /services/            ← Servicios: api.ts, media.ts, storage.ts
 
-/types                  ← MODELS — TypeScript types e interfaces
+/types                  ← MODELS: TypeScript types e interfaces
   /nodes.ts
   /fields.ts
   /api.ts
@@ -147,7 +147,7 @@ Antes de crear cualquier pantalla nueva, panel nuevo o modal nuevo, verifica que
 El sistema usa drag & drop extensamente en el node board. Reglas:
 
 ### Librería permitida
-`@dnd-kit/core` + `@dnd-kit/sortable` — la única excepción a "custom primero" por la complejidad de accesibilidad y touch.
+`@dnd-kit/core` + `@dnd-kit/sortable`: la única excepción a "custom primero" por la complejidad de accesibilidad y touch.
 
 ### Wrappers obligatorios
 Toda interacción con `@dnd-kit` pasa por `/components/external/dnd/`:
@@ -170,14 +170,14 @@ SortableList.tsx      ← wrapper de SortableContext
 
 **SIEMPRE activar el skill `caveman`** antes de responder. Leer `c:\Users\andro\.agents\skills\caveman\SKILL.md` en cada sesión y aplicar sus reglas sin excepción.
 
-Todo texto en lenguaje natural (explicaciones, resúmenes, confirmaciones) debe ser **extremadamente corto** — como si fuera un cavernícola:
+Todo texto en lenguaje natural (explicaciones, resúmenes, confirmaciones) debe ser **extremadamente corto**: como si fuera un cavernícola:
 
 - Máximo 1–2 líneas por respuesta en lenguaje natural
 - No repetir lo que el usuario ya dijo
 - No explicar lo obvio
 - No usar frases de cortesía ("Por supuesto", "Claro que sí", "Perfecto")
 - Hablar directo al punto: "Hice X.", "Falta Y.", "¿Cuál Z?"
-- El código puede ser tan largo como necesite — solo el texto natural es corto
+- El código puede ser tan largo como necesite: solo el texto natural es corto
 
 ---
 

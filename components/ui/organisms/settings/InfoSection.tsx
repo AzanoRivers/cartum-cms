@@ -1,24 +1,12 @@
 'use client'
 
 import { ExternalLink } from 'lucide-react'
+import { STACK, CMS_VERSION } from '@/lib/stack-versions'
 import type { Dictionary } from '@/locales/en'
 
 export type InfoSectionProps = {
   d: Dictionary['settings']['info']
 }
-
-// Stack badges — versions kept in sync with package.json
-const STACK: { label: string; version: string; color: string; href: string }[] = [
-  { label: 'Next.js',       version: '16.2',   color: '#000000', href: 'https://nextjs.org' },
-  { label: 'React',         version: '19.2',   color: '#087ea4', href: 'https://react.dev' },
-  { label: 'TypeScript',    version: '6.0',    color: '#3178c6', href: 'https://typescriptlang.org' },
-  { label: 'Tailwind CSS',  version: '4.1',    color: '#0ea5e9', href: 'https://tailwindcss.com' },
-  { label: 'Drizzle ORM',   version: '0.45',   color: '#c5f74f', href: 'https://orm.drizzle.team' },
-  { label: 'PostgreSQL',    version: 'Neon',   color: '#336791', href: 'https://neon.tech' },
-  { label: 'Cloudflare R2', version: 'S3-API', color: '#f38020', href: 'https://developers.cloudflare.com/r2' },
-  { label: 'Zustand',       version: '5.0',    color: '#443e3e', href: 'https://zustand-demo.pmnd.rs' },
-  { label: 'Sonner',        version: '2.0',    color: '#6366f1', href: 'https://sonner.emilkowal.ski' },
-]
 
 export function InfoSection({ d }: InfoSectionProps) {
   return (
@@ -28,7 +16,7 @@ export function InfoSection({ d }: InfoSectionProps) {
       {/* Version + License */}
       <div className="rounded-lg border border-border bg-surface-2 p-4 space-y-3">
         <Row label={d.versionLabel}>
-          <span className="font-mono text-sm text-primary">{d.version}</span>
+          <span className="font-mono text-sm text-primary">{CMS_VERSION}</span>
         </Row>
         <Divider />
         <Row label={d.releasedOn}>

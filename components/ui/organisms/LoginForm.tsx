@@ -9,8 +9,9 @@ import { CaptchaChallenge } from '@/components/ui/molecules/CaptchaChallenge'
 import type { Dictionary } from '@/locales/en'
 
 type LoginFormProps = {
-  dict:         Dictionary['auth']['login']
-  initialError?: string
+  dict:                 Dictionary['auth']['login']
+  initialError?:        string
+  registrationEnabled?: boolean
 }
 
 function randomDigit() {
@@ -24,7 +25,7 @@ function getMainDomain(hostname: string): string | null {
   return parts.slice(-2).join('.')
 }
 
-export function LoginForm({ dict, initialError }: LoginFormProps) {
+export function LoginForm({ dict, initialError, registrationEnabled }: LoginFormProps) {
   const router = useRouter()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -35,6 +36,16 @@ export function LoginForm({ dict, initialError }: LoginFormProps) {
 
   useEffect(() => {
     setDomain(getMainDomain(window.location.hostname))
+  }, [])
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('cartum-theme')
+      const valid  = ['dark', 'cyber-soft', 'light', 'dusk', 'matrix']
+      if (stored && valid.includes(stored)) {
+        document.documentElement.dataset.theme = stored
+      }
+    } catch { /* sandboxed */ }
   }, [])
 
   // Show toast if redirected here with an error (e.g., from the middleware)
@@ -197,13 +208,21 @@ export function LoginForm({ dict, initialError }: LoginFormProps) {
           </button>
         </form>
 
-        <div className="mt-5 text-center">
+        <div className="mt-5 flex flex-col items-center gap-2 text-center">
           <Link
             href="/forgot-password"
             className="font-mono text-xs text-muted transition-colors hover:text-text"
           >
             {dict.forgotPassword}
           </Link>
+          {registrationEnabled && (
+            <p className="font-mono text-xs text-muted">
+              {dict.noAccount}{' '}
+              <Link href="/cartum-player" className="text-primary hover:underline">
+                {dict.createAccount}
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </div>

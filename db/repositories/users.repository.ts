@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '@/db'
-import { users, usersRoles } from '@/db/schema'
+import { users, usersRoles, userEmailRegistry } from '@/db/schema'
 
 type UserRow = typeof users.$inferSelect
 
@@ -15,7 +15,29 @@ async function findByEmail(email: string): Promise<UserRow | null> {
 }
 
 async function create(input: { email: string; passwordHash: string; isSuperAdmin?: boolean }): Promise<UserRow> {
-  const [row] = await db.insert(users).values(input).returning()
+  const nowUnix = Math.floor(Date.now() / 1000)
+
+  const [existing] = await db
+    .select()
+    .from(userEmailRegistry)
+    .where(eq(userEmailRegistry.email, input.email))
+    .limit(1)
+
+  const trialStart = existing?.trialStartAt ?? nowUnix
+
+  await db.insert(userEmailRegistry).values({
+    email:        input.email,
+    firstSeenAt:  nowUnix,
+    trialStartAt: trialStart,
+    trialDays:    7,
+  }).onConflictDoNothing()
+
+  const [row] = await db.insert(users).values({
+    ...input,
+    cartumSuscriptor:     true,
+    cartumSuscriptorTime: trialStart,
+  }).returning()
+
   return row
 }
 
@@ -33,7 +55,7 @@ async function assignRole(userId: string, roleId: string): Promise<void> {
 async function removeRole(userId: string, roleId: string): Promise<void> {
   await db
     .delete(usersRoles)
-    .where(eq(usersRoles.userId, userId))
+    .where(and(eq(usersRoles.userId, userId), eq(usersRoles.roleId, roleId)))
 }
 
 async function isSuperAdmin(id: string): Promise<boolean> {
@@ -45,6 +67,10 @@ async function isSuperAdmin(id: string): Promise<boolean> {
   return rows[0]?.isSuperAdmin ?? false
 }
 
+async function setSubscription(userId: string, active: boolean): Promise<void> {
+  await db.update(users).set({ cartumSuscriptor: active }).where(eq(users.id, userId))
+}
+
 export const usersRepository = {
   findById,
   findByEmail,
@@ -53,4 +79,5 @@ export const usersRepository = {
   assignRole,
   removeRole,
   isSuperAdmin,
+  setSubscription,
 }

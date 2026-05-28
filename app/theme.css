@@ -34,6 +34,10 @@
   /* acción principal */
   --color-primary-glow: #6366f140;
   /* glow con opacidad */
+  --color-select: #6366f1;
+  /* selección/activo en navegación — por defecto = primary */
+  --color-select-glow: #6366f122;
+  /* glow del color de selección */
   --color-accent: #22d3ee;
   /* nodos activos, highlights */
   --color-text: #e2e8f0;
@@ -350,4 +354,57 @@
   --color-danger: #dc2626;
   --color-success: #16a34a;
   --color-warning: #d97706;
+}
+
+/*
+  ================================================================
+  Cyber Human — warm lavender base, electric fuchsia primary,
+  cyber cyan accent. Inspired by LGBTQ+ pride culture and
+  cyberpunk aesthetics. Medium tone, soft on the eyes.
+  ================================================================
+*/
+/*
+  ================================================================
+  Stranger Things — Upside Down aesthetic. Near-black indigo night,
+  orange-red portal glow as primary, acid green Upside Down
+  particles as accent. Warm 80s CRT text tone.
+  ================================================================
+*/
+[data-theme="stranger-things"] {
+  --color-bg:           #0c0919;
+  --color-surface:      #14102a;
+  --color-surface-2:    #1e1840;
+  --color-border:       #382a65;
+  --color-primary:      #e84820;
+  --color-primary-glow: #e8482035;
+  --color-accent:       #b8ff00;
+  --color-select:       #b8ff00;
+  --color-select-glow:  #b8ff0022;
+  --color-text:         #f0ead8;
+  --color-muted:        #7a6e90;
+  --color-danger:       #ff2020;
+  --color-success:      #6dff30;
+  --color-warning:      #ff9900;
+}
+
+/*
+  ================================================================
+  Cyber Human — deep violet-indigo night, vivid magenta primary,
+  electric cyan accent. Inspired by LGBTQ+ pride culture and
+  cyberpunk aesthetics. Dark theme with strong color identity.
+  ================================================================
+*/
+[data-theme="cyber-human"] {
+  --color-bg:           #150b28;
+  --color-surface:      #1f1040;
+  --color-surface-2:    #29165a;
+  --color-border:       #422580;
+  --color-primary:      #e040fb;
+  --color-primary-glow: #e040fb30;
+  --color-accent:       #00e5ff;
+  --color-text:         #f0e6ff;
+  --color-muted:        #a77dc5;
+  --color-danger:       #ff4081;
+  --color-success:      #69ff47;
+  --color-warning:      #ffab40;
 }

@@ -11,6 +11,7 @@ import { useUIStore } from '@/lib/stores/uiStore'
 import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'
 import type { Dictionary } from '@/locales/en'
 import type { SectionKey } from '@/types/roles'
+import type { ProjectItem } from '@/components/ui/molecules/ProjectSelector'
 
 // MobileLayout mirrors DesktopLayout exactly.
 // Only difference: h-dvh (dynamic viewport height) vs h-screen,
@@ -18,7 +19,8 @@ import type { SectionKey } from '@/types/roles'
 
 export type MobileLayoutProps = {
   children: React.ReactNode
-  projectName: string
+  currentProject: ProjectItem
+  projects: ProjectItem[]
   userInitials: string
   userEmail: string
   userId: string
@@ -26,11 +28,14 @@ export type MobileLayoutProps = {
   isAdmin: boolean
   settingsDict: Dictionary['settings']
   sectionPermissions: Partial<Record<SectionKey, boolean>>
+  cartumSuscriptor: boolean
+  cartumSuscriptorTime: number
 }
 
 export function MobileLayout({
   children,
-  projectName,
+  currentProject,
+  projects,
   userInitials,
   userEmail,
   userId,
@@ -38,6 +43,8 @@ export function MobileLayout({
   isAdmin,
   settingsDict,
   sectionPermissions,
+  cartumSuscriptor,
+  cartumSuscriptorTime,
 }: MobileLayoutProps) {
   const creationPanelOpen = useUIStore((s) => s.creationPanelOpen)
   const parentId          = useUIStore((s) => s.parentId)
@@ -46,7 +53,14 @@ export function MobileLayout({
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-bg">
-      <TopBar projectName={projectName} userInitials={userInitials} />
+      <TopBar
+        currentProject={currentProject}
+        projects={projects}
+        userInitials={userInitials}
+        isSuperAdmin={isSuperAdmin}
+        cartumSuscriptor={cartumSuscriptor}
+        cartumSuscriptorTime={cartumSuscriptorTime}
+      />
       <main id="main-content" className="relative flex flex-1 overflow-hidden">
         <MobileBreadcrumbBar />
         {children}

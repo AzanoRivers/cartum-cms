@@ -20,8 +20,13 @@ export async function resolveApiAuth(req: Request): Promise<ApiAuth | null> {
   if (token.revokedAt) return null
   if (token.expiresAt && token.expiresAt < new Date()) return null
 
-  // Non-blocking last-used update — fire and forget
   void apiTokensRepository.updateLastUsed(token.id)
 
-  return { roleId: token.roleId, tokenId: token.id }
+  return {
+    roleId:          token.roleId,
+    tokenId:         token.id,
+    projectId:       token.projectId,
+    scope:           (token.scope as import('@/types/api-tokens').TokenScope[]) ?? ['read'],
+    excludedNodeIds: token.excludedNodeIds,
+  }
 }

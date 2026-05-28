@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DocsSidebar } from './DocsSidebar'
 import { DocsCodeBlock } from './DocsCodeBlock'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
+import { Spinner } from '@/components/ui/atoms/Spinner'
 import type { Dictionary } from '@/locales/en'
 
 type DocsDict = Dictionary['cms']['docs']
@@ -434,7 +435,7 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
 
       <div>
         <SubHeading>{s.tokenTitle}</SubHeading>
-        <UL items={[s.tokenStep1, s.tokenStep2, s.tokenStep3, s.tokenStep4, s.tokenStep5]} />
+        <UL items={[s.tokenStep1, s.tokenStep2, s.tokenStep3, s.tokenStep4, s.tokenStep5, s.tokenStep6]} />
       </div>
 
       <div>
@@ -449,8 +450,8 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
       </div>
 
       <div>
-        <SubHeading>{s.nodeNameTitle.replace('{nodeName}', '{nodeName}')}</SubHeading>
-        <Prose>{s.nodeNameDesc}</Prose>
+        <SubHeading>{s.deckSlugTitle}</SubHeading>
+        <Prose>{s.deckSlugDesc}</Prose>
       </div>
 
       <div>
@@ -458,15 +459,16 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
         <Table
           headers={['Method', 'Route', 'Description', 'Permission']}
           rows={[
-            ['GET',    '/api/v1/schema',               s.endpoints.schema,      s.endpointPermissions.anyToken],
-            ['GET',    '/api/v1/nodes/{nodeId}',        s.endpoints.getNode,     s.endpointPermissions.anyToken],
-            ['GET',    '/api/v1/fields/{fieldId}',      s.endpoints.getField,    s.endpointPermissions.anyToken],
-            ['GET',    '/api/v1/{nodeName}',            s.endpoints.listRecords, s.endpointPermissions.read],
-            ['GET',    '/api/v1/{nodeName}/{id}',       s.endpoints.getRecord,   s.endpointPermissions.read],
-            ['POST',   '/api/v1/{nodeName}',            s.endpoints.createRecord,s.endpointPermissions.create],
-            ['PUT',    '/api/v1/{nodeName}/{id}',       s.endpoints.putRecord,   s.endpointPermissions.update],
-            ['PATCH',  '/api/v1/{nodeName}/{id}',       s.endpoints.patchRecord, s.endpointPermissions.update],
-            ['DELETE', '/api/v1/{nodeName}/{id}',       s.endpoints.deleteRecord,s.endpointPermissions.delete],
+            ['GET',    '/api/v1/table',                    s.endpoints.schema,         s.endpointPermissions.anyToken],
+            ['GET',    '/api/v1/table/{deckId}',           s.endpoints.getSchemaDeck,  s.endpointPermissions.anyToken],
+            ['GET',    '/api/v1/deck/{deckId}',            s.endpoints.getDeck,        s.endpointPermissions.read],
+            ['GET',    '/api/v1/card/{cardId}',            s.endpoints.getCard,        s.endpointPermissions.anyToken],
+            ['GET',    '/api/v1/{deckSlug}',               s.endpoints.listRecords,    s.endpointPermissions.read],
+            ['GET',    '/api/v1/{deckSlug}/{id}',          s.endpoints.getRecord,      s.endpointPermissions.read],
+            ['POST',   '/api/v1/{deckSlug}',               s.endpoints.createRecord,   s.endpointPermissions.write],
+            ['PUT',    '/api/v1/{deckSlug}/{id}',          s.endpoints.putRecord,      s.endpointPermissions.update],
+            ['PATCH',  '/api/v1/{deckSlug}/{id}',          s.endpoints.patchRecord,    s.endpointPermissions.update],
+            ['DELETE', '/api/v1/{deckSlug}/{id}',          s.endpoints.deleteRecord,   s.endpointPermissions.delete],
           ]}
         />
         <div className="mt-2 space-y-1">
@@ -560,41 +562,45 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
         <div className="mt-2">
           <DocsCodeBlock
             language="bash"
-            code={`# Discover schema
+            code={`# List all decks on the table (root-level schema)
 curl -H "Authorization: Bearer <token>" \\
-  https://your-domain.com/api/v1/schema
+  https://your-domain.com/api/v1/table
 
-# List records
+# Schema for a single deck by UUID
+curl -H "Authorization: Bearer <token>" \\
+  https://your-domain.com/api/v1/table/<deckId>
+
+# List cards in a deck (paginated)
 curl -H "Authorization: Bearer <token>" \\
   https://your-domain.com/api/v1/products
 
-# Page 2, 5 per page, sort by price ascending
+# Filter, paginate, sort
 curl -H "Authorization: Bearer <token>" \\
-  "https://your-domain.com/api/v1/products?page=2&limit=5&sort=price&order=asc"
+  "https://your-domain.com/api/v1/products?page=2&limit=5&sort=price&order=asc&filter[featured]=true"
 
-# Single record
+# Single record from a deck
 curl -H "Authorization: Bearer <token>" \\
   https://your-domain.com/api/v1/products/550e8400-e29b-41d4-a716-446655440000
 
-# Expand relation
+# Expand a relation field (linked deck)
 curl -H "Authorization: Bearer <token>" \\
   "https://your-domain.com/api/v1/products/550e8400-e29b-41d4-a716-446655440000?include=category"
 
-# Create
+# Add a new record to a deck (write scope required)
 curl -X POST \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
   -d '{"name":"Laptop Pro","price":1299,"featured":true}' \\
   https://your-domain.com/api/v1/products
 
-# Partial update (PATCH)
+# Partial update — only changed fields (update scope required)
 curl -X PATCH \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
   -d '{"featured":false}' \\
   https://your-domain.com/api/v1/products/550e8400-e29b-41d4-a716-446655440000
 
-# Delete
+# Delete a record (delete scope required)
 curl -X DELETE \\
   -H "Authorization: Bearer <token>" \\
   https://your-domain.com/api/v1/products/550e8400-e29b-41d4-a716-446655440000`}
@@ -667,20 +673,20 @@ function RelationsSection({ d }: { d: DocsDict }) {
           <DocsCodeBlock
             language="json"
             code={`{
-  "nodes": [
+  "decks": [
     {
       "id": "a1b2c3d4-...",
       "name": "Blog Posts",
       "slug": "blog-posts",
-      "edit": "2026-04-15T10:00:00Z",
-      "fields": [
-        { "id": "f1...", "name": "title",           "type": "text", "required": true,  "edit": "..." },
-        { "id": "f2...", "name": "body",             "type": "text", "required": true,  "edit": "..." },
-        { "id": "f3...", "name": "metaTitle",        "type": "text", "required": false, "edit": "..." },
-        { "id": "f4...", "name": "metaDescription",  "type": "text", "required": false, "edit": "..." }
+      "updatedAt": "2026-04-15T10:00:00Z",
+      "cards": [
+        { "id": "f1...", "name": "title",          "type": "text", "required": true  },
+        { "id": "f2...", "name": "body",            "type": "text", "required": true  },
+        { "id": "f3...", "name": "metaTitle",       "type": "text", "required": false },
+        { "id": "f4...", "name": "metaDescription", "type": "text", "required": false }
       ],
-      "containers": [
-        { "id": "seo-uuid-...", "name": "SEO", "edit": "..." }
+      "decks": [
+        { "id": "seo-uuid-...", "name": "SEO", "slug": "seo", "updatedAt": "..." }
       ]
     }
   ]
@@ -703,7 +709,7 @@ function ApiSchemaSection({ d }: { d: DocsDict }) {
 
       <div>
         <SubHeading>{s.endpointLabel}</SubHeading>
-        <DocsCodeBlock language="http" code={`GET /api/v1/schema\nAuthorization: Bearer <token>`} />
+        <DocsCodeBlock language="http" code={`GET /api/v1/table\nAuthorization: Bearer <token>`} />
         <p className="mt-1.5 text-xs text-muted">{s.anyTokenNote}</p>
       </div>
 
@@ -712,27 +718,31 @@ function ApiSchemaSection({ d }: { d: DocsDict }) {
         <DocsCodeBlock
           language="json"
           code={`{
-  "nodes": [
+  "decks": [
     {
       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "name": "Products",
       "slug": "products",
-      "fields": [
-        { "id": "f1e2d3c4-b5a6-7890-abcd-ef1234567890", "name": "title",    "type": "text",     "required": true },
-        { "id": "f2e3d4c5-b6a7-8901-bcde-f01234567891", "name": "price",    "type": "number",   "required": true },
-        { "id": "f3e4d5c6-b7a8-9012-cdef-012345678912", "name": "featured", "type": "boolean",  "required": false },
-        { "id": "f4e5d6c7-b8a9-0123-def0-123456789023", "name": "cover",    "type": "image",    "required": false },
-        { "id": "f5e6d7c8-b9a0-1234-ef01-234567890134", "name": "category", "type": "relation", "required": false, "relatesTo": "categories" }
-      ]
+      "updatedAt": "2026-04-15T10:00:00Z",
+      "cards": [
+        { "id": "f1e2d3c4-...", "name": "title",    "type": "text",     "required": true },
+        { "id": "f2e3d4c5-...", "name": "price",    "type": "number",   "required": true },
+        { "id": "f3e4d5c6-...", "name": "featured", "type": "boolean",  "required": false },
+        { "id": "f4e5d6c7-...", "name": "cover",    "type": "image",    "required": false },
+        { "id": "f5e6d7c8-...", "name": "category", "type": "relation", "required": false, "relatesTo": "categories" }
+      ],
+      "decks": []
     },
     {
       "id": "b2c3d4e5-f6a7-8901-bcde-f01234567891",
       "name": "Categories",
       "slug": "categories",
-      "fields": [
-        { "id": "f6e7d8c9-b0a1-2345-f012-345678901245", "name": "name",  "type": "text", "required": true },
-        { "id": "f7e8d9c0-b1a2-3456-0123-456789012356", "name": "color", "type": "text", "required": false }
-      ]
+      "updatedAt": "2026-04-15T09:00:00Z",
+      "cards": [
+        { "id": "f6e7d8c9-...", "name": "name",  "type": "text", "required": true },
+        { "id": "f7e8d9c0-...", "name": "color", "type": "text", "required": false }
+      ],
+      "decks": []
     }
   ]
 }`}
@@ -751,9 +761,103 @@ function ApiSchemaSection({ d }: { d: DocsDict }) {
         <SubHeading>{s.exampleLabel}</SubHeading>
         <DocsCodeBlock
           language="bash"
-          code={`curl -H "Authorization: Bearer <token>" \\\n  https://your-domain.com/api/v1/schema`}
+          code={`curl -H "Authorization: Bearer <token>" \\\n  https://your-domain.com/api/v1/table`}
         />
       </div>
+    </div>
+  )
+}
+
+// ── Section: Multi-Project (user-facing) ─────────────────────────────────────
+
+function MultiProjectSection({ d }: { d: DocsDict }) {
+  const s = d.multiProject
+  return (
+    <div className="space-y-4">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      <div>
+        <SubHeading>{s.tableTitle}</SubHeading>
+        <Prose>{s.tableDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.switchTitle}</SubHeading>
+        <Prose>{s.switchDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.newTableTitle}</SubHeading>
+        <Prose>{s.newTableDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.playersTitle}</SubHeading>
+        <Prose>{s.playersDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.languageTitle}</SubHeading>
+        <Prose>{s.languageDesc}</Prose>
+      </div>
+
+      <Note>{s.note}</Note>
+    </div>
+  )
+}
+
+// ── Section: Multi-Project (developer) ───────────────────────────────────────
+
+function MultiProjectDevSection({ d }: { d: DocsDict }) {
+  const s = d.multiProjectDev
+  return (
+    <div className="space-y-4">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      <div>
+        <SubHeading>{s.capsuleTitle}</SubHeading>
+        <Prose>{s.capsuleDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.sessionTitle}</SubHeading>
+        <Prose>{s.sessionDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.localeTitle}</SubHeading>
+        <Prose>{s.localeDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.superAdminTitle}</SubHeading>
+        <UL items={Object.values(s.superAdminItems)} />
+      </div>
+
+      <div>
+        <SubHeading>{s.regularAdminTitle}</SubHeading>
+        <UL items={Object.values(s.regularAdminItems)} />
+      </div>
+
+      <div>
+        <SubHeading>{s.apiKeysTitle}</SubHeading>
+        <Prose>{s.apiKeysDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.storageTitle}</SubHeading>
+        <Table
+          headers={s.storageHeaders as [string, string, string]}
+          rows={[
+            s.storageR2 as [string, string, string],
+            s.storageBlob as [string, string, string],
+          ]}
+        />
+      </div>
+
+      <Note>{s.setupNote}</Note>
     </div>
   )
 }
@@ -767,17 +871,46 @@ type SectionId =
   | 'content'
   | 'webMigration'
   | 'relationsGuide'
+  | 'multiProject'
   | 'nodesAndFieldsDev'
   | 'webMigrationDev'
+  | 'multiProjectDev'
   | 'media'
   | 'apiForDevs'
   | 'apiSchema'
   | 'relations'
 
+// ── Valid section IDs (for hash validation) ───────────────────────────────────
+
+const VALID_SECTION_IDS = new Set<string>([
+  'gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration',
+  'relationsGuide', 'multiProject', 'nodesAndFieldsDev', 'webMigrationDev',
+  'multiProjectDev', 'media', 'apiForDevs', 'apiSchema', 'relations',
+])
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function DocsPage({ d }: DocsPageProps) {
-  const [activeId, setActiveId] = useState<SectionId>('gettingStarted')
+  const [activeId, setActiveId]   = useState<SectionId>('gettingStarted')
+  const [resolving, setResolving] = useState(true)
+
+  useEffect(() => {
+    const hash = window.location.hash.slice(1)
+    if (VALID_SECTION_IDS.has(hash)) setActiveId(hash as SectionId)
+    setResolving(false)
+
+    function onHashChange() {
+      const h = window.location.hash.slice(1)
+      if (VALID_SECTION_IDS.has(h)) setActiveId(h as SectionId)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  function selectSection(id: SectionId) {
+    setActiveId(id)
+    history.replaceState(null, '', `#${id}`)
+  }
 
   function renderSection() {
     switch (activeId) {
@@ -787,8 +920,10 @@ export function DocsPage({ d }: DocsPageProps) {
       case 'content':         return <ContentSection d={d} />
       case 'webMigration':    return <WebMigrationSection d={d} />
       case 'relationsGuide':     return <RelationsGuideSection d={d} />
+      case 'multiProject':       return <MultiProjectSection d={d} />
       case 'nodesAndFieldsDev':  return <NodesAndFieldsDevSection d={d} />
       case 'webMigrationDev':    return <WebMigrationDevSection d={d} />
+      case 'multiProjectDev':    return <MultiProjectDevSection d={d} />
       case 'media':              return <MediaSection d={d} />
       case 'apiForDevs':      return <ApiForDevsSection d={d} />
       case 'apiSchema':       return <ApiSchemaSection d={d} />
@@ -801,16 +936,30 @@ export function DocsPage({ d }: DocsPageProps) {
       <DocsSidebar
         sections={d.sections}
         activeId={activeId}
-        onSelect={(id) => setActiveId(id as SectionId)}
+        onSelect={(id) => selectSection(id as SectionId)}
       />
 
       {/* Content area */}
       <main className="flex-1 overflow-y-auto bg-bg">
-        <VHSTransition duration="normal" trigger={activeId}>
-          <div className="mx-auto max-w-2xl px-6 pt-8 pb-28 md:pb-32">
-            {renderSection()}
+        {resolving ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative flex items-center justify-center">
+                <span className="absolute h-10 w-10 rounded-full bg-primary/10 blur-md" aria-hidden="true" />
+                <Spinner size="lg" color="primary" />
+              </div>
+              <span className="font-mono text-[11px] uppercase tracking-widest text-muted/50 animate-pulse select-none">
+                {d.title}
+              </span>
+            </div>
           </div>
-        </VHSTransition>
+        ) : (
+          <VHSTransition duration="normal" trigger={activeId}>
+            <div className="mx-auto max-w-2xl px-6 pt-8 pb-28 md:pb-32">
+              {renderSection()}
+            </div>
+          </VHSTransition>
+        )}
       </main>
     </div>
   )

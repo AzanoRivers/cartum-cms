@@ -21,12 +21,15 @@ import { useUIStore } from '@/lib/stores/uiStore'
 import { useToast } from '@/lib/hooks/useToast'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { Badge } from '@/components/ui/atoms/Badge'
+import { DocLink } from '@/components/ui/atoms/DocLink'
 import { t } from '@/lib/i18n/t'
+import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
 import type { Dictionary } from '@/locales/en'
 import type { ScraperServerStatus, ScrapeJobStatus } from '@/types/scraper'
 
 export type WebMigrationSectionProps = {
-  d: Dictionary['settings']['webMigration']
+  d:           Dictionary['settings']['webMigration']
+  loadingText: string
 }
 
 // ── Accordion helper (same pattern as StorageSection) ─────────────────────────
@@ -231,7 +234,7 @@ function ChalkProgressBar({ pct }: { pct: number }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function WebMigrationSection({ d }: WebMigrationSectionProps) {
+export function WebMigrationSection({ d, loadingText }: WebMigrationSectionProps) {
   // ── Accordion state ────────────────────────────────────────────────────────
   const [scraperOpen, setScraperOpen] = useState(true)
   const [configOpen,  setConfigOpen]  = useState(false)
@@ -339,9 +342,7 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
   // ── Loading skeleton ───────────────────────────────────────────────────────
   if (!loaded) {
     return (
-      <div className="flex h-32 items-center justify-center">
-        <span className="font-mono text-xs text-muted animate-pulse">Loading…</span>
-      </div>
+      <SectionLoader text={loadingText} />
     )
   }
 
@@ -791,6 +792,9 @@ export function WebMigrationSection({ d }: WebMigrationSectionProps) {
           </div>
         </div>
       </Accordion>
+
+      {/* ── Docs link ────────────────────────────────────────────────── */}
+      <DocLink href="/cms/docs#webMigration" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
     </div>
   )
 }

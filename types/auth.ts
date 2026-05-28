@@ -3,23 +3,32 @@ import type { DefaultSession } from 'next-auth'
 declare module 'next-auth' {
   interface Session {
     user: {
-      id: string
-      isSuperAdmin: boolean
-      roles: string[]
+      id:                   string
+      isSuperAdmin:         boolean
+      roles:                string[]
+      currentProjectId:     string | null
+      cartumSuscriptor:     boolean
+      cartumSuscriptorTime: number
     } & DefaultSession['user']
   }
 
   interface User {
-    isSuperAdmin: boolean
-    roles: string[]
+    isSuperAdmin:         boolean
+    roles:                string[]
+    currentProjectId?:    string | null
+    cartumSuscriptor?:    boolean
+    cartumSuscriptorTime?: number
   }
 }
 
 // JWT augmentation via next-auth token callback (no separate module needed in beta)
 
 export interface SessionUser {
-  id: string
-  email: string
-  isSuperAdmin: boolean
-  roles: string[]
+  id:                   string
+  email:                string
+  isSuperAdmin:         boolean
+  roles:                string[]
+  currentProjectId:     string | null
+  cartumSuscriptor:     boolean
+  cartumSuscriptorTime: number
 }

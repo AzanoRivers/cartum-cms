@@ -86,6 +86,7 @@ export async function createSuperAdmin(
 const ProjectSchema = z.object({
   name:        z.string().min(1).max(40).regex(/^[\w\s\-_]+$/, 'Name contains invalid characters.'),
   description: z.string().max(200).optional(),
+  locale:      z.enum(['en', 'es']).optional(),
 })
 
 export type CreateProjectInput = z.infer<typeof ProjectSchema>
@@ -98,8 +99,13 @@ export async function createProject(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
   }
 
-  const jar    = await cookies()
-  const locale = (jar.get(LOCALE_COOKIE)?.value ?? 'en') as SupportedLocale
+  // Prefer the locale passed explicitly from the client (read from cookie at render time).
+  // Fall back to re-reading the cookie here as a safety net for older callers.
+  let locale = parsed.data.locale as SupportedLocale | undefined
+  if (!locale) {
+    const jar = await cookies()
+    locale = (jar.get(LOCALE_COOKIE)?.value ?? 'en') as SupportedLocale
+  }
 
   try {
     await createProjectService({
@@ -115,7 +121,7 @@ export async function createProject(
 
 // ── Step 4: Save theme ────────────────────────────────────────────────────────
 
-const VALID_THEMES: ThemeId[] = ['dark', 'cyber-soft', 'light', 'dusk', 'matrix']
+const VALID_THEMES: ThemeId[] = ['dark', 'cyber-soft', 'light', 'dusk', 'matrix', 'cyber-human', 'stranger-things']
 
 export async function saveSetupTheme(
   input: { theme: ThemeId },

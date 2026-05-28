@@ -7,22 +7,25 @@ import {
   updateUserRole,
   removeUser,
   listRolesWithCount,
+  setUserSubscription,
   type UserWithRole,
 } from '@/lib/actions/settings.actions'
 import { ConfirmDialog } from '@/components/ui/molecules/ConfirmDialog'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { useToast } from '@/lib/hooks/useToast'
+import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
 import type { Dictionary } from '@/locales/en'
 
 export type UsersSectionProps = {
   currentUserId: string
-  isSuperAdmin: boolean
-  d: Dictionary['settings']['users']
+  isSuperAdmin:  boolean
+  d:             Dictionary['settings']['users']
+  loadingText:   string
 }
 
 type TempPasswordModal = { email: string; password: string; copied: boolean } | null
 
-export function UsersSection({ currentUserId, isSuperAdmin, d }: UsersSectionProps) {
+export function UsersSection({ currentUserId, isSuperAdmin, d, loadingText }: UsersSectionProps) {
   const [userList, setUserList]       = useState<UserWithRole[]>([])
   const [roleOptions, setRoleOptions] = useState<Array<{ id: string; name: string }>>([])
   const [loaded, setLoaded]           = useState(false)
@@ -35,6 +38,9 @@ export function UsersSection({ currentUserId, isSuperAdmin, d }: UsersSectionPro
   const [isInviting, startInvite]     = useTransition()
   const [updatingId, setUpdatingId]   = useState<string | null>(null)
   const [removingId, setRemovingId]   = useState<string | null>(null)
+  const [togglingSubId, setTogglingSubId] = useState<string | null>(null)
+
+  const TRIAL_SECONDS = 7 * 86_400
 
   const toast = useToast()
 
@@ -95,11 +101,22 @@ export function UsersSection({ currentUserId, isSuperAdmin, d }: UsersSectionPro
     }
   }
 
+  async function handleSubToggle(user: UserWithRole) {
+    const next = !user.cartumSuscriptor
+    setTogglingSubId(user.id)
+    const res = await setUserSubscription(user.id, next)
+    setTogglingSubId(null)
+    if (res.success) {
+      setUserList((prev) =>
+        prev.map((u) => u.id === user.id ? { ...u, cartumSuscriptor: next } : u),
+      )
+      toast.success(next ? d.subActivateSuccess : d.subRevokeSuccess)
+    }
+  }
+
   if (!loaded) {
     return (
-      <div className="flex h-32 items-center justify-center">
-        <span className="font-mono text-xs text-muted animate-pulse">Loading…</span>
-      </div>
+      <SectionLoader text={loadingText} />
     )
   }
 
@@ -178,6 +195,37 @@ export function UsersSection({ currentUserId, isSuperAdmin, d }: UsersSectionPro
                   <span className="font-mono text-xs text-muted">
                     {user.roleName ?? (user.isSuperAdmin ? 'super_admin' : '·')}
                   </span>
+                )}
+
+                {/* Subscription badge + toggle — non-superAdmin users only */}
+                {!user.isSuperAdmin && (() => {
+                  const daysLeft = user.cartumSuscriptor
+                    ? Math.max(0, Math.floor(
+                        (user.cartumSuscriptorTime + TRIAL_SECONDS - Date.now() / 1000) / 86_400,
+                      ))
+                    : 0
+                  const isActive = user.cartumSuscriptor && daysLeft > 0
+                  return (
+                    <span className={[
+                      'shrink-0 rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest',
+                      isActive
+                        ? 'border-warning/40 bg-warning/10 text-warning'
+                        : 'border-muted/20 bg-surface text-muted/50',
+                    ].join(' ')}>
+                      {isActive ? d.trialActive : d.trialExpired}
+                    </span>
+                  )
+                })()}
+                {isSuperAdmin && !isYou && !user.isSuperAdmin && (
+                  <button
+                    onClick={() => handleSubToggle(user)}
+                    disabled={togglingSubId === user.id}
+                    className="shrink-0 font-mono text-[10px] text-muted/60 hover:text-text transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {togglingSubId === user.id
+                      ? d.subToggling
+                      : user.cartumSuscriptor ? d.subToggleRevoke : d.subToggleActivate}
+                  </button>
                 )}
 
                 {/* Remove — super_admin only, not self */}

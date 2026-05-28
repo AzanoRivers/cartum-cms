@@ -58,11 +58,13 @@
       subtitle: 'Pick a visual style for your dashboard. You can change this anytime in Settings.',
       continue: 'Continue',
       themes: {
-        dark:       { label: 'Dark',       description: 'Deep cyberpunk. Max contrast.' },
-        cyberSoft:  { label: 'Cyber Soft', description: 'Deep blue-grey. Pro mode.' },
-        light:      { label: 'Light',      description: 'Slate white. Bright environments.' },
-        dusk:       { label: 'Metal',      description: 'Modern metallic blue. Elegant and cool.' },
-        matrix:     { label: 'Matrix',     description: 'Phosphor green. Classic terminal.' },
+        dark:       { label: 'Dark',        description: 'Night follows you across every project.' },
+        cyberSoft:  { label: 'Cyber Soft',  description: 'Standard modern dark environment.' },
+        light:      { label: 'Light',       description: 'Slate white. Bright environments.' },
+        dusk:       { label: 'Metal',       description: 'Modern metallic blue. Elegant and cool.' },
+        matrix:     { label: 'Matrix',      description: "A classic. Neo would be proud. Or would he?" },
+        cyberHuman:     { label: 'Cyber Human',      description: 'Human evolution has no limits. Expand your mind.' },
+        strangerThings: { label: 'Stranger Things',  description: 'Upside Down. Orange gate & acid green.' },
       },
     },
     initializing: {
@@ -94,7 +96,9 @@
       submit:         'Sign in',
       submitting:     'Signing in...',
       error:          'Invalid email or password.',
-      forgotPassword: 'Forgot password?',
+      forgotPassword:  'Forgot password?',
+      noAccount:       "Don't have an account?",
+      createAccount:   'Create one',
       captchaLabel:   'Verify the sum',
       captchaPlaceholder: '?',
       captchaError:   'Incorrect answer. Try again.',
@@ -134,6 +138,65 @@
       account:           'Account',
       logOut:            'Log out',
       userMenuAriaLabel: 'User menu',
+      freeTier:          'Free Tier',
+      trialDaysLeft:     '{n}d left',
+      trialTooltip:      'CartumCMS subscription time',
+    },
+    projectSelector: {
+      newProject:  'New project',
+      ariaLabel:   'Select project',
+    },
+    newProjectModal: {
+      title:                  'New project',
+      nameLabel:              'Project name',
+      namePlaceholder:        'My project',
+      descriptionLabel:       'Description (optional)',
+      descriptionPlaceholder: 'What is this project about?',
+      localeLabel:            'Language',
+      localeEn:               'English',
+      localeEs:               'Spanish',
+      cancel:                 'Cancel',
+      create:                 'Create →',
+      creating:               'Creating…',
+    },
+    player: {
+      welcome:             'Welcome to the Poker table of CMS platforms. Fill in the details below to create your account and claim your seat at the table.',
+      langSelect:          'Language',
+      createAccountTab:    'Create your Account',
+      stepCredentials:     'Your credentials',
+      stepProject:         'Your project',
+      stepTheme:           'Your theme',
+      emailLabel:          'Email',
+      emailPlaceholder:    'you@example.com',
+      passwordLabel:       'Password',
+      passwordPlaceholder: 'At least 8 characters',
+      generatePassword:    'Generate',
+      copyPassword:        'Copy',
+      copiedPassword:      'Copied!',
+      projectLabel:           'Project name',
+      projectPlaceholder:     'My project',
+      descriptionLabel:       'Description (optional)',
+      descriptionPlaceholder: 'A short description of your project',
+      projectLocaleLabel:     'Project language',
+      themeLabel:             'Interface theme',
+      themes: {
+        dark:           'Dark',
+        'cyber-soft':   'Cyber Soft',
+        light:          'Light',
+        dusk:           'Dusk',
+        matrix:         'Matrix',
+        'cyber-human':      'Cyber Human',
+        'stranger-things':  'Stranger Things',
+      },
+      next:                'Next →',
+      submit:              'Get started →',
+      submitting:          'Creating account…',
+      back:                '← Back',
+      showPassword:        'Show',
+      hidePassword:        'Hide',
+      alreadyHaveAccount:  'Already have an account?',
+      signIn:              'Sign in',
+      disabled:            'Registration is currently closed.',
     },
     dock: {
       settings:      'Settings',
@@ -149,6 +212,7 @@
       title:              'Help',
       shortcutsTitle:     'Keyboard Shortcuts',
       gesturesTitle:      'Touch Gestures',
+      boardTitle:         'Board Interactions',
       close:              'Close',
       categoryNav:        'Navigation',
       categoryPanels:     'Panels',
@@ -168,6 +232,14 @@
         pinch:       { icon: '⟺',  description: 'Two-finger pinch: zoom in or out' },
         panCanvas:   { icon: '↕',  description: 'Drag on empty space: pan the canvas' },
       },
+      board: {
+        pan:       { icon: '↔',  description: 'Left-drag on empty space: pan the canvas' },
+        marquee:   { icon: '▭',  description: 'Right-drag on empty space: area selection' },
+        multiAdd:  { icon: '⊕',  description: 'Ctrl + click: add a deck or card to the selection' },
+        multiMove: { icon: '⤢',  description: 'Drag any selected item: move the whole group' },
+        multiDel:  { icon: '⌦',  description: 'Right-click a selected item: open delete menu' },
+        multiEsc:  { icon: '⎋',  description: 'Esc: clear the current selection' },
+      },
       docsButton: 'Documentation',
     },
     docs: {
@@ -183,10 +255,12 @@
         relationsGuide: 'Relations',
         media:          'Media & Storage',
         apiForDevs:     'API for Developers',
-        apiSchema:      'API: Schema Discovery',
+        apiSchema:      'API: Table Discovery',
         relations:          'Node Relations',
         nodesAndFieldsDev:  'Nodes & Fields',
         webMigrationDev:    'Web Migration',
+        multiProject:       'Multi-Project',
+        multiProjectDev:    'Multi-Project',
       },
       gettingStarted: {
         title:         'Getting Started',
@@ -377,88 +451,93 @@
         vpsTtlNote:    'Token lifetime (default 2 h) is configured on the VPS at app/core/security.py → _SESSION_TTL.',
         storageTitle:       'Storage Providers',
         storageIntro:       'Cartum supports two storage providers: Cloudflare R2 and Vercel Blob. Configure them at Settings → Storage.',
-        storageR2:          'Cloudflare R2: the browser uploads directly to R2 via a presigned URL — bytes never pass through Vercel.',
-        storageBlob:        'Vercel Blob: uploads go through a Server Action on Vercel. Simpler to set up — no Cloudflare account needed.',
+        storageR2:          'Cloudflare R2: the browser uploads directly to R2 via a presigned URL, bytes never pass through Vercel.',
+        storageBlob:        'Vercel Blob: uploads go through a Server Action on Vercel. Simpler to set up, no Cloudflare account needed.',
         storageSwitchTitle: 'Switching providers',
-        storageSwitch:      'Go to Settings → Storage. If both providers are configured, a selector appears at the top. The active provider applies to new uploads only — existing files are not migrated.',
+        storageSwitch:      'Go to Settings → Storage. If both providers are configured, a selector appears at the top. The active provider applies to new uploads only, existing files are not migrated.',
         storageBackcompat:  'Files already uploaded keep their original provider regardless of the active setting. Existing URLs always work.',
         storageVideoLimitsTitle: 'Video limits by provider',
         storageVideoLimitsBlob:  'Vercel Blob without VPS: 50 MB per video (fixed Vercel Server Action limit). The upload is rejected before entering the queue if the file exceeds this limit.',
-        storageVideoLimitsR2:    'Cloudflare R2 or Blob with VPS: up to 500 MB. The VPS optimizer compresses the video before storage — the 50 MB limit does not apply.',
+        storageVideoLimitsR2:    'Cloudflare R2 or Blob with VPS: up to 500 MB. The VPS optimizer compresses the video before storage, the 50 MB limit does not apply.',
       },
       apiForDevs: {
         title:        'API for Developers',
-        intro:        'The public API exposes record data and the node schema. Board canvas positions are internal-only.',
+        intro:        'The public API exposes record data and deck schemas. Board canvas positions are internal-only.',
         tokenTitle:   'Create an API Token',
         tokenStep1:   'Go to Settings → API Tokens.',
         tokenStep2:   'Enter a descriptive name (e.g. Frontend App).',
-        tokenStep3:   'Select a Role (defines per-node permissions).',
-        tokenStep4:   'Optionally set an expiration date.',
-        tokenStep5:   'Copy the token. It is shown only once.',
+        tokenStep3:   'Select a Role (defines per-deck permissions).',
+        tokenStep4:   'Choose the scope: read, write, update, and/or delete.',
+        tokenStep5:   'Optionally exclude specific decks from this token.',
+        tokenStep6:   'Copy the token. It is shown only once.',
         authTitle:    'Authentication',
         authNote:     'All endpoints require this header. Without it: 401 UNAUTHORIZED.',
         baseUrlTitle: 'Base URL',
-        nodeNameTitle:'What is {nodeName}?',
-        nodeNameDesc: 'The slug of a container node you created in the board. There are no predefined models. You define the structure.',
+        deckSlugTitle:'What is {deckSlug}?',
+        deckSlugDesc: 'The slug of a deck you created on the board. There are no predefined models: you define the structure. The slug is derived from the deck name (e.g. "Blog Posts" into "blog-posts").',
+        scopeTitle:   'Token scope',
+        scopeDesc:    'Each token carries a set of allowed actions. The required scope per endpoint is shown in the Permission column.',
         endpointsTitle: 'Available endpoints',
         endpoints: {
-          schema:      'List all nodes and their fields',
-          getNode:     'Get node metadata by UUID',
-          getField:    'Get field metadata by UUID',
-          listRecords: 'List records (paginated)',
-          getRecord:   'Get a single record by UUID',
-          createRecord:'Create a new record',
-          putRecord:   'Replace all fields of a record',
-          patchRecord: 'Partially update a record (merge)',
-          deleteRecord:'Delete a record',
+          schema:        'List all decks with their cards (fields) and nested decks',
+          getSchemaDeck: 'Get the schema for a single deck by UUID',
+          getDeck:       'Get deck metadata by UUID',
+          getCard:       'Get card (field) metadata by UUID',
+          listRecords:   'List records in a deck (paginated)',
+          getRecord:     'Get a single record by UUID',
+          createRecord:  'Add a new record to a deck',
+          putRecord:     'Replace all fields of a record',
+          patchRecord:   'Partially update a record (merge)',
+          deleteRecord:  'Delete a record',
         },
         endpointPermissions: {
           anyToken: 'any valid token',
           read:     'read',
-          create:   'create',
+          write:    'write',
           update:   'update',
           delete:   'delete',
         },
         putVsPatchNote:   'PUT replaces the entire data object. PATCH merges with existing data. Omitted fields are preserved.',
-        canvasNote:       'Node positions in the board canvas are not exposed. They are internal CMS configuration.',
+        canvasNote:       'Deck positions on the board canvas are not exposed. They are internal CMS configuration.',
         queryParamsTitle: 'Query parameters (GET list)',
         params: {
-          page:    { name: 'page',    type: 'number',   default: '1',            desc: 'Current page' },
-          limit:   { name: 'limit',   type: 'number',   default: '20 (max 100)', desc: 'Items per page' },
-          sort:    { name: 'sort',    type: 'string',   default: 'created_at',   desc: 'Field to sort by' },
-          order:   { name: 'order',   type: 'asc|desc', default: 'desc',         desc: 'Sort direction' },
-          include: { name: 'include', type: 'string',   default: 'none',          desc: 'Relation fields to expand (e.g. author,category). UUID replaced by full record.' },
+          page:    { name: 'page',              type: 'number',   default: '1',            desc: 'Current page' },
+          limit:   { name: 'limit',             type: 'number',   default: '20 (max 100)', desc: 'Items per page' },
+          sort:    { name: 'sort',              type: 'string',   default: 'created_at',   desc: 'Field to sort by' },
+          order:   { name: 'order',             type: 'asc|desc', default: 'desc',         desc: 'Sort direction' },
+          filter:  { name: 'filter[fieldName]', type: 'string',   default: '—',            desc: 'Filter by exact field value (e.g. filter[featured]=true). Multiple filters are ANDed.' },
+          include: { name: 'include',           type: 'string',   default: '—',            desc: 'Comma-separated relation fields to expand (e.g. author,category). UUID replaced by the full linked record.' },
         },
         responseListTitle:   'Successful response: list',
         responseRecordTitle: 'Successful response: single record',
         includeTitle:        'Relation expansion (include)',
-        includeDesc:         'Relation fields store the related record UUID. With ?include=field the UUID is replaced by the full record (one level deep).',
+        includeDesc:         'Relation cards store the linked record UUID. With ?include=fieldName the UUID is replaced by the full linked record (one level deep).',
         errorsTitle:         'Error codes',
         errors: {
           badRequest:   { code: '400', name: 'BAD_REQUEST',      desc: 'Invalid JSON in request body' },
           unauthorized: { code: '401', name: 'UNAUTHORIZED',     desc: 'Missing, invalid, revoked, or expired token' },
-          forbidden:    { code: '403', name: 'FORBIDDEN',        desc: 'Token role lacks permission for this node/action' },
-          notFound:     { code: '404', name: 'NOT_FOUND',        desc: 'Node slug or record UUID not found' },
-          validation:   { code: '422', name: 'VALIDATION_ERROR', desc: 'Invalid data (required field, out of range, etc.)' },
-          noContent:    { code: '204', name: 'n/a',               desc: 'DELETE successful (no response body)' },
+          forbidden:    { code: '403', name: 'FORBIDDEN',        desc: 'Token scope does not allow this action, or the deck is excluded by token policy' },
+          notFound:     { code: '404', name: 'NOT_FOUND',        desc: 'Deck slug or record UUID not found' },
+          validation:   { code: '422', name: 'VALIDATION_ERROR', desc: 'Invalid data (required card, out of range, etc.)' },
+          noContent:    { code: '204', name: 'n/a',              desc: 'DELETE successful (no response body)' },
         },
         examplesTitle: 'cURL examples',
-        examplesNote:  'Assumes a node called `products` with fields name (text), price (number), featured (boolean).',
+        examplesNote:  'Examples use a deck called "products" with cards: name (text), price (number), featured (boolean).',
       },
       apiSchema: {
-        title:            'API: Schema Discovery',
-        intro:            'Before consuming data, discover which nodes exist and what fields they have, without opening the CMS.',
+        title:            'API: Table Discovery',
+        intro:            'Before consuming data, discover which decks are on the table and what cards (fields) they contain, without opening the CMS.',
         endpointLabel:    'Endpoint',
-        anyTokenNote:     'Any valid token can access this. No per-node permission required.',
+        anyTokenNote:     'Any valid token can access this endpoint. No scope or per-deck permission required.',
         responseTitle:    'Response',
-        fieldsTableTitle: 'Fields in each field object',
+        fieldsTableTitle: 'Fields in each card object',
         fields: {
-          id:           { name: 'id',           type: 'string',  desc: 'Field UUID' },
-          name:         { name: 'name',        type: 'string',  desc: 'Field name' },
+          id:           { name: 'id',           type: 'string',  desc: 'Card UUID' },
+          name:         { name: 'name',         type: 'string',  desc: 'Card name' },
           type:         { name: 'type',         type: 'string',  desc: 'Type: text, number, boolean, image, video, gallery, relation' },
-          required:     { name: 'required',     type: 'boolean', desc: 'Whether the field is required when creating/updating' },
+          required:     { name: 'required',     type: 'boolean', desc: 'Whether the card is required when creating/updating a record' },
           defaultValue: { name: 'defaultValue', type: 'string',  desc: '(optional) Configured default value' },
-          relatesTo:    { name: 'relatesTo',    type: 'string',  desc: '(relation fields only) Slug of the related node' },
+          relatesTo:    { name: 'relatesTo',    type: 'string',  desc: '(relation cards only) Slug of the linked deck' },
         },
         exampleLabel: 'cURL example',
       },
@@ -490,20 +569,69 @@
         antiCycleDesc:  'The resolver tracks visited nodes per request. Circular relations (A↔B↔A) resolve safely without infinite loops.',
         consumingTitle: 'How to consume',
         consumingSteps: {
-          step1: 'Call GET /api/v1/schema to get all root nodes with their merged fields and container references.',
-          step2: 'Use the fields array directly - it already contains everything the node inherits.',
-          step3: 'For each item in containers, call GET /api/v1/schema/{id} to get its merged fields separately.',
-          step4: 'Never expect nested content inside containers - they are always shallow references.',
+          step1: 'Call GET /api/v1/table to get all root decks with their merged cards and nested deck references.',
+          step2: 'Use the cards array directly — it already contains everything the deck inherits.',
+          step3: 'For each item in decks, call GET /api/v1/table/{deckId} to get its merged cards separately.',
+          step4: 'Never expect nested content inside decks — they are always shallow references.',
         },
         exampleTitle: 'Response example',
         exampleNote:  'Blog Posts has a 1:1 relation with SEO node. The fields from SEO appear flat inside Blog Posts.',
       },
+      multiProject: {
+        title:        'Multi-Project',
+        intro:        'In Cartum, each project is a separate poker table. Same hall, different game. Everything that lives on a table (decks, cards, links, settings, API tokens) belongs exclusively to that table and has no contact with the others.',
+        tableTitle:   'What is a project?',
+        tableDesc:    'A project is an independent table. It has its own decks, its own cards and its own players. Nothing crosses between tables: what happens at one table stays at that table. You can run as many tables at the same time as you need, and each one works completely on its own.',
+        switchTitle:  'Switching tables',
+        switchDesc:   'The project selector at the top of the CMS shows which table you are currently playing at. Click it to see all your tables and switch to a different one. The entire board (decks, cards, settings and API tokens) changes instantly to the one you selected.',
+        newTableTitle: 'Opening a new table',
+        newTableDesc:  'Click "New project" in the selector. Give the table a name, an optional description, and choose the language the CMS should use for that table. The new table opens with a clean board, ready to play.',
+        playersTitle: 'Players (users)',
+        playersDesc:  'Every table has its own players. Players are the users who can see and edit content on that table. The person who set up Cartum is the super admin, who can sit at any table, create new tables, and manage everything. Regular players are invited to specific tables and can only see and do what they are allowed within those tables.',
+        languageTitle: 'Table language',
+        languageDesc:  'Each table has its own language setting. When you switch to a table, the entire CMS (menus, labels, help texts) shows in that table\'s language. You can change it at any time in that table\'s settings.',
+        note:          'Content and settings are private to each table. Opening a new table always starts clean: no decks, no cards, no links to other tables.',
+      },
+      multiProjectDev: {
+        title: 'Multi-Project: Technical Details',
+        intro: 'Each project is a fully isolated capsule in the database. Nodes, field metadata, records, role permissions and media assets all belong to a single project. Users and global infra (app settings, env-level API keys) are shared across all projects.',
+        capsuleTitle: 'Capsule architecture',
+        capsuleDesc:  'One `project` row per project, linked to its own `nodes`, `field_meta`, `records`, `role_permissions`, `media` and `project_memberships`. Cross-project queries are blocked at the service layer, every query filters by `projectId`.',
+        sessionTitle: 'Session context',
+        sessionDesc:  '`currentProjectId` is stored in the Auth.js JWT. Every Server Action and service call reads it from the session to scope DB queries. Switching projects calls `switchProject(id)`, which validates membership, updates `currentProjectId` in the session and redirects to `/cms/board`.',
+        localeTitle: 'Project locale',
+        localeDesc:  'Each project has a `defaultLocale` (en | es). The `getCurrentLocale()` helper reads `currentProjectId` from the session and returns the active project\'s locale. All page routes use this helper for `generateMetadata` and dictionary selection. Switching projects changes the entire CMS language on the next navigation.',
+        superAdminTitle: 'Super admin',
+        superAdminItems: {
+          one:    'Exactly one per system, `isSuperAdmin: true` on the `users` row.',
+          apiKey: 'Can view raw API key values in Settings. All other roles see masked values only.',
+          blob:   'Can configure Vercel Blob storage. Regular admins have access to Cloudflare R2 only.',
+          access: 'Has access to all projects regardless of `projectMemberships` rows.',
+          delete: 'Cannot be deleted, a Postgres trigger blocks DELETE on the `users` table.',
+        },
+        regularAdminTitle: 'Regular admins (new players)',
+        regularAdminItems: {
+          role:    'Users registered via `/cartum-player` receive the `admin` role automatically.',
+          storage: 'Can configure Cloudflare R2 only. The Vercel Blob option is hidden in Settings.',
+          apiKey:  'See API keys masked. Can rotate (edit) or revoke tokens they have permission for, but cannot view raw values.',
+          scope:   'Scoped to the projects they are members of. No cross-project access.',
+        },
+        apiKeysTitle: 'API key visibility',
+        apiKeysDesc:  'Token values are shown in full once at creation time. In the token list, raw values are visible only to the super admin. All other roles see a masked representation. Any user with the right permission can rotate or revoke a token.',
+        storageTitle: 'Storage access by role',
+        storageHeaders: ['Provider', 'Super admin', 'Regular admin'],
+        storageR2:    ['Cloudflare R2', '✓ Configure + use', '✓ Configure + use'],
+        storageBlob:  ['Vercel Blob', '✓ Configure + use', '✗ Not available'],
+        setupNote:    'The super admin\'s project membership is injected at setup time via `initializeSchemaService()` and kept in sync via a JWT fallback in `auth.ts`. No manual DB work is needed.',
+      },
     },
     canvas: {
-      ariaLabel: 'Deck board',
-      loading:   'Loading board…',
-      empty:     'No decks yet.',
-      emptyHint: 'Use + to create your first deck.',
+      ariaLabel:           'Deck board',
+      loading:             'Loading board…',
+      empty:               'No decks yet.',
+      emptyHint:           'Use + to create your first deck.',
+      multiSelected:       'selected',
+      multiSelectedHint:   'drag to move · right-click to delete · Esc to clear',
     },
     nodeCard: {
       fields:      'attributes',
@@ -889,45 +1017,66 @@
   },
   settings: {
     nav: {
-      account:      'Account',
-      appearance:   'Appearance',
-      project:      'Project',
-      subscription: 'Subscription',
-      storage:      'Storage',
-      email:      'Sending',
-      api:        'API Tokens',
-      users:      'Users',
-      roles:      'Roles',
-      info:         'Info',
-      db:           'Database',
-      webMigration: 'Web Migration',
+      account:         'Account',
+      appearance:      'Appearance',
+      project:         'Projects',
+      subscription:    'Subscription',
+      storage:         'Storage',
+      email:           'Sending',
+      api:             'API Tokens',
+      members:         'Members',
+      users:           'Users',
+      roles:           'Roles',
+      info:            'Info',
+      db:              'Database',
+      webMigration:    'Web Migration',
+      cartumProjects:  'Cartum Projects',
     },
     panelTitle: 'SETTINGS',
+    loading:    'Loading…',
     appearance: {
       title:      'Appearance',
       themeLabel: 'Color theme',
       saved:      'Theme saved.',
       saveError:  'Could not save theme.',
       themes: {
-        dark:      { label: 'Dark',       description: 'Deep cyberpunk. Max contrast.' },
-        cyberSoft: { label: 'Cyber Soft', description: 'Deep blue-grey. Pro mode.' },
-        light:     { label: 'Light',      description: 'Slate white. Bright environments.' },
-        dusk:      { label: 'Metal',      description: 'Modern metallic blue. Elegant and cool.' },
-        matrix:    { label: 'Matrix',     description: 'Phosphor green. Classic terminal.' },
+        dark:       { label: 'Dark',         description: 'Night follows you across every project.' },
+        cyberSoft:  { label: 'Cyber Soft',   description: 'Standard modern dark environment.' },
+        light:      { label: 'Light',        description: 'Slate white. Bright environments.' },
+        dusk:       { label: 'Metal',        description: 'Modern metallic blue. Elegant and cool.' },
+        matrix:     { label: 'Matrix',       description: "A classic. Neo would be proud. Or would he?" },
+        cyberHuman:     { label: 'Cyber Human',      description: 'Human evolution has no limits. Expand your mind.' },
+        strangerThings: { label: 'Stranger Things',  description: 'Upside Down. Orange gate & acid green.' },
       },
     },
     project: {
-      title:         'Project',
-      projectName:   'Project name',
-      description:   'Description',
+      title:                  'Projects',
+      projectName:            'Project name',
+      description:            'Description',
       descriptionPlaceholder: 'Short description of this project (optional)',
-      defaultLocale: 'Default locale',
-      localeEn:      'English',
-      localeEs:      'Spanish',
-      save:          'Save changes',
-      saving:        'Saving...',
-      saved:         'Project settings saved.',
-      error:         'Could not save project settings.',
+      defaultLocale:          'Default locale',
+      localeEn:               'English',
+      localeEs:               'Spanish',
+      save:                   'Save changes',
+      saving:                 'Saving...',
+      saved:                  'Project settings saved.',
+      error:                  'Could not save project settings.',
+      selectProject:          'Select project',
+      noProjects:             'No projects found.',
+      dangerZone:             'Danger zone',
+      deleteProject:          'Delete project',
+      deleting:               'Deleting...',
+      deleteSuccess:          'Project deleted.',
+      deleteError:            'Could not delete project.',
+      singleProjectWarning:   'You cannot delete your only project.',
+      confirmDialog: {
+        title:         'Delete project',
+        message:       'This will permanently delete all data associated with this project. This action cannot be undone.',
+        inputLabel:    'Type DELETE PROJECT to confirm',
+        confirmPhrase: 'DELETE PROJECT',
+        confirm:       'Delete project',
+        cancel:        'Cancel',
+      },
     },
     storage: {
       title:                   'Storage',
@@ -972,6 +1121,8 @@
       testBlob:                'Test Blob connection',
       testBlobOk:              'Blob connected.',
       testBlobFail:            'Could not connect to Blob.',
+      docsLinkLabel:           'Storage documentation',
+      docsLinkDesc:            'Learn how to configure Cloudflare R2, Vercel Blob, and the VPS media optimizer.',
     },
     email: {
       title:               'Email',
@@ -992,7 +1143,6 @@
     api: {
       title:           'API Tokens',
       tokenName:       'Name',
-      roleCol:         'Role',
       lastUsed:        'Last used',
       expiresCol:      'Expires',
       never:           'Never',
@@ -1000,9 +1150,9 @@
       revoking:        'Revoking...',
       revokeSuccess:   'Token revoked.',
       newTokenTitle:   'New token',
+      nameLabel:       'Token name',
       namePlaceholder: 'e.g. Frontend App',
-      expiresLabel:    'Expiry date (optional)',
-      roleLabel:       'Role',
+      expiresLabel:    'Expiry date',
       createButton:    'Create token',
       creating:        'Creating...',
       createSuccess:   'Token created.',
@@ -1013,6 +1163,23 @@
       confirmCopied:   'I have copied this token',
       close:           'Close',
       empty:           'No active tokens.',
+      scopeLabel:      'Permissions',
+      scopeRead:       'Read',
+      scopeWrite:      'Write (create)',
+      scopeUpdate:     'Update',
+      scopeDelete:     'Delete',
+      scopeCol:        'Scope',
+      exclusionsLabel: 'Deck exclusions',
+      addExclusion:    'Add exclusion',
+      exclusionsHint:  'Excluded decks and their cards are not accessible by this token.',
+      searchDecks:     'Search decks...',
+      noDecksFound:    'No decks found.',
+      removeExclusion: 'Remove',
+      exclusionModalTitle: 'Select the deck(s) to exclude',
+      exclusionModalClose: 'Cancel',
+      exclusionConfirm:    'Exclude',
+      docsLinkLabel: 'API documentation',
+      docsLinkDesc:  'Learn how to authenticate requests, configure scopes, and consume the REST endpoints.',
     },
     users: {
       title:              'Users',
@@ -1035,6 +1202,13 @@
       close:              'Close',
       empty:              'No other users yet.',
       youLabel:           '(you)',
+      trialActive:        'Trial active',
+      trialExpired:       'Trial expired',
+      subToggleRevoke:    'Revoke',
+      subToggleActivate:  'Activate',
+      subToggling:        '...',
+      subRevokeSuccess:   'Subscription revoked.',
+      subActivateSuccess: 'Subscription activated.',
     },
     roles: {
       title:                 'Roles',
@@ -1136,7 +1310,7 @@
       show:                 'Show',
       hide:                 'Hide',
       serverAvailable:      'Server available ({active}/{max} active jobs)',
-      serverBusy:           'Server busy — try again in a few minutes',
+      serverBusy:           'Server busy, try again in a few minutes',
       serverNotConfigured:  'Server not configured',
       connectionOk:         'Connection OK ({latencyMs}ms)',
       connectionFail:       'Connection failed',
@@ -1266,6 +1440,8 @@
         'Almost there. The Dealer is finishing the shuffle. Your Cartas are nearly ready.',
         'This is fine. The data is incoming. Everything is absolutely fine.',
       ],
+      docsLinkLabel: 'Web Migration documentation',
+      docsLinkDesc:  'Learn how to scrape a website and import its content into Cartum as decks and cards.',
       importMessages: [
         'Creating your Mazos and Cartas. The board is being assembled.',
         'Structuring sections and attributes. Almost feels like magic.',
@@ -1330,6 +1506,21 @@
         purgedSummary: 'Files purged: {deleted}. Errors: {failed}.',
         purgeFailWarn: '{failed} file(s) could not be deleted from storage and may remain as orphans.',
       },
+      resetProjectTitle:  'Reset project',
+      resetProjectDesc:   'Delete all content in the current project (nodes, records, media). Users, roles and settings are kept.',
+      resetProjectButton: 'Reset project',
+      resetProjectDialog: {
+        title:         'Reset project?',
+        desc:          'This will permanently erase all nodes, records and media in this project. Users and settings will not be affected.',
+        storageNote:   'All media files stored in Cloudflare R2 and Vercel Blob for this project will also be deleted.',
+        placeholder:   'Type to confirm',
+        confirmPhrase: 'RESET PROJECT',
+        cancel:        'Cancel',
+        confirm:       'Yes, reset project',
+        confirming:    'Resetting...',
+        purgedSummary: 'Files purged: {deleted}. Errors: {failed}.',
+        purgeFailWarn: '{failed} file(s) could not be deleted from storage.',
+      },
       dangerTitle:        'Danger zone',
       dangerDesc:         'Permanently delete all CMS data, users and settings. This cannot be undone.',
       dangerButton:       'Delete all data',
@@ -1348,8 +1539,33 @@
     },
     subscription: {
       title:       'Subscription',
-      description: 'Here you will manage your Cartum CMS subscription. AzanoLabs is currently supported solely by AzanoRivers and it\'s a tremendous effort — your support is an incredible play!',
+      description: 'Here you will manage your Cartum CMS subscription. AzanoLabs is currently supported solely by AzanoRivers and it\'s a tremendous effort. Your support is an incredible play!',
       comingSoon:  'Coming soon',
+    },
+    cartumProjects: {
+      title:          'Cartum Projects',
+      subtitle:       'All projects registered in this Cartum instance. Only super admins can see this section.',
+      ownerLabel:              'Owner',
+      roleSuperAdmin:          'Super Admin',
+      createdLabel:            'Created',
+      noProjects:              'No projects found.',
+      cannotDeleteSuperAdmin:  'Super admin projects cannot be deleted from this screen.',
+      deleteButton:            'Delete',
+      deleting:                'Deleting...',
+      deleteSuccess:           'Project deleted.',
+      deleteError:             'Could not delete project.',
+      docsLinkLabel: 'Multi-project documentation',
+      docsLinkDesc:  'Learn how multiple Cartum projects coexist in the same instance and how to manage them.',
+      confirmDialog: {
+        title:         'Delete project "{name}"?',
+        desc:          'This will permanently delete the project, all its content (decks, cards, records, media files) and all non-super-admin users who belong exclusively to this project.',
+        superAdminNote: 'Super admin accounts will NOT be deleted.',
+        placeholder:   'Type to confirm',
+        confirmPhrase: 'DELETE PROJECT',
+        cancel:        'Cancel',
+        confirm:       'Yes, delete project',
+        confirming:    'Deleting...',
+      },
     },
   },
   email: {
@@ -1414,11 +1630,13 @@ export type Dictionary = {
     theme: {
       title: string; subtitle: string; continue: string
       themes: {
-        dark:      { label: string; description: string }
-        cyberSoft: { label: string; description: string }
-        light:     { label: string; description: string }
-        dusk:      { label: string; description: string }
-        matrix:    { label: string; description: string }
+        dark:       { label: string; description: string }
+        cyberSoft:  { label: string; description: string }
+        light:      { label: string; description: string }
+        dusk:       { label: string; description: string }
+        matrix:     { label: string; description: string }
+        cyberHuman:     { label: string; description: string }
+        strangerThings: { label: string; description: string }
       }
     }
     initializing: {
@@ -1435,7 +1653,7 @@ export type Dictionary = {
     login: {
       title: string; email: string; password: string
       show: string; hide: string; submit: string; submitting: string
-      error: string; forgotPassword: string
+      error: string; forgotPassword: string; noAccount: string; createAccount: string
       captchaLabel: string; captchaPlaceholder: string; captchaError: string
       loginSuccess: string; accountDisabled: string
       emailRequired: string; passwordRequired: string
@@ -1454,10 +1672,32 @@ export type Dictionary = {
     }
   }
   cms: {
-    topBar: { account: string; logOut: string; userMenuAriaLabel: string }
+    topBar: { account: string; logOut: string; userMenuAriaLabel: string; freeTier: string; trialDaysLeft: string; trialTooltip: string }
+    projectSelector: { newProject: string; ariaLabel: string }
+    newProjectModal: {
+      title: string; nameLabel: string; namePlaceholder: string
+      descriptionLabel: string; descriptionPlaceholder: string
+      localeLabel: string; localeEn: string; localeEs: string
+      cancel: string; create: string; creating: string
+    }
+    player: {
+      welcome: string; langSelect: string
+      createAccountTab: string; stepCredentials: string; stepProject: string; stepTheme: string
+      emailLabel: string; emailPlaceholder: string
+      passwordLabel: string; passwordPlaceholder: string
+      generatePassword: string; copyPassword: string; copiedPassword: string
+      projectLabel: string; projectPlaceholder: string
+      descriptionLabel: string; descriptionPlaceholder: string
+      projectLocaleLabel: string
+      themeLabel: string
+      themes: { dark: string; 'cyber-soft': string; light: string; dusk: string; matrix: string; 'cyber-human': string; 'stranger-things': string }
+      next: string; submit: string; submitting: string; back: string
+      showPassword: string; hidePassword: string
+      alreadyHaveAccount: string; signIn: string; disabled: string
+    }
     dock:   { settings: string; home: string; content: string; create: string; backToBuilder: string; help: string; collapse: string; expand: string }
     help: {
-      title: string; shortcutsTitle: string; gesturesTitle: string; close: string
+      title: string; shortcutsTitle: string; gesturesTitle: string; boardTitle: string; close: string
       categoryNav: string; categoryPanels: string; categoryGestures: string
       shortcuts: {
         goHome:       { keys: string; description: string }
@@ -1474,6 +1714,14 @@ export type Dictionary = {
         pinch:      { icon: string; description: string }
         panCanvas:  { icon: string; description: string }
       }
+      board: {
+        pan:       { icon: string; description: string }
+        marquee:   { icon: string; description: string }
+        multiAdd:  { icon: string; description: string }
+        multiMove: { icon: string; description: string }
+        multiDel:  { icon: string; description: string }
+        multiEsc:  { icon: string; description: string }
+      }
       docsButton: string
     }
     docs: {
@@ -1482,8 +1730,8 @@ export type Dictionary = {
       sidebarAriaLabel: string
       sections: {
         gettingStarted: string; navigation: string; nodesAndFields: string
-        content: string; webMigration: string; relationsGuide: string
-        media: string; apiForDevs: string; apiSchema: string; relations: string; nodesAndFieldsDev: string; webMigrationDev: string
+        content: string; webMigration: string; relationsGuide: string; multiProject: string
+        media: string; apiForDevs: string; apiSchema: string; relations: string; nodesAndFieldsDev: string; webMigrationDev: string; multiProjectDev: string
       }
       gettingStarted: {
         title: string; intro: string; conceptsTitle: string
@@ -1561,17 +1809,19 @@ export type Dictionary = {
       }
       apiForDevs: {
         title: string; intro: string
-        tokenTitle: string; tokenStep1: string; tokenStep2: string; tokenStep3: string; tokenStep4: string; tokenStep5: string
-        authTitle: string; authNote: string; baseUrlTitle: string; nodeNameTitle: string; nodeNameDesc: string
+        tokenTitle: string; tokenStep1: string; tokenStep2: string; tokenStep3: string; tokenStep4: string; tokenStep5: string; tokenStep6: string
+        authTitle: string; authNote: string; baseUrlTitle: string
+        deckSlugTitle: string; deckSlugDesc: string; scopeTitle: string; scopeDesc: string
         endpointsTitle: string
-        endpoints: { schema: string; getNode: string; getField: string; listRecords: string; getRecord: string; createRecord: string; putRecord: string; patchRecord: string; deleteRecord: string }
-        endpointPermissions: { anyToken: string; read: string; create: string; update: string; delete: string }
+        endpoints: { schema: string; getSchemaDeck: string; getDeck: string; getCard: string; listRecords: string; getRecord: string; createRecord: string; putRecord: string; patchRecord: string; deleteRecord: string }
+        endpointPermissions: { anyToken: string; read: string; write: string; update: string; delete: string }
         putVsPatchNote: string; canvasNote: string; queryParamsTitle: string
         params: {
           page:    { name: string; type: string; default: string; desc: string }
           limit:   { name: string; type: string; default: string; desc: string }
           sort:    { name: string; type: string; default: string; desc: string }
           order:   { name: string; type: string; default: string; desc: string }
+          filter:  { name: string; type: string; default: string; desc: string }
           include: { name: string; type: string; default: string; desc: string }
         }
         responseListTitle: string; responseRecordTitle: string
@@ -1615,8 +1865,33 @@ export type Dictionary = {
         consumingSteps: { step1: string; step2: string; step3: string; step4: string }
         exampleTitle: string; exampleNote: string
       }
+      multiProject: {
+        title: string; intro: string
+        tableTitle: string; tableDesc: string
+        switchTitle: string; switchDesc: string
+        newTableTitle: string; newTableDesc: string
+        playersTitle: string; playersDesc: string
+        languageTitle: string; languageDesc: string
+        note: string
+      }
+      multiProjectDev: {
+        title: string; intro: string
+        capsuleTitle: string; capsuleDesc: string
+        sessionTitle: string; sessionDesc: string
+        localeTitle: string; localeDesc: string
+        superAdminTitle: string
+        superAdminItems: { one: string; apiKey: string; blob: string; access: string; delete: string }
+        regularAdminTitle: string
+        regularAdminItems: { role: string; storage: string; apiKey: string; scope: string }
+        apiKeysTitle: string; apiKeysDesc: string
+        storageTitle: string
+        storageHeaders: [string, string, string]
+        storageR2: [string, string, string]
+        storageBlob: [string, string, string]
+        setupNote: string
+      }
     }
-    canvas: { ariaLabel: string; loading: string; empty: string; emptyHint: string }
+    canvas: { ariaLabel: string; loading: string; empty: string; emptyHint: string; multiSelected: string; multiSelectedHint: string }
     nodeCard: {
       fields: string; records: string; connections: string; required: string
       types: { text: string; number: string; boolean: string; image: string; video: string; gallery: string; relation: string }
@@ -1737,24 +2012,31 @@ export type Dictionary = {
   }
   settings: {
     panelTitle: string
+    loading:    string
     nav: {
       account: string; appearance: string; project: string; subscription: string; storage: string; email: string
-      api: string; users: string; roles: string; info: string; db: string; webMigration: string
+      api: string; members: string; users: string; roles: string; info: string; db: string; webMigration: string
+      cartumProjects: string
     }
     appearance: {
       title: string; themeLabel: string; saved: string; saveError: string
       themes: {
-        dark:      { label: string; description: string }
-        cyberSoft: { label: string; description: string }
-        light:     { label: string; description: string }
-        dusk:      { label: string; description: string }
-        matrix:    { label: string; description: string }
+        dark:       { label: string; description: string }
+        cyberSoft:  { label: string; description: string }
+        light:      { label: string; description: string }
+        dusk:       { label: string; description: string }
+        matrix:     { label: string; description: string }
+        cyberHuman:     { label: string; description: string }
+        strangerThings: { label: string; description: string }
       }
     }
     project: {
       title: string; projectName: string; description: string; descriptionPlaceholder: string; defaultLocale: string
       localeEn: string; localeEs: string
       save: string; saving: string; saved: string; error: string
+      selectProject: string; noProjects: string
+      dangerZone: string; deleteProject: string; deleting: string; deleteSuccess: string; deleteError: string; singleProjectWarning: string
+      confirmDialog: { title: string; message: string; inputLabel: string; confirmPhrase: string; confirm: string; cancel: string }
     }
     storage: {
       title: string
@@ -1770,6 +2052,7 @@ export type Dictionary = {
       blobToken: string; blobTokenPlaceholder: string; blobTokenHint: string
       testBlob: string; testBlobOk: string; testBlobFail: string
       save: string; saving: string; saved: string; error: string; saveEmptyNotice: string
+      docsLinkLabel: string; docsLinkDesc: string
     }
     email: {
       title: string; notConfigured: string
@@ -1779,12 +2062,17 @@ export type Dictionary = {
       save: string; saving: string; saved: string; error: string
     }
     api: {
-      title: string; tokenName: string; roleCol: string; lastUsed: string; expiresCol: string
+      title: string; tokenName: string; lastUsed: string; expiresCol: string
       never: string; revoke: string; revoking: string; revokeSuccess: string
-      newTokenTitle: string; namePlaceholder: string; expiresLabel: string; roleLabel: string
+      newTokenTitle: string; nameLabel: string; namePlaceholder: string; expiresLabel: string
       createButton: string; creating: string; createSuccess: string; createError: string
       copyToken: string; copied: string; tokenOnceNotice: string; confirmCopied: string
       close: string; empty: string
+      scopeLabel: string; scopeRead: string; scopeWrite: string; scopeUpdate: string; scopeDelete: string; scopeCol: string
+      exclusionsLabel: string; addExclusion: string; exclusionsHint: string
+      searchDecks: string; noDecksFound: string; removeExclusion: string
+      exclusionModalTitle: string; exclusionModalClose: string; exclusionConfirm: string
+      docsLinkLabel: string; docsLinkDesc: string
     }
     users: {
       title: string; inviteTitle: string; emailLabel: string; emailPlaceholder: string
@@ -1794,6 +2082,9 @@ export type Dictionary = {
       removeConfirmTitle: string; removeConfirmDesc: string
       noEmailNotice: string; copyPassword: string; close: string
       empty: string; youLabel: string
+      trialActive: string; trialExpired: string
+      subToggleRevoke: string; subToggleActivate: string; subToggling: string
+      subRevokeSuccess: string; subActivateSuccess: string
     }
     roles: {
       title: string; builtIn: string; custom: string
@@ -1855,6 +2146,7 @@ export type Dictionary = {
       errorUnknown: string
       errorCodes: Record<string, string>
       funMessages: string[]
+      docsLinkLabel: string; docsLinkDesc: string
       importMessages: string[]
     }
     info: {
@@ -1876,6 +2168,12 @@ export type Dictionary = {
         confirmPhrase: string; cancel: string; confirm: string; confirming: string
         purgedSummary: string; purgeFailWarn: string
       }
+      resetProjectTitle: string; resetProjectDesc: string; resetProjectButton: string
+      resetProjectDialog: {
+        title: string; desc: string; storageNote: string; placeholder: string
+        confirmPhrase: string; cancel: string; confirm: string; confirming: string
+        purgedSummary: string; purgeFailWarn: string
+      }
       dangerTitle: string; dangerDesc: string; dangerButton: string
       resetDialog: {
         title: string; desc: string; storageNote: string; placeholder: string
@@ -1887,6 +2185,16 @@ export type Dictionary = {
       title: string
       description: string
       comingSoon: string
+    }
+    cartumProjects: {
+      title: string; subtitle: string; ownerLabel: string; roleSuperAdmin: string
+      createdLabel: string; noProjects: string; cannotDeleteSuperAdmin: string
+      deleteButton: string; deleting: string; deleteSuccess: string; deleteError: string
+      docsLinkLabel: string; docsLinkDesc: string
+      confirmDialog: {
+        title: string; desc: string; superAdminNote: string; placeholder: string
+        confirmPhrase: string; cancel: string; confirm: string; confirming: string
+      }
     }
   }
   email: {

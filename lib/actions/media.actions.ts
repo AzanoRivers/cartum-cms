@@ -3,12 +3,14 @@
 import { randomUUID } from 'node:crypto'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { auth } from '@/auth'
 import { getR2Client } from '@/lib/media/r2-client'
 import { blobUpload, BLOB_VIDEO_MAX_BYTES } from '@/lib/media/blob-client'
 import { getActiveProvider } from '@/lib/media/storage-router'
 import { getSetting } from '@/lib/settings/get-setting'
 import { mediaRepository } from '@/db/repositories/media.repository'
+import { requireProjectId, assertProjectAccess } from '@/lib/auth/get-project-id'
+import { auth } from '@/auth'
+import { assertTier2Access } from '@/lib/subscription'
 import type { ActionResult } from '@/types/actions'
 import type {
   UploadUrlResult,
@@ -35,7 +37,7 @@ function sanitizeExtension(filename: string): string {
   return ext.replace(/[^a-z0-9]/g, '')
 }
 
-async function requireSession() {
+async function requireSessionUserId(): Promise<string> {
   const session = await auth()
   if (!session?.user?.id) throw new Error('UNAUTHORIZED')
   return session.user.id as string
@@ -43,15 +45,13 @@ async function requireSession() {
 
 // -----------------------------------------------------------------------
 // getUploadUrl — generates a presigned PUT URL for direct browser upload (R2)
-// Returns USE_SERVER_UPLOAD when Blob is the active provider (no presigned URLs)
 // -----------------------------------------------------------------------
 export async function getUploadUrl(
   input: GetUploadUrlInput,
 ): Promise<ActionResult<UploadUrlResult>> {
   try {
-    await requireSession()
+    await requireSessionUserId()
 
-    // Server-side mime type validation — never trust client
     if (!ALLOWED.includes(input.mimeType)) {
       return { success: false, error: 'FILE_TYPE_NOT_ALLOWED' }
     }
@@ -61,9 +61,10 @@ export async function getUploadUrl(
       return { success: false, error: 'USE_SERVER_UPLOAD' }
     }
 
+    const projectId = await requireProjectId()
     const { client, bucket, publicUrl } = await getR2Client()
     const ext       = sanitizeExtension(input.filename)
-    const key       = `uploads/${randomUUID()}.${ext}`
+    const key       = `uploads/${projectId}/${randomUUID()}.${ext}`
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
 
     const url = await getSignedUrl(
@@ -100,8 +101,8 @@ export async function saveMediaRecord(
   input: SaveMediaInput,
 ): Promise<ActionResult<MediaRecord>> {
   try {
-    const userId = await requireSession()
-    const record  = await mediaRepository.create({ ...input, uploadedBy: userId })
+    const [userId, projectId] = await Promise.all([requireSessionUserId(), requireProjectId()])
+    const record = await mediaRepository.create({ ...input, uploadedBy: userId, projectId })
     return { success: true, data: record }
   } catch {
     return { success: false, error: 'Failed to save media record.' }
@@ -110,13 +111,13 @@ export async function saveMediaRecord(
 
 // -----------------------------------------------------------------------
 // uploadViaServer — Tier 2 path: receive file, call Optimus, PUT to R2
-// Used by image fields when MEDIA_VPS_URL is configured.
 // -----------------------------------------------------------------------
 export async function uploadViaServer(
   input: UploadViaServerInput,
 ): Promise<ActionResult<UploadViaServerResult>> {
   try {
-    const userId = await requireSession()
+    await assertTier2Access()
+    const [userId, projectId] = await Promise.all([requireSessionUserId(), requireProjectId()])
 
     if (!ALLOWED.includes(input.mimeType)) {
       return { success: false, error: 'FILE_TYPE_NOT_ALLOWED' }
@@ -131,12 +132,9 @@ export async function uploadViaServer(
     let vpsPartialMeta: { processed: number; total: number } | undefined
 
     const isImage = input.mimeType.startsWith('image/')
-
-    // Optimus only supports jpeg/png/webp — skip for gif/avif (upload as original without warning)
     const OPTIMUS_SUPPORTED = ['image/jpeg', 'image/png', 'image/webp']
     const isOptimizable = isImage && OPTIMUS_SUPPORTED.includes(input.mimeType)
 
-    // Tier 2 — only for Optimus-supported image formats when VPS is configured
     if (isOptimizable && vpsUrl && vpsKey) {
       try {
         const formData = new FormData()
@@ -151,7 +149,6 @@ export async function uploadViaServer(
 
         if (res.ok || res.status === 206) {
           fileBuffer = await res.arrayBuffer()
-
           if (res.status === 206) {
             const processed = parseInt(res.headers.get('X-Optimus-Processed') ?? '0', 10)
             const total     = parseInt(res.headers.get('X-Optimus-Total')     ?? '0', 10)
@@ -165,17 +162,14 @@ export async function uploadViaServer(
         } else if (res.status === 422) {
           vpsWarning = 'validation'
         }
-        // 501 (video) never reaches here — images only above
       } catch {
         vpsWarning = 'unreachable'
       }
     }
 
-    // PUT to R2
-    // Use webp extension/mime only when Optimus actually ran and succeeded
     const optimized = isOptimizable && !vpsWarning
     const ext = optimized ? 'webp' : (input.mimeType.split('/')[1] ?? 'bin')
-    const key  = `uploads/${randomUUID()}.${ext}`
+    const key = `uploads/${projectId}/${randomUUID()}.${ext}`
 
     const { PutObjectCommand: Put } = await import('@aws-sdk/client-s3')
     await client.send(new Put({
@@ -187,8 +181,8 @@ export async function uploadViaServer(
 
     const finalPublicUrl = `${baseUrl}/${key}`
 
-    // Save media record
     await mediaRepository.create({
+      projectId,
       key,
       publicUrl:  finalPublicUrl,
       mimeType:   optimized ? 'image/webp' : input.mimeType,
@@ -212,24 +206,24 @@ export async function uploadViaServer(
 
 // -----------------------------------------------------------------------
 // uploadBlobDirect — server-side Blob upload (Vercel Blob has no presigned URLs)
-// Called by the hook when getUploadUrl returns USE_SERVER_UPLOAD
 // -----------------------------------------------------------------------
 export async function uploadBlobDirect(
   input: UploadViaServerInput,
 ): Promise<ActionResult<{ publicUrl: string; key: string }>> {
   try {
-    const userId = await requireSession()
+    const [userId, projectId] = await Promise.all([requireSessionUserId(), requireProjectId()])
 
     if (!ALLOWED.includes(input.mimeType)) {
       return { success: false, error: 'FILE_TYPE_NOT_ALLOWED' }
     }
 
     const ext      = input.filename ? sanitizeExtension(input.filename) : (input.mimeType.split('/')[1] ?? 'bin')
-    const pathname = `uploads/${randomUUID()}.${ext}`
+    const pathname = `uploads/${projectId}/${randomUUID()}.${ext}`
 
     const { publicUrl, key } = await blobUpload(pathname, input.file, input.mimeType)
 
     await mediaRepository.create({
+      projectId,
       key,
       publicUrl,
       mimeType:        input.mimeType,
@@ -250,25 +244,25 @@ export async function uploadBlobDirect(
 }
 
 // -----------------------------------------------------------------------
-// uploadVideoBlobDirect — server-side Blob upload for videos (no presigned URLs)
-// Enforces the hard 50 MB Server Action limit before uploading.
+// uploadVideoBlobDirect — server-side Blob upload for videos
 // -----------------------------------------------------------------------
 export async function uploadVideoBlobDirect(
   input: UploadViaServerInput,
 ): Promise<ActionResult<{ publicUrl: string; key: string }>> {
   try {
-    const userId = await requireSession()
+    const [userId, projectId] = await Promise.all([requireSessionUserId(), requireProjectId()])
 
     if (input.file.byteLength > BLOB_VIDEO_MAX_BYTES) {
       return { success: false, error: 'VIDEO_TOO_LARGE_FOR_BLOB' }
     }
 
     const ext      = input.filename ? sanitizeExtension(input.filename) : 'mp4'
-    const pathname = `uploads/videos/${randomUUID()}.${ext}`
+    const pathname = `uploads/${projectId}/videos/${randomUUID()}.${ext}`
 
     const { publicUrl, key } = await blobUpload(pathname, input.file, input.mimeType)
 
     await mediaRepository.create({
+      projectId,
       key,
       publicUrl,
       mimeType:        input.mimeType,
@@ -301,12 +295,13 @@ export async function getActiveStorageProvider(): Promise<ActionResult<StoragePr
 }
 
 // -----------------------------------------------------------------------
-// getMediaStorageSummary — total bytes/count per type + blob quota usage
+// getMediaStorageSummary
 // -----------------------------------------------------------------------
 export async function getMediaStorageSummary(): Promise<ActionResult<MediaStorageSummary>> {
   try {
-    await requireSession()
-    const summary = await mediaRepository.getStorageSummary()
+    const projectId = await requireProjectId()
+    await assertProjectAccess(projectId)
+    const summary = await mediaRepository.getStorageSummary(projectId)
     return { success: true, data: summary }
   } catch {
     return { success: false, error: 'Failed to load storage summary.' }
@@ -320,8 +315,9 @@ export async function listMediaAssets(
   input: ListMediaAssetsInput,
 ): Promise<ActionResult<MediaAssetsPage>> {
   try {
-    await requireSession()
-    const page = await mediaRepository.listPaginated(input)
+    const projectId = await requireProjectId()
+    await assertProjectAccess(projectId)
+    const page = await mediaRepository.listPaginated({ ...input, projectId })
     return { success: true, data: page }
   } catch {
     return { success: false, error: 'Failed to load media assets.' }
@@ -329,13 +325,13 @@ export async function listMediaAssets(
 }
 
 // -----------------------------------------------------------------------
-// listMediaAssetsPaged — offset-based pager for the Media Gallery page
-// getMediaFileNames — returns all existing filenames (lowercase) for duplicate checking
+// getMediaFileNames
 // -----------------------------------------------------------------------
 export async function getMediaFileNames(): Promise<ActionResult<string[]>> {
   try {
-    await requireSession()
-    const names = await mediaRepository.getAllFileNames()
+    const projectId = await requireProjectId()
+    await assertProjectAccess(projectId)
+    const names = await mediaRepository.getAllFileNames(projectId)
     return { success: true, data: names }
   } catch {
     return { success: false, error: 'Failed to load media names.' }
@@ -343,12 +339,15 @@ export async function getMediaFileNames(): Promise<ActionResult<string[]>> {
 }
 
 // -----------------------------------------------------------------------
+// listMediaAssetsPaged — offset-based pager for the Media Gallery page
+// -----------------------------------------------------------------------
 export async function listMediaAssetsPaged(
   input: ListMediaAssetsPagedInput,
 ): Promise<ActionResult<MediaAssetsPagedResult>> {
   try {
-    await requireSession()
-    const result = await mediaRepository.listPaginatedOffset(input)
+    const projectId = await requireProjectId()
+    await assertProjectAccess(projectId)
+    const result = await mediaRepository.listPaginatedOffset({ ...input, projectId })
     return { success: true, data: result }
   } catch {
     return { success: false, error: 'Failed to load media assets.' }
@@ -356,14 +355,15 @@ export async function listMediaAssetsPaged(
 }
 
 // -----------------------------------------------------------------------
-// getMediaById — fetch a single asset's metadata by id
+// getMediaById
 // -----------------------------------------------------------------------
 export async function getMediaById(
   id: string,
 ): Promise<ActionResult<MediaMeta>> {
   try {
-    await requireSession()
-    const record = await mediaRepository.findById(id)
+    const projectId = await requireProjectId()
+    await assertProjectAccess(projectId)
+    const record = await mediaRepository.findById(id, projectId)
     if (!record) return { success: false, error: 'NOT_FOUND' }
     const name = record.key.split('/').pop() ?? record.key
     return {
@@ -382,14 +382,15 @@ export async function getMediaById(
 }
 
 // -----------------------------------------------------------------------
-// deleteMediaRecord — removes from R2 + DB
+// deleteMediaRecord — removes from storage + DB
 // -----------------------------------------------------------------------
 export async function deleteMediaRecord(
   id: string,
 ): Promise<ActionResult<void>> {
   try {
-    await requireSession()
-    await mediaRepository.delete(id)
+    const projectId = await requireProjectId()
+    await assertProjectAccess(projectId)
+    await mediaRepository.delete(id, projectId)
     return { success: true }
   } catch (err) {
     if (err instanceof Error && err.message === 'MEDIA_NOT_FOUND') {
@@ -400,18 +401,19 @@ export async function deleteMediaRecord(
 }
 
 // -----------------------------------------------------------------------
-// bulkDeleteMediaRecords — removes multiple records from R2 + DB
+// bulkDeleteMediaRecords — removes multiple records from storage + DB
 // -----------------------------------------------------------------------
 export async function bulkDeleteMediaRecords(
   ids: string[],
 ): Promise<ActionResult<{ deleted: number; failed: number }>> {
   try {
-    await requireSession()
+    const projectId = await requireProjectId()
+    await assertProjectAccess(projectId)
     let deleted = 0
     let failed  = 0
     for (const id of ids) {
       try {
-        await mediaRepository.delete(id)
+        await mediaRepository.delete(id, projectId)
         deleted++
       } catch {
         failed++

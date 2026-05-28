@@ -8,13 +8,15 @@ import {
   testEmailConnection,
 } from '@/lib/actions/settings.actions'
 import { useToast } from '@/lib/hooks/useToast'
+import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
 import type { Dictionary } from '@/locales/en'
 
 export type EmailSectionProps = {
-  d: Dictionary['settings']['email']
+  d:           Dictionary['settings']['email']
+  loadingText: string
 }
 
-export function EmailSection({ d }: EmailSectionProps) {
+export function EmailSection({ d, loadingText }: EmailSectionProps) {
   const [apiKey,       setApiKey]      = useState('')
   const [fromEmail,    setFromEmail]   = useState('')
   const [showApiKey,   setShowApiKey]  = useState(false)
@@ -51,9 +53,7 @@ export function EmailSection({ d }: EmailSectionProps) {
 
   if (!loaded) {
     return (
-      <div className="flex h-32 items-center justify-center">
-        <span className="font-mono text-xs text-muted animate-pulse">Loading…</span>
-      </div>
+      <SectionLoader text={loadingText} />
     )
   }
 

@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useTheme } from '@/lib/hooks/useTheme'
+import { useStrangerThingsSound } from '@/lib/hooks/useStrangerThingsSound'
 import { ThemeSwatch } from '@/components/ui/molecules/ThemeSwatch'
+import { Spinner } from '@/components/ui/atoms/Spinner'
 import { THEMES } from '@/types/theme'
 import type { ThemeId } from '@/types/theme'
 import type { Dictionary } from '@/locales/en'
@@ -14,6 +16,7 @@ export type AppearanceSectionProps = {
 
 export function AppearanceSection({ d }: AppearanceSectionProps) {
   const { applyTheme, currentTheme } = useTheme()
+  const { playIfST, isPlaying: stPlaying } = useStrangerThingsSound()
   const [activeTheme, setActiveTheme] = useState<ThemeId>('dark')
   const [saving, setSaving] = useState(false)
 
@@ -23,7 +26,8 @@ export function AppearanceSection({ d }: AppearanceSectionProps) {
   }, [currentTheme])
 
   async function handleSelect(themeId: ThemeId) {
-    if (saving || themeId === activeTheme) return
+    if (saving || stPlaying || themeId === activeTheme) return
+    playIfST(themeId)
     const previous = activeTheme
     setActiveTheme(themeId)
     setSaving(true)
@@ -42,17 +46,21 @@ export function AppearanceSection({ d }: AppearanceSectionProps) {
       <h2 className="font-mono text-sm font-semibold text-text">{d.title}</h2>
 
       <div>
-        <p className="mb-3 font-mono text-xs text-muted">{d.themeLabel}</p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+        <div className="mb-3 flex items-center gap-2">
+          <p className="font-mono text-xs text-muted">{d.themeLabel}</p>
+          {saving && <Spinner size="sm" color="muted" />}
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
           {THEMES.map((theme) => {
-            const themeKey = theme.id === 'cyber-soft' ? 'cyberSoft' : theme.id
+            const themeKey = theme.id.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase())
             const localised = d.themes[themeKey as keyof typeof d.themes]
             return (
               <ThemeSwatch
                 key={theme.id}
                 theme={{ ...theme, label: localised.label, description: localised.description }}
                 isActive={activeTheme === theme.id}
-                disabled={saving}
+                disabled={saving || stPlaying}
+                stPlaying={stPlaying}
                 onSelect={handleSelect}
               />
             )

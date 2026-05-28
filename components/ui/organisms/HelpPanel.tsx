@@ -79,6 +79,15 @@ export function HelpPanel() {
     h.gestures.panCanvas,
   ]
 
+  const boardRows: GestureRow[] = [
+    h.board.pan,
+    h.board.marquee,
+    h.board.multiAdd,
+    h.board.multiMove,
+    h.board.multiDel,
+    h.board.multiEsc,
+  ]
+
   return (
     <>
       {/* Invisible click-away target */}
@@ -155,7 +164,7 @@ export function HelpPanel() {
                   </div>
                 )}
 
-                {/* ── Desktop: keyboard shortcuts (hidden on mobile) ────── */}
+                {/* ── Desktop: keyboard shortcuts + board interactions ──── */}
                 {!isMobile && (
                   <>
                     <p className="font-mono text-xs uppercase tracking-widest text-muted">
@@ -184,6 +193,33 @@ export function HelpPanel() {
                         </div>
                       </div>
                     ))}
+
+                    {/* Board interactions section */}
+                    <div className="space-y-2">
+                      <p className="font-mono text-xs uppercase tracking-widest text-muted">
+                        {h.boardTitle}
+                      </p>
+                      <div className="overflow-hidden rounded-lg border border-border">
+                        {boardRows.map((row, i) => (
+                          <div
+                            key={row.description}
+                            className={[
+                              'flex items-center gap-3 px-4 py-2.5',
+                              i < boardRows.length - 1 ? 'border-b border-border' : '',
+                              'bg-surface-2/40 hover:bg-surface-2 transition-colors',
+                            ].join(' ')}
+                          >
+                            <span
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface font-mono text-base"
+                              aria-hidden="true"
+                            >
+                              {row.icon}
+                            </span>
+                            <span className="text-xs text-muted">{row.description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </>
                 )}
               </div>

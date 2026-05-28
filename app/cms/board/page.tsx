@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { InfiniteCanvas } from '@/components/ui/organisms/InfiniteCanvas'
 import { BreadcrumbSetter } from '@/components/ui/molecules/BreadcrumbSetter'
@@ -5,24 +6,32 @@ import { nodeService } from '@/lib/services/nodes.service'
 import { connectionsService } from '@/lib/services/connections.service'
 import { rolesService } from '@/lib/services/roles.service'
 import { auth } from '@/auth'
-import { db } from '@/db'
-import { project } from '@/db/schema'
 import { getDictionary } from '@/locales'
-import type { SupportedLocale } from '@/types/project'
+import { getCurrentLocale } from '@/lib/utils/get-current-locale'
+import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 
 export async function generateMetadata() {
-  const [proj] = await db.select({ defaultLocale: project.defaultLocale }).from(project).limit(1)
-  const locale = (proj?.defaultLocale ?? 'en') as SupportedLocale
+  const locale = await getCurrentLocale()
   return { title: getDictionary(locale).cms.board.title }
 }
 
 export default async function BoardPage() {
-  const session = await auth()
-  const userId = session?.user?.id
+  const session     = await auth()
+  const userId      = session?.user?.id
+  const cookieStore = await cookies()
+  const projectId   = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session?.user?.currentProjectId
+
+  if (!projectId) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
+        No hay proyecto seleccionado.
+      </div>
+    )
+  }
 
   const [allNodes, connections] = await Promise.all([
-    nodeService.getBoard(null),
-    connectionsService.getForBoard(null),
+    nodeService.getBoard(null, projectId),
+    connectionsService.getForBoard(null, projectId),
   ])
 
   // Non-superAdmins see only the nodes for which they have canRead

@@ -1,10 +1,14 @@
 'use server'
 
-import { eq, and } from 'drizzle-orm'
+import { eq, and, ne, asc } from 'drizzle-orm'
+import { cookies } from 'next/headers'
 import { db } from '@/db'
-import { project, users, usersRoles, roles, rolePermissions, nodes } from '@/db/schema'
+import { project, users, usersRoles, roles, rolePermissions, nodes, media, projectMemberships } from '@/db/schema'
+import { usersRepository } from '@/db/repositories/users.repository'
+import { del as blobDel } from '@vercel/blob'
 import { auth } from '@/auth'
 import { getSetting, setSetting } from '@/lib/settings/get-setting'
+import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 import { hashPassword } from '@/lib/services/auth.service'
 import { getR2Client } from '@/lib/media/r2-client'
 import { blobUpload, blobDelete, isBlobConfigured } from '@/lib/media/blob-client'
@@ -52,12 +56,14 @@ export async function updateAppearanceSettings(
     if (!session?.user?.id) throw new Error('UNAUTHORIZED')
     const validIds = THEMES.map((t) => t.id)
     if (!validIds.includes(input.theme)) throw new Error('Invalid theme')
-    await setSetting('theme', input.theme, session.user.id)
+    const cookieStore  = await cookies()
+    const projectId    = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
+    const settingKey   = projectId ? `theme:${projectId}` : 'theme'
+    await setSetting(settingKey, input.theme, session.user.id)
   } catch (err) {
     console.error('[updateAppearanceSettings] failed:', err)
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
-  // Revalidate outside try-catch — does not affect the return value
   revalidatePath('/', 'layout')
   return { success: true }
 }
@@ -66,11 +72,14 @@ export async function updateAppearanceSettings(
 
 export async function getProjectSettings(): Promise<ActionResult<ProjectSettings>> {
   try {
-    await requireSuperAdmin()
-    const [row] = await db
+    const session = await requireSuperAdmin()
+    const projectId = session.user.currentProjectId ?? null
+    const query = db
       .select({ name: project.name, description: project.description, defaultLocale: project.defaultLocale })
       .from(project)
-      .limit(1)
+    const [row] = projectId
+      ? await query.where(eq(project.id, projectId)).limit(1)
+      : await query.orderBy(project.createdAt).limit(1)
     if (!row) return { success: false, error: 'No project found.' }
     return {
       success: true,
@@ -85,8 +94,137 @@ export async function updateProjectSettings(
   input: UpdateProjectInput,
 ): Promise<ActionResult<void>> {
   try {
-    await requireSuperAdmin()
-    await db.update(project).set({ name: input.projectName, description: input.description ?? null, defaultLocale: input.defaultLocale })
+    const session = await requireSuperAdmin()
+    const projectId = session.user.currentProjectId ?? null
+    if (!projectId) return { success: false, error: 'No project selected.' }
+    await db
+      .update(project)
+      .set({ name: input.projectName, description: input.description ?? null, defaultLocale: input.defaultLocale })
+      .where(eq(project.id, projectId))
+    revalidatePath('/', 'layout')
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+// ── Project (user projects — owns only, super admin) ─────────────────────────
+
+export type UserProjectRow = {
+  id:        string
+  name:      string
+  createdAt: Date
+}
+
+export async function listUserProjects(): Promise<
+  ActionResult<{ projects: UserProjectRow[]; currentProjectId: string | null }>
+> {
+  try {
+    const session = await requireSuperAdmin()
+    const userId  = session.user.id
+    const rows    = await db
+      .select({ id: project.id, name: project.name, createdAt: project.createdAt })
+      .from(project)
+      .where(eq(project.ownerId, userId))
+      .orderBy(asc(project.createdAt))
+    return { success: true, data: { projects: rows, currentProjectId: session.user.currentProjectId ?? null } }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function getProjectSettingsById(projectId: string): Promise<ActionResult<ProjectSettings>> {
+  try {
+    const session = await requireSuperAdmin()
+    const userId  = session.user.id
+    const [row]   = await db
+      .select({ name: project.name, description: project.description, defaultLocale: project.defaultLocale })
+      .from(project)
+      .where(and(eq(project.id, projectId), eq(project.ownerId, userId)))
+      .limit(1)
+    if (!row) return { success: false, error: 'Project not found.' }
+    return {
+      success: true,
+      data: { projectName: row.name, description: row.description ?? '', defaultLocale: row.defaultLocale as 'en' | 'es' },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function updateProjectSettingsById(
+  projectId: string,
+  input: UpdateProjectInput,
+): Promise<ActionResult<void>> {
+  try {
+    const session = await requireSuperAdmin()
+    const userId  = session.user.id
+    const [owned] = await db
+      .select({ id: project.id })
+      .from(project)
+      .where(and(eq(project.id, projectId), eq(project.ownerId, userId)))
+      .limit(1)
+    if (!owned) return { success: false, error: 'Project not found.' }
+    await db
+      .update(project)
+      .set({ name: input.projectName, description: input.description ?? null, defaultLocale: input.defaultLocale })
+      .where(eq(project.id, projectId))
+    revalidatePath('/', 'layout')
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function deleteUserProject(projectId: string): Promise<ActionResult<void>> {
+  try {
+    const session = await requireSuperAdmin()
+    const userId  = session.user.id
+
+    // 1. List all projects owned by this user
+    const ownedProjects = await db
+      .select({ id: project.id })
+      .from(project)
+      .where(eq(project.ownerId, userId))
+
+    // Guard: cannot delete if it's the only project
+    if (ownedProjects.length <= 1) {
+      return { success: false, error: 'CANNOT_DELETE_LAST_PROJECT' }
+    }
+
+    // Verify user owns this specific project
+    const isOwned = ownedProjects.some((p) => p.id === projectId)
+    if (!isOwned) return { success: false, error: 'Project not found.' }
+
+    // 2. Collect media files before cascade deletes them
+    const mediaRows = await db
+      .select({ key: media.key, publicUrl: media.publicUrl, storageProvider: media.storageProvider })
+      .from(media)
+      .where(eq(media.projectId, projectId))
+
+    // 3. Nullify ownerId (FK onDelete:'restrict' — must clear before deleting project)
+    await db.update(project).set({ ownerId: null }).where(eq(project.id, projectId))
+
+    // 4. Delete project — cascade handles: nodes, records, memberships, invitations, settings
+    //    Users are NOT deleted (as opposed to deleteCartumProject)
+    await db.delete(project).where(eq(project.id, projectId))
+
+    // 5. Purge storage files (best-effort — don't fail the action if storage is unreachable)
+    let r2: Awaited<ReturnType<typeof getR2Client>> | null = null
+    try { r2 = await getR2Client() } catch { /* not configured */ }
+    const blobToken = await getSetting('blob_token', process.env.BLOB_READ_WRITE_TOKEN).catch(() => null)
+
+    await Promise.allSettled(
+      mediaRows.map(async (row) => {
+        if (row.storageProvider === 'blob') {
+          if (blobToken) await blobDel(row.publicUrl, { token: blobToken })
+        } else {
+          if (r2) await r2.client.send(new DeleteObjectCommand({ Bucket: r2.bucket, Key: row.key }))
+        }
+      }),
+    )
+
+    revalidatePath('/cms', 'layout')
     return { success: true, data: undefined }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
@@ -282,12 +420,14 @@ export async function testEmailConnection(): Promise<ActionResult<{ sent: boolea
 // ── Users ──────────────────────────────────────────────────────────────────────
 
 export interface UserWithRole {
-  id:          string
-  email:       string
-  isSuperAdmin: boolean
-  roleId:      string | null
-  roleName:    string | null
-  createdAt:   Date
+  id:                   string
+  email:                string
+  isSuperAdmin:         boolean
+  roleId:               string | null
+  roleName:             string | null
+  createdAt:            Date
+  cartumSuscriptor:     boolean
+  cartumSuscriptorTime: number
 }
 
 export async function listUsers(): Promise<ActionResult<UserWithRole[]>> {
@@ -295,12 +435,14 @@ export async function listUsers(): Promise<ActionResult<UserWithRole[]>> {
     await requireAdmin()
     const rows = await db
       .select({
-        id:          users.id,
-        email:       users.email,
-        isSuperAdmin: users.isSuperAdmin,
-        createdAt:   users.createdAt,
-        roleId:      roles.id,
-        roleName:    roles.name,
+        id:                   users.id,
+        email:                users.email,
+        isSuperAdmin:         users.isSuperAdmin,
+        createdAt:            users.createdAt,
+        cartumSuscriptor:     users.cartumSuscriptor,
+        cartumSuscriptorTime: users.cartumSuscriptorTime,
+        roleId:               roles.id,
+        roleName:             roles.name,
       })
       .from(users)
       .leftJoin(usersRoles, eq(usersRoles.userId, users.id))
@@ -313,12 +455,14 @@ export async function listUsers(): Promise<ActionResult<UserWithRole[]>> {
       if (!seen.has(r.id)) {
         seen.add(r.id)
         result.push({
-          id:          r.id,
-          email:       r.email,
-          isSuperAdmin: r.isSuperAdmin,
-          createdAt:   r.createdAt,
-          roleId:      r.roleId   ?? null,
-          roleName:    r.roleName ?? null,
+          id:                   r.id,
+          email:                r.email,
+          isSuperAdmin:         r.isSuperAdmin,
+          createdAt:            r.createdAt,
+          cartumSuscriptor:     r.cartumSuscriptor,
+          cartumSuscriptorTime: r.cartumSuscriptorTime ?? 0,
+          roleId:               r.roleId   ?? null,
+          roleName:             r.roleName ?? null,
         })
       }
     }
@@ -340,19 +484,12 @@ export async function inviteUser(
 ): Promise<ActionResult<{ tempPassword?: string }>> {
   try {
     await requireAdmin()
-    const existing = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, input.email))
-      .limit(1)
-    if (existing.length > 0) return { success: false, error: 'Email already registered.' }
+    const existing = await usersRepository.findByEmail(input.email)
+    if (existing) return { success: false, error: 'Email already registered.' }
 
     const rawPassword = generateTempPassword()
     const passwordHash = await hashPassword(rawPassword)
-    const [newUser] = await db
-      .insert(users)
-      .values({ email: input.email, passwordHash })
-      .returning()
+    const newUser = await usersRepository.create({ email: input.email, passwordHash })
 
     await db
       .insert(usersRoles)
@@ -371,6 +508,19 @@ export async function inviteUser(
     })
 
     return { success: true, data: sent ? {} : { tempPassword: rawPassword } }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function setUserSubscription(
+  userId: string,
+  active: boolean,
+): Promise<ActionResult<void>> {
+  try {
+    await requireSuperAdmin()
+    await db.update(users).set({ cartumSuscriptor: active }).where(eq(users.id, userId))
+    return { success: true, data: undefined }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
@@ -590,6 +740,105 @@ export async function updateWebMigrationSettings(
       setSetting('scraper_api_url', settings.scraperApiUrl || undefined, session.user.id),
       setSetting('scraper_api_key', settings.scraperApiKey || undefined, session.user.id),
     ])
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+// ── Cartum Projects (super admin only) ────────────────────────────────────────
+
+export type CartumProjectRow = {
+  id:                string
+  name:              string
+  createdAt:         Date
+  ownerEmail:        string | null
+  ownerIsSuperAdmin: boolean | null
+}
+
+export async function listCartumProjects(): Promise<ActionResult<CartumProjectRow[]>> {
+  try {
+    await requireSuperAdmin()
+    const rows = await db
+      .select({
+        id:                project.id,
+        name:              project.name,
+        createdAt:         project.createdAt,
+        ownerEmail:        users.email,
+        ownerIsSuperAdmin: users.isSuperAdmin,
+      })
+      .from(project)
+      .leftJoin(users, eq(users.id, project.ownerId))
+      .orderBy(asc(project.createdAt))
+    return { success: true, data: rows }
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+}
+
+export async function deleteCartumProject(projectId: string): Promise<ActionResult<void>> {
+  try {
+    await requireSuperAdmin()
+
+    // 1. Collect media files before cascade deletes them
+    const mediaRows = await db
+      .select({ key: media.key, publicUrl: media.publicUrl, storageProvider: media.storageProvider })
+      .from(media)
+      .where(eq(media.projectId, projectId))
+
+    // 2. Find non-superAdmin members who ONLY belong to this project
+    const members = await db
+      .select({ userId: projectMemberships.userId })
+      .from(projectMemberships)
+      .where(eq(projectMemberships.projectId, projectId))
+
+    const memberIds = members.map((m) => m.userId)
+
+    const usersToDelete: string[] = []
+    for (const userId of memberIds) {
+      const isSA = await usersRepository.isSuperAdmin(userId)
+      if (isSA) continue
+
+      const allMemberships = await db
+        .select({ projectId: projectMemberships.projectId })
+        .from(projectMemberships)
+        .where(and(
+          eq(projectMemberships.userId, userId),
+          ne(projectMemberships.projectId, projectId),
+        ))
+
+      if (allMemberships.length === 0) {
+        usersToDelete.push(userId)
+      }
+    }
+
+    // 3. Nullify ownerId (project has onDelete: 'restrict' on users FK)
+    await db.update(project).set({ ownerId: null }).where(eq(project.id, projectId))
+
+    // 4. Delete the project (cascade handles nodes, records, media rows, memberships, tokens, settings)
+    await db.delete(project).where(eq(project.id, projectId))
+
+    // 5. Delete orphaned users
+    for (const userId of usersToDelete) {
+      await db.delete(users).where(eq(users.id, userId))
+    }
+
+    // 6. Purge storage files (best-effort)
+    let r2: Awaited<ReturnType<typeof getR2Client>> | null = null
+    try { r2 = await getR2Client() } catch { /* not configured */ }
+    const blobToken = await getSetting('blob_token', process.env.BLOB_READ_WRITE_TOKEN).catch(() => null)
+
+    await Promise.allSettled(
+      mediaRows.map(async (row) => {
+        if (row.storageProvider === 'blob') {
+          if (blobToken) await blobDel(row.publicUrl, { token: blobToken })
+        } else {
+          if (r2) await r2.client.send(new DeleteObjectCommand({ Bucket: r2.bucket, Key: row.key }))
+        }
+      }),
+    )
+
+    revalidatePath('/cms', 'layout')
     return { success: true, data: undefined }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }

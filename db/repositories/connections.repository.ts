@@ -38,17 +38,12 @@ async function findBySourceOrTarget(nodeId: string): Promise<NodeConnection[]> {
     .select()
     .from(nodeRelations)
     .where(
-      and(
+      or(
         eq(nodeRelations.sourceNodeId, nodeId),
+        eq(nodeRelations.targetNodeId, nodeId),
       ),
     )
-  // also fetch where target
-  const rows2 = await db
-    .select()
-    .from(nodeRelations)
-    .where(eq(nodeRelations.targetNodeId, nodeId))
-
-  return [...rows, ...rows2].map(mapRow)
+  return rows.map(mapRow)
 }
 
 async function findDuplicate(

@@ -6,13 +6,15 @@ import { createProject } from '@/lib/actions/setup.actions'
 import { SetupLayout } from '@/components/ui/layouts/SetupLayout'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import type { Dictionary } from '@/locales/en'
+import type { SupportedLocale } from '@/types/project'
 
 type Props = {
-  dict: Dictionary['setup']['project']
+  dict:       Dictionary['setup']['project']
+  locale:     SupportedLocale
   layoutDict: { stepLabels: string[]; back: string }
 }
 
-export function ProjectClient({ dict, layoutDict }: Props) {
+export function ProjectClient({ dict, locale, layoutDict }: Props) {
   const router = useRouter()
   const [name,        setName]        = useState('')
   const [description, setDescription] = useState('')
@@ -24,7 +26,7 @@ export function ProjectClient({ dict, layoutDict }: Props) {
     setError(null)
     setLoading(true)
 
-    const result = await createProject({ name, description: description || undefined })
+    const result = await createProject({ name, description: description || undefined, locale })
     if (!result.success) {
       setError(result.error)
       setLoading(false)

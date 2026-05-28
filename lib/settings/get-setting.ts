@@ -1,9 +1,10 @@
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { appSettings } from '@/db/schema'
+import { THEMES } from '@/types/theme'
 import type { ThemeId } from '@/types/theme'
 
-const VALID_THEMES: ThemeId[] = ['dark', 'cyber-soft', 'light', 'dusk', 'matrix']
+const VALID_THEMES = THEMES.map((t) => t.id)
 
 /**
  * Resolves a runtime setting.
@@ -65,13 +66,19 @@ export async function setSetting(
 }
 
 /**
- * Returns the active theme ID from DB — falls back to 'dusk'.
+ * Returns the active theme ID for a project — falls back to global, then 'dusk'.
  * Server-only.
  */
-export async function getTheme(): Promise<ThemeId> {
-  const stored = await getSetting('theme')
-  if (stored && (VALID_THEMES as string[]).includes(stored)) {
-    return stored as ThemeId
+export async function getTheme(projectId?: string | null): Promise<ThemeId> {
+  const candidates = projectId
+    ? [`theme:${projectId}`, 'theme']
+    : ['theme']
+
+  for (const key of candidates) {
+    const stored = await getSetting(key)
+    if (stored && (VALID_THEMES as string[]).includes(stored)) {
+      return stored as ThemeId
+    }
   }
   return 'dusk'
 }

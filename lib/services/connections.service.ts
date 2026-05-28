@@ -5,33 +5,33 @@ import type { NodeConnection, RelationType } from '@/types/nodes'
 export const connectionsService = {
 
   async create(
-    sourceId: string,
-    targetId: string,
+    sourceId:    string,
+    targetId:    string,
     relationType: RelationType,
+    projectId:   string,
   ): Promise<NodeConnection> {
-    // No self-connections
     if (sourceId === targetId) throw new Error('SELF_CONNECTION_NOT_ALLOWED')
 
-    // Both nodes must be containers
     const [source, target] = await Promise.all([
-      nodesRepository.findById(sourceId),
-      nodesRepository.findById(targetId),
+      nodesRepository.findById(sourceId, projectId),
+      nodesRepository.findById(targetId, projectId),
     ])
     if (!source) throw new Error('SOURCE_NOT_FOUND')
     if (!target) throw new Error('TARGET_NOT_FOUND')
     if (source.type !== 'container') throw new Error('SOURCE_MUST_BE_CONTAINER')
     if (target.type !== 'container') throw new Error('TARGET_MUST_BE_CONTAINER')
 
-    // No duplicate connections
     const existing = await connectionsRepository.findDuplicate(sourceId, targetId)
     if (existing) throw new Error('DUPLICATE_CONNECTION')
 
     return connectionsRepository.create(sourceId, targetId, relationType)
   },
 
-  async delete(connectionId: string): Promise<void> {
+  async delete(connectionId: string, projectId: string): Promise<void> {
     const connection = await connectionsRepository.findById(connectionId)
     if (!connection) throw new Error('CONNECTION_NOT_FOUND')
+    const sourceNode = await nodesRepository.findById(connection.sourceNodeId, projectId)
+    if (!sourceNode) throw new Error('FORBIDDEN')
     await connectionsRepository.delete(connectionId)
   },
 
@@ -39,16 +39,18 @@ export const connectionsService = {
     return connectionsRepository.findBySourceOrTarget(nodeId)
   },
 
-  async getForBoard(parentId: string | null): Promise<NodeConnection[]> {
-    const boardNodes = await nodesRepository.findByParentId(parentId)
+  async getForBoard(parentId: string | null, projectId: string): Promise<NodeConnection[]> {
+    const boardNodes = await nodesRepository.findByParentId(parentId, projectId)
     if (boardNodes.length < 2) return []
     const ids = boardNodes.map((n) => n.id)
     return connectionsRepository.findBetweenNodes(ids)
   },
 
-  async updateType(connectionId: string, relationType: RelationType): Promise<NodeConnection> {
+  async updateType(connectionId: string, relationType: RelationType, projectId: string): Promise<NodeConnection> {
     const conn = await connectionsRepository.findById(connectionId)
     if (!conn) throw new Error('CONNECTION_NOT_FOUND')
+    const sourceNode = await nodesRepository.findById(conn.sourceNodeId, projectId)
+    if (!sourceNode) throw new Error('FORBIDDEN')
     return connectionsRepository.updateRelationType(connectionId, relationType)
   },
 

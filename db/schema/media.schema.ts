@@ -2,9 +2,11 @@ import { integer, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg
 import { users } from './users.schema'
 import { nodes } from './nodes.schema'
 import { records } from './records.schema'
+import { project } from './project.schema'
 
 export const media = pgTable('media', {
   id:          uuid('id').primaryKey().defaultRandom(),
+  projectId:   uuid('project_id').references(() => project.id, { onDelete: 'cascade' }).notNull(),
   key:         text('key').notNull().unique(),
   publicUrl:   text('public_url').notNull(),
   mimeType:    text('mime_type').notNull(),

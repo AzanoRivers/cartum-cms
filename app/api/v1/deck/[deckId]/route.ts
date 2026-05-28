@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { fieldMeta, nodes } from '@/db/schema'
 import { resolveApiAuth } from '@/lib/api/auth'
@@ -16,58 +16,55 @@ export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders() })
 }
 
-/**
- * GET /api/v1/nodes/:nodeId
- * Returns metadata for a single node (container or field) by UUID.
- * Container nodes return fully resolved fields + containers (inherited schema).
- * Field nodes return their own metadata only (no inheritance).
- * Any valid API token can call this endpoint.
- */
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ nodeId: string }> },
+  { params }: { params: Promise<{ deckId: string }> },
 ) {
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
+  if (!apiAuth.scope.includes('read')) return apiError('FORBIDDEN', 'Token scope does not allow read.', 403)
 
-  const { nodeId } = await params
+  const { deckId } = await params
+
+  if (apiAuth.excludedNodeIds.includes(deckId)) {
+    return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
+  }
 
   const [row] = await db
     .select()
     .from(nodes)
-    .where(eq(nodes.id, nodeId))
+    .where(and(eq(nodes.id, deckId), eq(nodes.projectId, apiAuth.projectId)))
     .limit(1)
 
-  if (!row) return apiError('NOT_FOUND', 'Node not found.', 404)
+  if (!row) return apiError('NOT_FOUND', 'Deck not found.', 404)
 
   if (row.type === 'container') {
-    const ctx = await buildResolverContext()
-    const resolved = resolveNodeSchema(nodeId, ctx)
+    const ctx = await buildResolverContext(apiAuth.projectId)
+    const resolved = resolveNodeSchema(deckId, ctx)
     const slug = row.slug ?? nodeNameToSlug(row.name)
 
     return Response.json(
       {
         data: {
-          id:         row.id,
-          name:       row.name,
-          type:       row.type,
+          id:        row.id,
+          name:      row.name,
+          type:      row.type,
           slug,
-          parentId:   row.parentId,
-          createdAt:  row.createdAt,
-          updatedAt:  row.updatedAt,
-          fields:     resolved.fields,
-          containers: resolved.containers,
+          parentId:  row.parentId,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          cards:     resolved.fields,
+          decks:     resolved.containers,
         },
       },
       { headers: corsHeaders() },
     )
   }
 
-  // Field node — return own metadata only (fields have no inheritance)
   const [meta] = await db
     .select()
     .from(fieldMeta)
-    .where(eq(fieldMeta.nodeId, nodeId))
+    .where(eq(fieldMeta.nodeId, deckId))
     .limit(1)
 
   return Response.json(

@@ -1,4 +1,4 @@
-# Cartum CMS — Claude Code Instructions
+# Cartum CMS: Claude Code Instructions
 
 ## Project Overview
 
@@ -9,7 +9,7 @@ interfaz CMS, procesamiento de media y despliegue serverless.
 ## Tech Stack
 
 - **Framework**: Next.js 15+ (App Router, Server Components, Route Handlers)
-- **Language**: TypeScript (strict mode — sin `any`)
+- **Language**: TypeScript (strict mode: sin `any`)
 - **Styling**: TailwindCSS v4 + shadcn/ui
 - **Database**: PostgreSQL via **Neon** (primario) o **Supabase** (adaptador)
 - **ORM**: Drizzle ORM
@@ -41,14 +41,14 @@ interfaz CMS, procesamiento de media y despliegue serverless.
 
 > El tablero principal es una **mesa de póker infinita**.
 
-Esta analogía es estructural en todo Cartum — UI, locales, mensajes, documentación. Todo texto visible al usuario debe usar este vocabulario:
+Esta analogía es estructural en todo Cartum: UI, locales, mensajes, documentación. Todo texto visible al usuario debe usar este vocabulario:
 
 | Concepto técnico | Término visible en la app |
 |---|---|
-| Container node (tabla DB) | **Mazo** — agrupa cartas del mismo tipo |
-| Field node (columna / atributo) | **Carta** — cada campo dentro de un mazo es una carta |
-| Connection (FK / relación entre tablas) | **Vínculo** — hilo que conecta cartas de mazos distintos |
-| Node board (canvas) | **Tablero** — la mesa infinita donde se modelan mazos y vínculos |
+| Container node (tabla DB) | **Mazo**: agrupa cartas del mismo tipo |
+| Field node (columna / atributo) | **Carta**: cada campo dentro de un mazo es una carta |
+| Connection (FK / relación entre tablas) | **Vínculo**: hilo que conecta cartas de mazos distintos |
+| Node board (canvas) | **Tablero**: la mesa infinita donde se modelan mazos y vínculos |
 
 **Regla crítica:** en código técnico (variables, DB, types) se usan los términos técnicos normales. En todo texto visible al usuario (labels, mensajes, advertencias, tooltips, locales) se usan exclusivamente los términos de la analogía.
 
@@ -58,7 +58,7 @@ Los records se almacenan como JSONB en `records.data`, con las claves siendo el 
 
 ## Reglas de Código
 
-- TypeScript strict — nunca `any`, nunca tipos inline en componentes
+- TypeScript strict: nunca `any`, nunca tipos inline en componentes
 - App Router siempre (`app/`), nunca Pages Router (`pages/`)
 - Server Components por defecto; `"use client"` solo en el leaf boundary donde se necesita interactividad
 - Tailwind utility classes; sin estilos inline
@@ -73,7 +73,7 @@ Los records se almacenan como JSONB en `records.data`, con las claves siendo el 
 - No usar Pages Router (`/pages/`)
 - No usar `getServerSideProps` / `getStaticProps`
 - No usar class components
-- No usar `var` — usar `const`/`let`
+- No usar `var`: usar `const`/`let`
 - No commitear `.env`
 
 ---

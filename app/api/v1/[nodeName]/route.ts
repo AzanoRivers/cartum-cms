@@ -21,26 +21,31 @@ export async function GET(
 ) {
   const { nodeName } = await params
 
-  const node = await nodeService.findBySlug(nodeName)
-  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
-
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
+  if (!apiAuth.scope.includes('read')) return apiError('FORBIDDEN', 'Token scope does not allow read.', 403)
+
+  const node = await nodeService.findBySlug(nodeName, apiAuth.projectId)
+  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
+
+  if (apiAuth.excludedNodeIds.includes(node.id)) {
+    return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
+  }
 
   const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'read')
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
 
-  const { page, limit, sort, order, include } = parseQueryParams(req)
+  const { page, limit, sort, order, include, filters } = parseQueryParams(req)
 
-  const children = await nodesRepository.findChildren(node.id)
+  const children = await nodesRepository.findChildren(node.id, apiAuth.projectId)
   const fields   = children.filter((n): n is FieldNode => n.type === 'field')
 
-  const paginated = await recordsService.getPaginated(node.id, { page, limit, sort, order })
+  const paginated = await recordsService.getPaginated(node.id, { page, limit, sort, order, filters })
 
   const data = await Promise.all(
     paginated.records.map(async (r) => {
       if (include.length > 0) {
-        const expanded = await expandRelations(r, fields, include)
+        const expanded = await expandRelations(r, fields, include, apiAuth.projectId)
         return flattenRecord(r, expanded)
       }
       return flattenRecord(r)
@@ -67,11 +72,16 @@ export async function POST(
 ) {
   const { nodeName } = await params
 
-  const node = await nodeService.findBySlug(nodeName)
-  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
-
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
+  if (!apiAuth.scope.includes('write')) return apiError('FORBIDDEN', 'Token scope does not allow write.', 403)
+
+  const node = await nodeService.findBySlug(nodeName, apiAuth.projectId)
+  if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
+
+  if (apiAuth.excludedNodeIds.includes(node.id)) {
+    return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
+  }
 
   const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'create')
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
@@ -84,7 +94,7 @@ export async function POST(
   }
 
   try {
-    const record = await recordsService.create(node.id, { data: body })
+    const record = await recordsService.create(node.id, { data: body }, apiAuth.projectId)
     return Response.json(
       { data: flattenRecord(record) },
       { status: 201, headers: corsHeaders() },

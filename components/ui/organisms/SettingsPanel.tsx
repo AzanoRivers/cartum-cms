@@ -18,6 +18,8 @@ import { InfoSection } from '@/components/ui/organisms/settings/InfoSection'
 import { WebMigrationSection } from '@/components/ui/organisms/settings/WebMigrationSection'
 import { DbSection } from '@/components/ui/organisms/settings/DbSection'
 import { SubscriptionSection } from '@/components/ui/organisms/settings/SubscriptionSection'
+import { MembersSection } from '@/components/ui/organisms/settings/MembersSection'
+import { CartumProjectsSection } from '@/components/ui/organisms/settings/CartumProjectsSection'
 import type { Dictionary } from '@/locales/en'
 import type { SectionKey } from '@/types/roles'
 
@@ -32,18 +34,20 @@ export type SettingsPanelProps = {
 }
 
 const ALL_SECTIONS: Array<{ key: SectionKey }> = [
-  { key: 'project'      },
-  { key: 'subscription' },
-  { key: 'appearance'   },
-  { key: 'account'    },
-  { key: 'email'      },
-  { key: 'storage'    },
-  { key: 'users'      },
-  { key: 'roles'      },
-  { key: 'api'        },
-  { key: 'db'           },
-  { key: 'webMigration' },
-  { key: 'info'         },
+  { key: 'project'         },
+  { key: 'subscription'    },
+  { key: 'appearance'      },
+  { key: 'account'         },
+  { key: 'members'         },
+  { key: 'email'           },
+  { key: 'storage'         },
+  { key: 'users'           },
+  { key: 'roles'           },
+  { key: 'api'             },
+  { key: 'db'              },
+  { key: 'webMigration'    },
+  { key: 'cartumProjects'  },
+  { key: 'info'            },
 ]
 
 export function SettingsPanel({
@@ -85,9 +89,13 @@ export function SettingsPanel({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, migrationActive]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const ADMIN_SECTIONS: SectionKey[] = ['appearance', 'account', 'subscription', 'members', 'api', 'users', 'roles']
+
   // Filter visible sections by role
   const visibleSections = ALL_SECTIONS.filter(({ key }) => {
+    if (key === 'cartumProjects') return isSuperAdmin
     if (isSuperAdmin) return true
+    if (isAdmin && ADMIN_SECTIONS.includes(key)) return true
     return sectionPermissions[key] === true
   })
 
@@ -108,22 +116,31 @@ export function SettingsPanel({
         <AppearanceSection d={d.appearance} />
       )}
       {activeSection === 'project' && (isSuperAdmin || sectionPermissions.project) && (
-        <ProjectSection d={d.project} />
+        <ProjectSection d={d.project} loadingText={d.loading} />
       )}
       {activeSection === 'storage' && (isSuperAdmin || sectionPermissions.storage) && (
-        <StorageSection d={d.storage} />
+        <StorageSection d={d.storage} isSuperAdmin={isSuperAdmin} loadingText={d.loading} />
       )}
       {activeSection === 'email' && (isSuperAdmin || sectionPermissions.email) && (
-        <EmailSection d={d.email} />
+        <EmailSection d={d.email} loadingText={d.loading} />
       )}
       {activeSection === 'api' && (isSuperAdmin || isAdmin || sectionPermissions.api) && (
-        <ApiTokensSection d={d.api} />
+        <ApiTokensSection d={d.api} loadingText={d.loading} />
+      )}
+      {activeSection === 'members' && (isSuperAdmin || isAdmin || sectionPermissions.members) && (
+        <MembersSection
+          userId={userId}
+          isSuperAdmin={isSuperAdmin}
+          isAdmin={isAdmin}
+          loadingText={d.loading}
+        />
       )}
       {activeSection === 'users' && (isSuperAdmin || isAdmin || sectionPermissions.users) && (
         <UsersSection
           currentUserId={userId}
           isSuperAdmin={isSuperAdmin}
           d={d.users}
+          loadingText={d.loading}
         />
       )}
       {activeSection === 'roles' && (isSuperAdmin || isAdmin || sectionPermissions.roles) && (
@@ -138,7 +155,10 @@ export function SettingsPanel({
         <DbSection d={d.db} isSuperAdmin={isSuperAdmin} />
       )}
       {activeSection === 'webMigration' && (
-        <WebMigrationSection d={d.webMigration} />
+        <WebMigrationSection d={d.webMigration} loadingText={d.loading} />
+      )}
+      {activeSection === 'cartumProjects' && isSuperAdmin && (
+        <CartumProjectsSection d={d.cartumProjects} loadingText={d.loading} />
       )}
       {activeSection === 'info' && (
         <InfoSection d={d.info} />
@@ -169,7 +189,7 @@ export function SettingsPanel({
         onClick={requestClose}
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none pb-14 sm:pb-0">
-        <VHSTransition duration="fast" trigger={open} className="w-full max-w-3xl h-[82vh]">
+        <VHSTransition duration="fast" trigger={open} className="w-full max-w-4xl h-[82vh]">
           <DialogContent
             panelRef={panelRef}
             visibleSections={visibleSections}
@@ -251,7 +271,7 @@ function SheetContent({ visibleSections, activeSection, openSettings, d, section
               className={[
                 'shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer',
                 activeSection === key
-                  ? 'bg-primary/15 text-primary border border-primary/20'
+                  ? 'bg-select/15 text-select border border-select/20'
                   : 'text-muted hover:text-text hover:bg-surface-2',
               ].join(' ')}
             >
@@ -299,7 +319,7 @@ function DialogContent({
       <div
         className="relative h-full shrink-0 border-r border-border overflow-hidden"
         style={{
-          width: navOpen ? '9rem' : '2.5rem',
+          width: navOpen ? '10.5rem' : '2.5rem',
           transition: navOpen
             ? 'width 320ms var(--ease-spring)'
             : 'width 200ms var(--ease-in-expo)',
@@ -329,19 +349,20 @@ function DialogContent({
               <PanelLeftClose size={18} />
             </button>
           </div>
-          {visibleSections.map(({ key }) => (
-            <button
-              key={key}
-              onClick={() => openSettings(key)}
-              className={[
-                'w-full text-left px-2 py-1.5 rounded-md font-mono text-xs transition-colors cursor-pointer',
-                activeSection === key
-                  ? 'bg-primary/15 text-primary border border-primary/20'
-                  : 'text-muted hover:text-text hover:bg-surface-2',
-              ].join(' ')}
-            >
-              {d.nav[key as keyof typeof d.nav] ?? key}
-            </button>
+          {visibleSections.map(({ key }, i) => (
+            <div key={key} className={i < visibleSections.length - 1 ? 'border-b border-border/20' : ''}>
+              <button
+                onClick={() => openSettings(key)}
+                className={[
+                  'w-full text-left px-2 py-1.5 rounded-md font-mono text-xs transition-colors cursor-pointer',
+                  activeSection === key
+                    ? 'bg-select/15 text-select border border-select/20'
+                    : 'text-muted hover:text-text hover:bg-surface-2',
+                ].join(' ')}
+              >
+                {d.nav[key as keyof typeof d.nav] ?? key}
+              </button>
+            </div>
           ))}
         </div>
 
@@ -363,7 +384,7 @@ function DialogContent({
           >
             <PanelLeftOpen size={18} />
           </button>
-          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+          <span className="h-1.5 w-1.5 rounded-full bg-select" />
         </div>
       </div>
 

@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto'
+import { cookies } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { auth } from '@/auth'
 import { getR2Client } from '@/lib/media/r2-client'
+import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 
 /**
  * GET /api/internal/media/videos/presign?filename=video.mp4
@@ -21,9 +23,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const cookieStore = await cookies()
+  const projectId   = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
+  if (!projectId) {
+    return NextResponse.json({ error: 'No project context' }, { status: 403 })
+  }
+
   const filename  = req.nextUrl.searchParams.get('filename') ?? 'video.mp4'
   const ext       = filename.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') ?? 'mp4'
-  const key       = `uploads/${randomUUID()}.${ext}`
+  const key       = `uploads/${projectId}/${randomUUID()}.${ext}`
 
   let r2Config: Awaited<ReturnType<typeof getR2Client>>
   try {

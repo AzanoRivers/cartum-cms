@@ -1,5 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { auth } from '@/auth'
+import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { InfiniteCanvas } from '@/components/ui/organisms/InfiniteCanvas'
 import { BreadcrumbSetter } from '@/components/ui/molecules/BreadcrumbSetter'
@@ -27,16 +29,20 @@ export default async function NestedBoardPage({ params }: Props) {
   const currentId = nodeId.at(-1)
   if (!currentId || !UUID_RE.test(currentId)) notFound()
 
-  const session = await auth()
+  const session     = await auth()
   if (!session) redirect('/login')
+
+  const cookieStore = await cookies()
+  const projectId   = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
+  if (!projectId) redirect('/cms/board')
 
   const [permsResult, nodes, breadcrumb, connections] = await Promise.all([
     session.user.isSuperAdmin
       ? Promise.resolve(null)
       : rolesService.resolvePermissions(session.user.id, currentId),
-    nodeService.getBoard(currentId),
+    nodeService.getBoard(currentId, projectId),
     nodeService.getBreadcrumb(currentId),
-    connectionsService.getForBoard(currentId),
+    connectionsService.getForBoard(currentId, projectId),
   ])
 
   if (permsResult && !permsResult.canRead) notFound()

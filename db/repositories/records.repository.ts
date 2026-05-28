@@ -1,4 +1,4 @@
-import { asc, count, desc, eq, sql } from 'drizzle-orm'
+import { SQL, asc, and, count, desc, eq, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { records } from '@/db/schema'
 
@@ -58,21 +58,33 @@ async function countByNodeId(nodeId: string): Promise<number> {
   return result?.value ?? 0
 }
 
+// Only allow safe identifiers in JSONB filter keys (prevents injection via key name)
+const SAFE_FIELD_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/
+
 async function findByNodeIdPaginated(
   nodeId: string,
-  opts: { page: number; limit: number; sort: string; order: 'asc' | 'desc' },
+  opts: { page: number; limit: number; sort: string; order: 'asc' | 'desc'; filters?: Record<string, string> },
 ): Promise<{ rows: RecordRow[]; total: number }> {
   const offset   = (opts.page - 1) * opts.limit
   const orderFn  = opts.order === 'asc' ? asc : desc
   const orderCol = opts.sort === 'updated_at' ? records.updatedAt : records.createdAt
 
+  const conditions: SQL[] = [eq(records.nodeId, nodeId)]
+  if (opts.filters) {
+    for (const [field, value] of Object.entries(opts.filters)) {
+      if (!SAFE_FIELD_RE.test(field)) continue
+      conditions.push(sql`${records.data} ->> ${field} = ${value}`)
+    }
+  }
+  const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions)
+
   const [rows, countResult] = await Promise.all([
     db.select().from(records)
-      .where(eq(records.nodeId, nodeId))
+      .where(whereClause)
       .orderBy(orderFn(orderCol))
       .limit(opts.limit)
       .offset(offset),
-    db.select({ value: count() }).from(records).where(eq(records.nodeId, nodeId)),
+    db.select({ value: count() }).from(records).where(whereClause),
   ])
 
   return { rows, total: countResult[0]?.value ?? 0 }

@@ -1,6 +1,6 @@
 {
   "name": "cartum",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,59 +14,44 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1045.0",
-    "@aws-sdk/s3-request-presigner": "^3.1045.0",
+    "@aws-sdk/client-s3": "^3.1053.0",
+    "@aws-sdk/s3-request-presigner": "^3.1053.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@neondatabase/serverless": "^1.1.0",
-    "@vercel/blob": "^2.3.3",
+    "@vercel/blob": "^2.4.0",
     "bcryptjs": "^3.0.3",
     "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "0.45.2",
-    "fflate": "^0.8.2",
-    "lucide-react": "^1.14.0",
+    "fflate": "^0.8.3",
+    "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "next-auth": "5.0.0-beta.30",
     "postgres": "^3.4.9",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "resend": "^6.12.3",
+    "resend": "^6.12.4",
     "sonner": "2.0.7",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3",
     "zustand": "5.0.13"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp",
-      "@swc/core",
-      "unrs-resolver"
-    ],
-    "peerDependencyRules": {
-      "allowedVersions": {
-        "eslint-plugin-import>eslint": "^10",
-        "eslint-plugin-jsx-a11y>eslint": "^10",
-        "eslint-plugin-react>eslint": "^10"
-      }
-    }
-  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.0",
-    "@types/node": "^25.7.0",
-    "@types/react": "^19.2.14",
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^10.3.0",
+    "eslint": "^10.4.0",
     "eslint-config-next": "16.2.6",
-    "postcss": "^8.5.14",
+    "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
-    "tsx": "^4.21.0",
+    "tsx": "^4.22.3",
     "typescript": "6.0.3"
   }
 }

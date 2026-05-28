@@ -9,9 +9,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const complete = await checkSetupComplete()
-    return NextResponse.json({ complete })
+    const state    = await checkSetupComplete()
+    const complete = state === 'complete'
+    return NextResponse.json({ complete, state })
   } catch {
-    return NextResponse.json({ complete: false })
+    return NextResponse.json({ complete: false, state: 'no_superadmin' })
   }
 }

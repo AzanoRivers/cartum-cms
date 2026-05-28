@@ -12,13 +12,17 @@ import {
   getStorageStatus,
 } from '@/lib/actions/settings.actions'
 import { Badge } from '@/components/ui/atoms/Badge'
+import { DocLink } from '@/components/ui/atoms/DocLink'
 import { useToast } from '@/lib/hooks/useToast'
 import { t } from '@/lib/i18n/t'
+import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
 import type { Dictionary } from '@/locales/en'
 import type { StorageSettings, StorageProvider } from '@/types/settings'
 
 export type StorageSectionProps = {
-  d: Dictionary['settings']['storage']
+  d:            Dictionary['settings']['storage']
+  isSuperAdmin: boolean
+  loadingText:  string
 }
 
 type StorageStatus = {
@@ -44,7 +48,7 @@ const providerBtn = cva(
 
 // ── component ─────────────────────────────────────────────────────────────────
 
-export function StorageSection({ d }: StorageSectionProps) {
+export function StorageSection({ d, isSuperAdmin, loadingText }: StorageSectionProps) {
   const [form, setForm]     = useState<StorageSettings>({
     r2BucketName: '', r2PublicUrl: '', storageProvider: 'r2',
   })
@@ -126,9 +130,7 @@ export function StorageSection({ d }: StorageSectionProps) {
 
   if (!loaded) {
     return (
-      <div className="flex h-32 items-center justify-center">
-        <span className="font-mono text-xs text-muted animate-pulse">Loading…</span>
-      </div>
+      <SectionLoader text={loadingText} />
     )
   }
 
@@ -139,8 +141,8 @@ export function StorageSection({ d }: StorageSectionProps) {
     <div className="space-y-5">
       <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
 
-      {/* ── Provider selector — solo visible cuando ambos proveedores están configurados */}
-      {bothConfigured && (
+      {/* ── Provider selector — solo visible para superAdmin cuando ambos proveedores están configurados */}
+      {isSuperAdmin && bothConfigured && (
         <div className="space-y-3">
           {/* Banner informativo */}
           <div className="flex items-start gap-2.5 rounded-lg border border-primary/30 bg-primary/10 px-3.5 py-2.5">
@@ -222,8 +224,8 @@ export function StorageSection({ d }: StorageSectionProps) {
         </div>
       </Accordion>
 
-      {/* ── Blob Accordion ───────────────────────────────────────────── */}
-      <Accordion
+      {/* ── Blob Accordion — solo superAdmin ─────────────────────────── */}
+      {isSuperAdmin && <Accordion
         open={blobOpen}
         onToggle={() => setBlobOpen((v) => !v)}
         title={d.blobSectionTitle}
@@ -267,7 +269,7 @@ export function StorageSection({ d }: StorageSectionProps) {
             </button>
           </div>
         </div>
-      </Accordion>
+      </Accordion>}
 
       {/* ── VPS Accordion ────────────────────────────────────────────── */}
       <Accordion
@@ -318,6 +320,9 @@ export function StorageSection({ d }: StorageSectionProps) {
           </Field>
         </div>
       </Accordion>
+
+      {/* ── Docs link ────────────────────────────────────────────────── */}
+      <DocLink href="/cms/docs#media" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
 
       {/* ── Save row ─────────────────────────────────────────────────── */}
       <div className="pt-1 space-y-2">

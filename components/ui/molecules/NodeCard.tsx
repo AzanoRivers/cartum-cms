@@ -47,6 +47,7 @@ const PORT_SIDES: PortSide[] = ['top', 'right', 'bottom', 'left']
 export type NodeCardProps = {
   node: AnyNode
   selected?: boolean
+  multiSelected?: boolean
   isValidTarget?: boolean
   connectionCount?: number
   fieldCount?: number
@@ -63,6 +64,7 @@ export type NodeCardProps = {
 function NodeCardInner({
   node,
   selected = false,
+  multiSelected = false,
   isValidTarget = false,
   connectionCount = 0,
   fieldCount = 0,
@@ -97,9 +99,11 @@ function NodeCardInner({
 
   const stateClasses = isValidTarget
     ? 'border-primary shadow-[0_0_0_2px_var(--color-primary),0_0_20px_var(--color-primary-glow)]'
-    : selected
-      ? 'border-primary shadow-[0_0_0_1px_var(--color-primary-glow),0_0_12px_var(--color-primary-glow)]'
-      : 'border-border hover:border-primary hover:shadow-[0_0_0_1px_var(--color-primary-glow)]'
+    : multiSelected
+      ? 'border-accent shadow-[0_0_0_1px_var(--color-accent),0_0_14px_color-mix(in_oklch,var(--color-accent)_40%,transparent)]'
+      : selected
+        ? 'border-primary shadow-[0_0_0_1px_var(--color-primary-glow),0_0_12px_var(--color-primary-glow)]'
+        : 'border-border hover:border-primary hover:shadow-[0_0_0_1px_var(--color-primary-glow)]'
 
   if (node.type === 'container') {
     return (
@@ -186,9 +190,9 @@ function areNodeCardPropsEqual(prev: NodeCardProps, next: NodeCardProps): boolea
     prev.node.name        === next.node.name        &&
     prev.node.positionX   === next.node.positionX   &&
     prev.node.positionY   === next.node.positionY   &&
-    // For field nodes: re-render when defaultValue changes; undefined===undefined for containers
     (prev.node as FieldNode).defaultValue === (next.node as FieldNode).defaultValue &&
     prev.selected         === next.selected         &&
+    prev.multiSelected    === next.multiSelected    &&
     prev.isValidTarget    === next.isValidTarget    &&
     prev.connectionCount  === next.connectionCount  &&
     prev.fieldCount       === next.fieldCount       &&

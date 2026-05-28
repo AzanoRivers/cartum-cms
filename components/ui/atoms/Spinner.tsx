@@ -14,6 +14,7 @@ const spinnerVariants = cva(
         primary: 'border-t-primary',
         accent:  'border-t-accent',
         muted:   'border-t-muted',
+        white:   'border-t-white',
       } satisfies Record<SpinnerColor, string>,
     },
     defaultVariants: { size: 'md', color: 'primary' },

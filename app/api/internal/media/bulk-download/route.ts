@@ -1,7 +1,9 @@
+import { cookies } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
 import { zip } from 'fflate'
 import { auth } from '@/auth'
 import { mediaRepository } from '@/db/repositories/media.repository'
+import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 
 const MAX_FILES     = 50
 const FETCH_TIMEOUT = 30_000 // 30s per file
@@ -22,6 +24,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const cookieStore = await cookies()
+  const projectId   = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
+  if (!projectId) {
+    return NextResponse.json({ error: 'No project context' }, { status: 403 })
+  }
+
   let ids: string[]
   try {
     const body = await request.json()
@@ -38,7 +46,7 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Resolve records from DB ────────────────────────────────────────────────
-  const records = await mediaRepository.findByIds(ids)
+  const records = await mediaRepository.findByIds(ids, projectId)
   if (records.length === 0) {
     return NextResponse.json({ error: 'No records found' }, { status: 404 })
   }

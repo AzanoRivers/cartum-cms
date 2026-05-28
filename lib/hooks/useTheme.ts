@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react'
 import { updateAppearanceSettings } from '@/lib/actions/settings.actions'
+import { THEMES } from '@/types/theme'
 import type { ThemeId } from '@/types/theme'
 
 const THEME_KEY = 'cartum-theme'
@@ -26,8 +27,8 @@ export function useTheme() {
 
   const currentTheme = useCallback((): ThemeId => {
     const current = document.documentElement.dataset.theme
-    if (current === 'dark' || current === 'cyber-soft' || current === 'light' || current === 'dusk' || current === 'matrix') {
-      return current
+    if (current && THEMES.some((t) => t.id === current)) {
+      return current as ThemeId
     }
     return 'dark'
   }, [])

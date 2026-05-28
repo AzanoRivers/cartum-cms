@@ -25,7 +25,7 @@ export type LabelSize = 'sm' | 'md'
 
 // Spinner
 export type SpinnerSize = 'sm' | 'md' | 'lg'
-export type SpinnerColor = 'primary' | 'accent' | 'muted'
+export type SpinnerColor = 'primary' | 'accent' | 'muted' | 'white'
 
 // Skeleton
 export type SkeletonSize  = 'sm' | 'md' | 'lg' | 'xl' | 'full'

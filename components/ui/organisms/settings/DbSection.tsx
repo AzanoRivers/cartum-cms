@@ -5,7 +5,6 @@ import { Download, Upload, Trash2, Archive } from 'lucide-react'
 import { Spinner } from '@/components/ui/atoms/Spinner'
 import { DangerResetDialog } from '@/components/ui/molecules/DangerResetDialog'
 import { exportDatabaseAction, importDatabaseAction, resetCmsAction, purgeAllImagesAction } from '@/lib/actions/db.actions'
-import { signOut } from 'next-auth/react'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { toast } from 'sonner'
 import type { Dictionary } from '@/locales/en'
@@ -142,18 +141,11 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
         }
       }
 
-      // Clear all transient UI state so nothing bleeds through into the next session
-      useUIStore.setState({
-        settingsOpen:     false,
-        helpOpen:         false,
-        creationPanelOpen: false,
-        editingFieldId:   null,
-      })
-      // Clear client-side localStorage keys that would otherwise survive a DB wipe
-      try { localStorage.removeItem('cartum-theme') } catch { /* sandboxed */ }
-      // signOut posts to /api/auth/signout → browser receives expired Set-Cookie headers
-      // guaranteeing the stale JWT is cleared before the next session begins
-      await signOut({ callbackUrl: '/setup/locale' })
+      // Nuke all localStorage — nothing from the old session should survive a full reset
+      try { localStorage.clear() } catch { /* sandboxed */ }
+      // Server action already cleared all session cookies — use hard navigation
+      // so the redirect doesn't depend on the React/Next.js module system being healthy
+      window.location.replace('/setup/locale')
     })
   }
 

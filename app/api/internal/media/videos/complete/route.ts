@@ -1,5 +1,6 @@
 import { Readable } from 'node:stream'
 import { randomUUID } from 'node:crypto'
+import { cookies } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
 import { HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { auth } from '@/auth'
@@ -8,6 +9,7 @@ import { getR2Client } from '@/lib/media/r2-client'
 import { blobUpload } from '@/lib/media/blob-client'
 import { getActiveProvider } from '@/lib/media/storage-router'
 import { mediaRepository } from '@/db/repositories/media.repository'
+import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 
 /**
  * POST /api/internal/media/videos/complete
@@ -27,7 +29,12 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const userId = session.user.id as string
+  const userId      = session.user.id as string
+  const cookieStore = await cookies()
+  const projectId   = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
+  if (!projectId) {
+    return NextResponse.json({ error: 'No project context' }, { status: 403 })
+  }
 
   let body: {
     // Fast path
@@ -78,6 +85,7 @@ export async function POST(req: NextRequest) {
         name:            filename,
         uploadedBy:      userId,
         storageProvider: 'r2',
+        projectId,
       })
     } catch {
       return NextResponse.json({ error: 'DB_SAVE_FAILED' }, { status: 500 })
@@ -153,6 +161,7 @@ export async function POST(req: NextRequest) {
         name:            filename,
         uploadedBy:      userId,
         storageProvider: 'blob',
+        projectId,
       })
     } catch {
       return NextResponse.json({ error: 'DB_SAVE_FAILED' }, { status: 500 })
@@ -200,6 +209,7 @@ export async function POST(req: NextRequest) {
       sizeBytes:  sizeBytes ?? null,
       name:       filename,
       uploadedBy: userId,
+      projectId,
     })
   } catch {
     return NextResponse.json({ error: 'DB_SAVE_FAILED' }, { status: 500 })

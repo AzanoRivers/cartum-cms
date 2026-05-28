@@ -31,10 +31,11 @@ function toMediaRecord(row: typeof media.$inferSelect): MediaRecord {
 }
 
 export const mediaRepository = {
-  async create(input: SaveMediaInput & { uploadedBy: string }): Promise<MediaRecord> {
+  async create(input: SaveMediaInput & { uploadedBy: string; projectId: string }): Promise<MediaRecord> {
     const [row] = await db
       .insert(media)
       .values({
+        projectId:       input.projectId,
         key:             input.key,
         publicUrl:       input.publicUrl,
         mimeType:        input.mimeType,
@@ -49,22 +50,37 @@ export const mediaRepository = {
     return toMediaRecord(row)
   },
 
-  async findById(id: string): Promise<MediaRecord | null> {
-    const [row] = await db.select().from(media).where(eq(media.id, id)).limit(1)
+  async findById(id: string, projectId: string): Promise<MediaRecord | null> {
+    const [row] = await db
+      .select()
+      .from(media)
+      .where(and(eq(media.id, id), eq(media.projectId, projectId)))
+      .limit(1)
     return row ? toMediaRecord(row) : null
   },
 
-  async findByIds(ids: string[]): Promise<MediaRecord[]> {
+  async findByIds(ids: string[], projectId: string): Promise<MediaRecord[]> {
     if (ids.length === 0) return []
-    const rows = await db.select().from(media).where(inArray(media.id, ids))
+    const rows = await db
+      .select()
+      .from(media)
+      .where(and(inArray(media.id, ids), eq(media.projectId, projectId)))
     return rows.map(toMediaRecord)
   },
 
-  async listPaginated(input: ListMediaAssetsInput): Promise<MediaAssetsPage> {
-    const limit  = Math.min(input.limit ?? 24, 48)
+  async findByProjectId(projectId: string): Promise<MediaRecord[]> {
+    const rows = await db.select().from(media).where(eq(media.projectId, projectId))
+    return rows.map(toMediaRecord)
+  },
+
+  async listPaginated(input: ListMediaAssetsInput & { projectId: string }): Promise<MediaAssetsPage> {
+    const limit      = Math.min(input.limit ?? 24, 48)
     const typePrefix = input.filter === 'image' ? 'image/%' : 'video/%'
 
-    const conditions = [sql`${media.mimeType} LIKE ${typePrefix}`]
+    const conditions = [
+      sql`${media.mimeType} LIKE ${typePrefix}`,
+      eq(media.projectId, input.projectId),
+    ]
 
     if (input.cursor) {
       conditions.push(lt(media.createdAt, new Date(input.cursor)))
@@ -92,13 +108,16 @@ export const mediaRepository = {
     }
   },
 
-  async listPaginatedOffset(input: ListMediaAssetsPagedInput): Promise<MediaAssetsPagedResult> {
+  async listPaginatedOffset(input: ListMediaAssetsPagedInput & { projectId: string }): Promise<MediaAssetsPagedResult> {
     const perPage    = Math.min(Math.max(input.perPage, 1), 40)
     const page       = Math.max(input.page, 1)
     const offset     = (page - 1) * perPage
     const typePrefix = input.filter === 'image' ? 'image/%' : 'video/%'
 
-    const conditions = [sql`${media.mimeType} LIKE ${typePrefix}`]
+    const conditions = [
+      sql`${media.mimeType} LIKE ${typePrefix}`,
+      eq(media.projectId, input.projectId),
+    ]
     if (input.search) {
       conditions.push(or(
         ilike(media.name, `%${input.search}%`),
@@ -128,7 +147,7 @@ export const mediaRepository = {
     }
   },
 
-  async getStorageSummary(): Promise<MediaStorageSummary> {
+  async getStorageSummary(projectId: string): Promise<MediaStorageSummary> {
     const [row] = await db
       .select({
         imagesTotalBytes: sql<string>`COALESCE(SUM(CASE WHEN ${media.mimeType} LIKE 'image/%' THEN COALESCE(${media.sizeBytes}, 0) ELSE 0 END), 0)`,
@@ -138,6 +157,7 @@ export const mediaRepository = {
         blobTotalBytes:   sql<string>`COALESCE(SUM(CASE WHEN ${media.storageProvider} = 'blob' THEN COALESCE(${media.sizeBytes}, 0) ELSE 0 END), 0)`,
       })
       .from(media)
+      .where(eq(media.projectId, projectId))
     return {
       imagesTotalBytes: Number(row.imagesTotalBytes),
       videosTotalBytes: Number(row.videosTotalBytes),
@@ -147,16 +167,22 @@ export const mediaRepository = {
     }
   },
 
-  async getAllFileNames(): Promise<string[]> {
-    const rows = await db.select({ key: media.key, name: media.name }).from(media)
+  async getAllFileNames(projectId: string): Promise<string[]> {
+    const rows = await db
+      .select({ key: media.key, name: media.name })
+      .from(media)
+      .where(eq(media.projectId, projectId))
     return rows.map((r) => (r.name ?? r.key.split('/').pop() ?? '').toLowerCase()).filter(Boolean)
   },
 
-  async delete(id: string): Promise<void> {
-    const [row] = await db.select().from(media).where(eq(media.id, id)).limit(1)
+  async delete(id: string, projectId: string): Promise<void> {
+    const [row] = await db
+      .select()
+      .from(media)
+      .where(and(eq(media.id, id), eq(media.projectId, projectId)))
+      .limit(1)
     if (!row) throw new Error('MEDIA_NOT_FOUND')
 
-    // Delete from storage — best-effort (don't fail if provider is unreachable)
     if (row.storageProvider === 'blob') {
       try { await blobDelete(row.publicUrl) } catch { /* ignore */ }
     } else {
@@ -166,6 +192,6 @@ export const mediaRepository = {
       } catch { /* ignore R2 errors — still remove DB record */ }
     }
 
-    await db.delete(media).where(eq(media.id, id))
+    await db.delete(media).where(and(eq(media.id, id), eq(media.projectId, projectId)))
   },
 }

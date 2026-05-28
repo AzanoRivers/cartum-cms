@@ -40,11 +40,11 @@ export default async function RootLayout({
     <html lang={locale} data-theme="dusk" suppressHydrationWarning>
       <head>
         {/* Read theme from localStorage (set by user preference or ThemeSync).
-            Falls back to 'dusk' — no DB query needed here. */}
+            Falls back to 'dusk'. Public-facing routes (/cartum-player) always use dusk. */}
         <Script
           id="theme-hydration"
           strategy="beforeInteractive"
-        >{`(function(){try{var v=['dark','cyber-soft','light','dusk','matrix'];var s=localStorage.getItem('cartum-theme');var t=(s&&v.indexOf(s)!==-1)?s:'dusk';document.documentElement.dataset.theme=t;}catch(e){}})();`}</Script>
+        >{`(function(){try{if(window.location.pathname==='/cartum-player')return;var v=['dark','cyber-soft','light','dusk','matrix','cyber-human','stranger-things'];var s=localStorage.getItem('cartum-theme');var t=(s&&v.indexOf(s)!==-1)?s:'dusk';document.documentElement.dataset.theme=t;}catch(e){}})();`}</Script>
       </head>
       <body>
         <a href="#main-content" className="skip-link">Skip to content</a>

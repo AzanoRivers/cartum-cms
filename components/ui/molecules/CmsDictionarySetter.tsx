@@ -13,9 +13,11 @@ export function CmsDictionarySetter({
 }) {
   const setCmsDict          = useUIStore((s) => s.setCmsDict)
   const setCanAccessBuilder = useUIStore((s) => s.setCanAccessBuilder)
+  const setGlobalLoading    = useUIStore((s) => s.setGlobalLoading)
   useEffect(() => {
     setCmsDict(dict)
     setCanAccessBuilder(canAccessBuilder)
-  }, [dict, setCmsDict, canAccessBuilder, setCanAccessBuilder])
+    setGlobalLoading(false)
+  }, [dict, setCmsDict, canAccessBuilder, setCanAccessBuilder, setGlobalLoading])
   return null
 }

@@ -59,6 +59,10 @@ export const UpdateFieldMetaSchema = z.object({
   relationTargetId: z.string().uuid().nullable().optional(),
 })
 
+export const DeleteNodesSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(500),
+})
+
 export const ForceChangeFieldTypeSchema = z.object({
   nodeId:           z.string().uuid(),
   name:             z.string().min(1).max(64).regex(/^[a-zA-Z0-9 _-]+$/, 'Name contains invalid characters.').optional(),

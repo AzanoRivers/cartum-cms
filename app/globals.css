@@ -429,3 +429,38 @@ canvas,
     35%       { opacity: 0.5; }
     70%       { opacity: 0.82; }
 }
+
+/* === STRANGER THINGS CARD ===
+   .st-card  — always present: subtle static green glow (zero animation, zero paint)
+   .st-flicker — added only while audio plays: opacity-only animation on ::before
+                 (GPU-composited, zero paint per frame) */
+
+.st-card {
+    position: relative;
+    /* Simulated border + outer glow via box-shadow — no border-color change needed */
+    box-shadow: 0 0 0 1px rgba(57,255,20,0.45), 0 0 12px rgba(57,255,20,0.18);
+}
+
+@keyframes st-border-flicker {
+    0%, 100% { opacity: 0.60; }
+    6%        { opacity: 0.07; }
+    8%        { opacity: 0.88; }
+    20%       { opacity: 0.35; }
+    40%       { opacity: 0.03; }
+    42%       { opacity: 0.95; }
+    66%       { opacity: 0.45; }
+    70%       { opacity: 0.12; }
+    72%       { opacity: 0.75; }
+}
+
+.st-flicker::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid #39ff14;
+    box-shadow: 0 0 8px #39ff14, 0 0 20px rgba(57,255,20,0.30);
+    pointer-events: none;
+    will-change: opacity;
+    animation: st-border-flicker 2.8s ease-in-out infinite;
+}

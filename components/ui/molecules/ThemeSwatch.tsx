@@ -4,13 +4,16 @@ import { Check } from 'lucide-react'
 import type { ThemeDefinition } from '@/types/theme'
 
 export type ThemeSwatchProps = {
-  theme:    ThemeDefinition
-  isActive: boolean
-  disabled?: boolean
-  onSelect: (id: ThemeDefinition['id']) => void
+  theme:      ThemeDefinition
+  isActive:   boolean
+  disabled?:  boolean
+  stPlaying?: boolean
+  onSelect:   (id: ThemeDefinition['id']) => void
 }
 
-export function ThemeSwatch({ theme, isActive, disabled = false, onSelect }: ThemeSwatchProps) {
+export function ThemeSwatch({ theme, isActive, disabled = false, stPlaying = false, onSelect }: ThemeSwatchProps) {
+  const isST = theme.id === 'stranger-things'
+
   return (
     <button
       type="button"
@@ -23,9 +26,11 @@ export function ThemeSwatch({ theme, isActive, disabled = false, onSelect }: The
         'sm:flex-col sm:items-start sm:gap-0',
         disabled ? 'cursor-wait opacity-60' : 'cursor-pointer hover:scale-[1.01] sm:hover:scale-[1.02]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-        isActive
-          ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
-          : 'border-border bg-surface-2 hover:border-primary/40',
+        isST
+          ? `st-card ${stPlaying ? 'st-flicker' : ''} border-transparent ${isActive ? 'bg-primary/10' : 'bg-surface-2'}`
+          : isActive
+            ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+            : 'border-border bg-surface-2 hover:border-primary/40',
       ].join(' ')}
     >
       {/* Mini preview */}
@@ -64,7 +69,7 @@ export function ThemeSwatch({ theme, isActive, disabled = false, onSelect }: The
 
       {/* Active checkmark */}
       {isActive && (
-        <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary">
+        <span className="absolute right-2 bottom-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary">
           <Check size={10} className="text-white" strokeWidth={3} />
         </span>
       )}

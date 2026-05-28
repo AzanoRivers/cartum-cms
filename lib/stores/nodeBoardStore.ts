@@ -7,7 +7,7 @@ interface NodeBoardState {
   scale: number
   offsetX: number
   offsetY: number
-  selectedNodeId: string | null
+  selectedNodeIds: string[]
   isDragging: boolean
   dragNodeId: string | null
   /** Actual pixel dimensions of the canvas container — updated by InfiniteCanvas on mount/resize. */
@@ -21,9 +21,13 @@ interface NodeBoardActions {
   setNodes: (nodes: AnyNode[]) => void
   addNode: (node: AnyNode) => void
   removeNode: (id: string) => void
+  removeNodes: (ids: string[]) => void
   setScale: (scale: number) => void
   setOffset: (x: number, y: number) => void
   selectNode: (id: string | null) => void
+  setSelectedNodeIds: (ids: string[]) => void
+  toggleNodeSelection: (id: string) => void
+  clearSelection: () => void
   setDragging: (id: string | null) => void
   setCanvasDimensions: (width: number, height: number) => void
   updateNodePositionOptimistic: (id: string, x: number, y: number) => void
@@ -37,7 +41,7 @@ const initialState: NodeBoardState = {
   scale: 1,
   offsetX: 0,
   offsetY: 0,
-  selectedNodeId: null,
+  selectedNodeIds: [],
   isDragging: false,
   dragNodeId: null,
   canvasWidth: typeof window !== 'undefined' ? window.innerWidth : 1280,
@@ -52,10 +56,18 @@ export const useNodeBoardStore = create<NodeBoardState & NodeBoardActions>()(
     setNodes:    (nodes) => set({ nodes }),
     addNode:     (node)  => set((state) => ({ nodes: [...state.nodes, node] })),
     removeNode:  (id)    => set((state) => ({ nodes: state.nodes.filter((n) => n.id !== id) })),
+    removeNodes: (ids)   => set((state) => ({ nodes: state.nodes.filter((n) => !ids.includes(n.id)) })),
     setScale: (scale) => set({ scale: Math.min(2, Math.max(0.3, scale)) }),
     setOffset: (x, y) => set({ offsetX: x, offsetY: y }),
     setCanvasDimensions: (width, height) => set({ canvasWidth: width, canvasHeight: height }),
-    selectNode: (id) => set({ selectedNodeId: id }),
+    selectNode: (id) => set({ selectedNodeIds: id ? [id] : [] }),
+    setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
+    toggleNodeSelection: (id) => set((state) => ({
+      selectedNodeIds: state.selectedNodeIds.includes(id)
+        ? state.selectedNodeIds.filter((x) => x !== id)
+        : [...state.selectedNodeIds, id],
+    })),
+    clearSelection: () => set({ selectedNodeIds: [] }),
     setDragging: (id) => set({ isDragging: id !== null, dragNodeId: id }),
     updateNodePositionOptimistic: (id, x, y) =>
       set((state) => ({

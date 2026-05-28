@@ -45,7 +45,7 @@ export function Button({
     >
       {loading ? (
         <>
-          <Spinner size="sm" color={variant === 'ghost' || variant === 'outline' ? 'muted' : 'primary'} />
+          <Spinner size="sm" color={variant === 'primary' || variant === 'danger' ? 'white' : 'muted'} />
           <span className="sr-only">Loading</span>
         </>
       ) : children}

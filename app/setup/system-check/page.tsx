@@ -1,6 +1,9 @@
 import { cookies } from 'next/headers'
 import { checkDatabaseConnection } from '@/db/adapters/check-connection'
 import { checkSchemaIntegrity } from '@/db/adapters/check-schema'
+import { runMigrations } from '@/db/adapters/run-migrations'
+import { ensureSchemaColumns } from '@/db/adapters/ensure-schema-columns'
+import { ensureTriggers } from '@/db/adapters/ensure-triggers'
 import { SetupLayout } from '@/components/ui/layouts/SetupLayout'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { SystemCheckClient } from '../SystemCheckClient'
@@ -31,8 +34,11 @@ async function runChecks(dict: SysCheckDict): Promise<CheckResult[]> {
   const envOk = Boolean(process.env.DATABASE_URL && process.env.AUTH_SECRET)
   results.push({ label: dict.env, ok: envOk })
 
-  // Schema
+  // Schema — apply migrations + ensure columns/triggers, then verify
   try {
+    await runMigrations()
+    await ensureSchemaColumns()
+    await ensureTriggers()
     const schemaOk = await checkSchemaIntegrity()
     results.push({ label: dict.schema, ok: schemaOk })
   } catch {

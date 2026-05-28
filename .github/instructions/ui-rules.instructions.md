@@ -2,7 +2,7 @@
 applyTo: "**"
 ---
 
-# Cartum — Instrucciones de UI siempre activas
+# Cartum: Instrucciones de UI siempre activas
 
 Estas reglas aplican a **todo** código generado en **Cartum**, sin excepción.
 
@@ -16,13 +16,13 @@ Estas reglas aplican a **todo** código generado en **Cartum**, sin excepción.
 
 ## Reglas absolutas
 
-1. **Toda nueva pantalla o contenido significativo usa `<VHSTransition>`** — efecto de entrada estilo VHS/cyberpunk (scanlines + RGB shift + glitch). Nunca omitirlo en páginas nuevas o paneles principales.
+1. **Toda nueva pantalla o contenido significativo usa `<VHSTransition>`**: efecto de entrada estilo VHS/cyberpunk (scanlines + RGB shift + glitch). Nunca omitirlo en páginas nuevas o paneles principales.
 2. **Custom primero**: crear componentes propios antes de usar una librería externa. Excepción permitida: drag & drop con `@dnd-kit`.
-3. **Todo drag & drop pasa por wrappers en `/components/external/dnd/`** — nunca usar `@dnd-kit` directamente en páginas o componentes UI.
+3. **Todo drag & drop pasa por wrappers en `/components/external/dnd/`**: nunca usar `@dnd-kit` directamente en páginas o componentes UI.
 4. **Sin lógica en Views**: las páginas en `/app/` solo componen. La lógica va en hooks en `/lib/hooks/`.
-5. **Variantes con `cva()`** de `class-variance-authority` — no props booleanas sueltas para estilos.
-6. **Todos los tipos en `/types/`** — nunca tipos inline dentro de componentes.
-7. **Paleta de color del sistema** — no valores de color hardcodeados. Usar variables CSS o clases Tailwind del tema definido.
+5. **Variantes con `cva()`** de `class-variance-authority`: no props booleanas sueltas para estilos.
+6. **Todos los tipos en `/types/`**: nunca tipos inline dentro de componentes.
+7. **Paleta de color del sistema**: no valores de color hardcodeados. Usar variables CSS o clases Tailwind del tema definido.
 
 ## Estética obligatoria
 

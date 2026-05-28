@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { cookies } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
@@ -6,6 +7,7 @@ import { auth } from '@/auth'
 import { getSetting } from '@/lib/settings/get-setting'
 import { getR2Client } from '@/lib/media/r2-client'
 import { getActiveProvider } from '@/lib/media/storage-router'
+import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 
 /**
  * POST /api/internal/media/videos/init
@@ -24,6 +26,12 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const cookieStore = await cookies()
+  const projectId   = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
+  if (!projectId) {
+    return NextResponse.json({ error: 'No project context' }, { status: 403 })
   }
 
   const vpsUrl = await getSetting('media_vps_url', process.env.MEDIA_VPS_URL)
@@ -51,7 +59,7 @@ export async function POST(req: NextRequest) {
       const r2Config  = await getR2Client()
       const filename  = body.filename ?? 'video.mp4'
       const ext       = filename.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') ?? 'mp4'
-      r2Key           = `uploads/${randomUUID()}.${ext}`
+      r2Key           = `uploads/${projectId}/${randomUUID()}.${ext}`
       destinationUrl  = await getSignedUrl(
         r2Config.client,
         new PutObjectCommand({ Bucket: r2Config.bucket, Key: r2Key, ContentType: 'video/mp4' }),
