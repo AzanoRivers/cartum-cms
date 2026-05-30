@@ -96,7 +96,8 @@ export async function sendInvitation(
     const msg = err instanceof Error ? err.message : ''
     if (msg === 'USER_ALREADY_MEMBER') return { error: 'This user is already a member of this project.' }
     if (msg === 'EMAIL_NOT_CONFIGURED') return { error: 'Email is not configured. Set up Resend in Settings → Sending.' }
-    throw err
+    console.error('[sendInvitation]', err)
+    return { error: 'An unexpected error occurred. Please try again.' }
   }
 
   revalidatePath('/cms/settings')
@@ -213,7 +214,6 @@ export async function registerAndAccept(
 ): Promise<{ error: string } | never> {
   const parsed = RegisterAndAcceptSchema.safeParse({
     token:    formData.get('token'),
-    name:     formData.get('name'),
     password: formData.get('password'),
   })
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input.' }

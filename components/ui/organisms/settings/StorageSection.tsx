@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { cva } from 'class-variance-authority'
-import { ChevronDown, Check } from 'lucide-react'
+import { ChevronDown, Check, Eye, EyeOff } from 'lucide-react'
 import {
   getStorageSettings,
   updateStorageSettings,
@@ -17,11 +17,12 @@ import { useToast } from '@/lib/hooks/useToast'
 import { t } from '@/lib/i18n/t'
 import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
 import type { Dictionary } from '@/locales/en'
-import type { StorageSettings, StorageProvider } from '@/types/settings'
+import type { StorageSettings, StorageSettingsIsSet, StorageProvider } from '@/types/settings'
 
 export type StorageSectionProps = {
   d:            Dictionary['settings']['storage']
   isSuperAdmin: boolean
+  isAdmin:      boolean
   loadingText:  string
 }
 
@@ -30,8 +31,6 @@ type StorageStatus = {
   blobConfigured: boolean
   activeProvider: StorageProvider
 }
-
-// ── cva variants ──────────────────────────────────────────────────────────────
 
 const providerBtn = cva(
   'relative rounded-md border px-3 py-3 font-mono text-xs text-left transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-11',
@@ -46,16 +45,108 @@ const providerBtn = cva(
   },
 )
 
-// ── component ─────────────────────────────────────────────────────────────────
+const inputCls =
+  'w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors'
 
-export function StorageSection({ d, isSuperAdmin, loadingText }: StorageSectionProps) {
+const ghostBtnCls =
+  'rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+
+// ── Masked field helpers ───────────────────────────────────────────────────────
+
+function IsSetBadge({ isSet, d }: { isSet: boolean; d: { fieldSet: string; fieldNotSet: string } }) {
+  return (
+    <div className={[
+      'flex h-9 items-center gap-2 rounded-md border px-3 font-mono text-xs',
+      isSet
+        ? 'border-success/30 bg-success/5 text-success'
+        : 'border-danger/30 bg-danger/5 text-danger/70',
+    ].join(' ')}>
+      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{
+        background: isSet ? 'var(--color-success)' : 'var(--color-danger)',
+      }} />
+      {isSet ? d.fieldSet : d.fieldNotSet}
+    </div>
+  )
+}
+
+function MaskedField({
+  label, isSet, placeholder, value, onChange, d,
+}: {
+  label:       string
+  isSet:       boolean
+  placeholder: string
+  value:       string
+  onChange:    (v: string) => void
+  d:           { fieldSet: string; fieldNotSet: string; fieldReplaceLabel: string }
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block font-mono text-xs text-muted">{label}</label>
+      <IsSetBadge isSet={isSet} d={d} />
+      <label className="block font-mono text-[10px] text-muted/60 pt-0.5">{d.fieldReplaceLabel}</label>
+      <input
+        type="password"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete="off"
+        className={inputCls}
+      />
+    </div>
+  )
+}
+
+function RevealField({
+  label, value, placeholder, onChange,
+  showLabel, hideLabel,
+}: {
+  label:       string
+  value:       string
+  placeholder: string
+  onChange:    (v: string) => void
+  showLabel:   string
+  hideLabel:   string
+}) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="space-y-1.5">
+      <label className="block font-mono text-xs text-muted">{label}</label>
+      <div className="relative">
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputCls + ' pr-16'}
+        />
+        <button
+          type="button"
+          onClick={() => setShow((v) => !v)}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors"
+          tabIndex={-1}
+        >
+          {show ? <EyeOff size={14} strokeWidth={1.8} /> : <Eye size={14} strokeWidth={1.8} />}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
+export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: StorageSectionProps) {
+  const canManage = isSuperAdmin || isAdmin
+
   const [form, setForm]     = useState<StorageSettings>({
+    r2Endpoint: '', r2AccessKeyId: '', r2SecretAccessKey: '',
     r2BucketName: '', r2PublicUrl: '', storageProvider: 'r2',
   })
-  const [status, setStatus]     = useState<StorageStatus | null>(null)
-  const [loaded, setLoaded]     = useState(false)
-  const [showKey, setShowKey]   = useState(false)
-  const [showBlob, setShowBlob] = useState(false)
+  const [isSet, setIsSet]   = useState<StorageSettingsIsSet>({
+    r2Endpoint: false, r2AccessKeyId: false, r2SecretAccessKey: false,
+    r2BucketName: false, r2PublicUrl: false, mediaVpsUrl: false, mediaVpsKey: false, blobToken: false,
+  })
+  const [status, setStatus] = useState<StorageStatus | null>(null)
+  const [loaded, setLoaded] = useState(false)
   const [r2Open, setR2Open]     = useState(false)
   const [blobOpen, setBlobOpen] = useState(false)
   const [vpsOpen, setVpsOpen]   = useState(false)
@@ -69,12 +160,10 @@ export function StorageSection({ d, isSuperAdmin, loadingText }: StorageSectionP
   const toast = useToast()
 
   useEffect(() => {
-    Promise.all([
-      getStorageSettings(),
-      getStorageStatus(),
-    ]).then(([settingsRes, statusRes]) => {
+    Promise.all([getStorageSettings(), getStorageStatus()]).then(([settingsRes, statusRes]) => {
       if (settingsRes.success) {
-        setForm(settingsRes.data)
+        setForm(settingsRes.data.settings)
+        setIsSet(settingsRes.data.isSet)
       }
       if (statusRes.success) setStatus(statusRes.data)
       setLoaded(true)
@@ -104,6 +193,10 @@ export function StorageSection({ d, isSuperAdmin, loadingText }: StorageSectionP
         toast.success(d.saved)
         const statusRes = await getStorageStatus()
         if (statusRes.success) setStatus(statusRes.data)
+        // Re-fetch to get updated isSet status
+        getStorageSettings().then((r) => {
+          if (r.success) { setIsSet(r.data.isSet); setForm(r.data.settings) }
+        })
       } else {
         toast.error(d.error)
       }
@@ -128,29 +221,26 @@ export function StorageSection({ d, isSuperAdmin, loadingText }: StorageSectionP
     })
   }
 
-  if (!loaded) {
-    return (
-      <SectionLoader text={loadingText} />
-    )
-  }
+  if (!loaded) return <SectionLoader text={loadingText} />
 
-  const activeProvider  = status?.activeProvider ?? form.storageProvider
-  const bothConfigured  = !!(status?.r2Configured && status?.blobConfigured)
+  const activeProvider = status?.activeProvider ?? form.storageProvider
+  const bothConfigured = !!(status?.r2Configured && status?.blobConfigured)
 
   return (
     <div className="space-y-5">
-      <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
+      <div className="space-y-1">
+        <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
+        <p className="font-mono text-[10px] text-muted/60">{d.projectScopeNote}</p>
+      </div>
 
-      {/* ── Provider selector — solo visible para superAdmin cuando ambos proveedores están configurados */}
+      {/* Provider selector — superAdmin only when both configured */}
       {isSuperAdmin && bothConfigured && (
         <div className="space-y-3">
-          {/* Banner informativo */}
           <div className="flex items-start gap-2.5 rounded-lg border border-primary/30 bg-primary/10 px-3.5 py-2.5">
             <div className="mt-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
             <span className="font-mono text-xs leading-snug text-primary">{d.providerSelectHint}</span>
           </div>
-
-          <span className="block font-mono text-xs text-text-muted">{d.providerLabel}</span>
+          <span className="block font-mono text-xs text-muted">{d.providerLabel}</span>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {(['r2', 'blob'] as StorageProvider[]).map((provider) => {
               const label    = provider === 'r2' ? d.providerR2 : d.providerBlob
@@ -179,7 +269,7 @@ export function StorageSection({ d, isSuperAdmin, loadingText }: StorageSectionP
         </div>
       )}
 
-      {/* ── R2 Accordion ─────────────────────────────────────────────── */}
+      {/* ── Cloudflare R2 ──────────────────────────────────────────────── */}
       <Accordion
         open={r2Open}
         onToggle={() => setR2Open((v) => !v)}
@@ -193,39 +283,84 @@ export function StorageSection({ d, isSuperAdmin, loadingText }: StorageSectionP
         badgeVariant={status?.r2Configured ? (activeProvider === 'r2' ? 'primary' : 'success') : 'muted'}
       >
         <div className="space-y-4 pt-1">
-          <Field label={d.r2BucketName}>
-            <input
-              type="text"
-              value={form.r2BucketName}
-              placeholder={d.r2BucketNamePlaceholder}
-              onChange={(e) => handleChange('r2BucketName', e.target.value)}
-              className={inputCls}
-            />
-          </Field>
+          {/* Warning */}
+          <p className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 font-mono text-[10px] text-warning/80 leading-relaxed">
+            ⚠ {d.r2Warning}
+          </p>
 
+          {/* R2 Endpoint */}
+          {isSuperAdmin ? (
+            <Field label={d.r2Endpoint}>
+              <input type="text" value={form.r2Endpoint} placeholder={d.r2EndpointPlaceholder}
+                onChange={(e) => handleChange('r2Endpoint', e.target.value)} className={inputCls} />
+            </Field>
+          ) : (
+            <MaskedField label={d.r2Endpoint} isSet={isSet.r2Endpoint}
+              placeholder={d.r2EndpointPlaceholder} value={form.r2Endpoint}
+              onChange={(v) => handleChange('r2Endpoint', v)} d={d} />
+          )}
+
+          {/* Access Key ID */}
+          {isSuperAdmin ? (
+            <RevealField label={d.r2AccessKeyId} value={form.r2AccessKeyId}
+              placeholder={d.r2AccessKeyIdPlaceholder}
+              onChange={(v) => handleChange('r2AccessKeyId', v)}
+              showLabel={d.showKey} hideLabel={d.hideKey} />
+          ) : (
+            <MaskedField label={d.r2AccessKeyId} isSet={isSet.r2AccessKeyId}
+              placeholder={d.r2AccessKeyIdPlaceholder} value={form.r2AccessKeyId}
+              onChange={(v) => handleChange('r2AccessKeyId', v)} d={d} />
+          )}
+
+          {/* Secret Access Key */}
+          {isSuperAdmin ? (
+            <RevealField label={d.r2SecretAccessKey} value={form.r2SecretAccessKey}
+              placeholder={d.r2SecretAccessKeyPlaceholder}
+              onChange={(v) => handleChange('r2SecretAccessKey', v)}
+              showLabel={d.showKey} hideLabel={d.hideKey} />
+          ) : (
+            <MaskedField label={d.r2SecretAccessKey} isSet={isSet.r2SecretAccessKey}
+              placeholder={d.r2SecretAccessKeyPlaceholder} value={form.r2SecretAccessKey}
+              onChange={(v) => handleChange('r2SecretAccessKey', v)} d={d} />
+          )}
+
+          {/* Bucket name — non-sensitive, all roles see value */}
+          {isSuperAdmin ? (
+            <Field label={d.r2BucketName}>
+              <input type="text" value={form.r2BucketName} placeholder={d.r2BucketNamePlaceholder}
+                onChange={(e) => handleChange('r2BucketName', e.target.value)} className={inputCls} />
+            </Field>
+          ) : (
+            <MaskedField label={d.r2BucketName} isSet={isSet.r2BucketName}
+              placeholder={d.r2BucketNamePlaceholder} value={form.r2BucketName}
+              onChange={(v) => handleChange('r2BucketName', v)} d={d} />
+          )}
+
+          {/* Public URL — all roles can see (not a secret) */}
           <Field label={d.r2PublicUrl}>
-            <input
-              type="url"
-              value={form.r2PublicUrl}
-              placeholder={d.r2PublicUrlPlaceholder}
-              onChange={(e) => handleChange('r2PublicUrl', e.target.value)}
-              className={inputCls}
-            />
+            <input type="url" value={form.r2PublicUrl} placeholder={d.r2PublicUrlPlaceholder}
+              onChange={(e) => handleChange('r2PublicUrl', e.target.value)} className={inputCls} />
           </Field>
 
-          <div className="flex items-center justify-end gap-3 pt-1">
-            {r2TestResult && (
-              <span className="font-mono text-xs text-success">{r2TestResult}</span>
-            )}
-            <button onClick={handleR2Test} disabled={isR2Testing} className={ghostBtnCls}>
-              {isR2Testing ? d.testing : d.testConnection}
-            </button>
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <a href="https://developers.cloudflare.com/r2/get-started/" target="_blank" rel="noopener noreferrer"
+              className="font-mono text-xs text-primary/70 hover:text-primary transition-colors">
+              {d.r2DocsLink} ↗
+            </a>
+            <div className="flex items-center gap-3">
+              {r2TestResult && <span className="font-mono text-xs text-success">{r2TestResult}</span>}
+              {canManage && (
+                <button onClick={handleR2Test} disabled={isR2Testing} className={ghostBtnCls}>
+                  {isR2Testing ? d.testing : d.testConnection}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </Accordion>
 
-      {/* ── Blob Accordion — solo superAdmin ─────────────────────────── */}
-      {isSuperAdmin && <Accordion
+      {/* ── Vercel Blob ────────────────────────────────────────────────── */}
+      <Accordion
         open={blobOpen}
         onToggle={() => setBlobOpen((v) => !v)}
         title={d.blobSectionTitle}
@@ -238,122 +373,167 @@ export function StorageSection({ d, isSuperAdmin, loadingText }: StorageSectionP
         badgeVariant={status?.blobConfigured ? (activeProvider === 'blob' ? 'primary' : 'success') : 'muted'}
       >
         <div className="space-y-4 pt-1">
-          <Field label={d.blobToken}>
-            <div className="flex gap-2">
-              <div className="relative flex-1 min-w-0">
-                <input
-                  type={showBlob ? 'text' : 'password'}
-                  value={form.blobToken ?? ''}
-                  placeholder={d.blobTokenPlaceholder}
-                  onChange={(e) => handleChange('blobToken', e.target.value)}
-                  className={inputCls}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowBlob((v) => !v)}
-                className="rounded-md border border-border bg-surface-2 px-3 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
-              >
-                {showBlob ? d.hideKey : d.showKey}
-              </button>
-            </div>
-            <p className="mt-1.5 font-mono text-[11px] text-muted/60">{d.blobTokenHint}</p>
-          </Field>
+          <p className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 font-mono text-[10px] text-warning/80 leading-relaxed">
+            ⚠ {d.blobWarning}
+          </p>
 
-          <div className="flex items-center justify-end gap-3 pt-1">
-            {blobTestResult && (
-              <span className="font-mono text-xs text-success">{blobTestResult}</span>
-            )}
-            <button onClick={handleBlobTest} disabled={isBlobTesting} className={ghostBtnCls}>
-              {isBlobTesting ? d.testing : d.testBlob}
-            </button>
+          {isSuperAdmin ? (
+            <div className="space-y-1.5">
+              <label className="block font-mono text-xs text-muted">{d.blobToken}</label>
+              <div className="flex gap-2">
+                <BlobTokenField value={form.blobToken ?? ''} placeholder={d.blobTokenPlaceholder}
+                  onChange={(v) => handleChange('blobToken', v)} showLabel={d.showKey} hideLabel={d.hideKey} />
+              </div>
+              <p className="font-mono text-[10px] text-muted/60">{d.blobTokenHint}</p>
+            </div>
+          ) : (
+            <MaskedField label={d.blobToken} isSet={isSet.blobToken}
+              placeholder={d.blobTokenPlaceholder} value={form.blobToken ?? ''}
+              onChange={(v) => handleChange('blobToken', v)} d={d} />
+          )}
+
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <a href="https://vercel.com/docs/storage/vercel-blob" target="_blank" rel="noopener noreferrer"
+              className="font-mono text-xs text-primary/70 hover:text-primary transition-colors">
+              {d.blobDocsLink} ↗
+            </a>
+            <div className="flex items-center gap-3">
+              {blobTestResult && <span className="font-mono text-xs text-success">{blobTestResult}</span>}
+              {canManage && (
+                <button onClick={handleBlobTest} disabled={isBlobTesting} className={ghostBtnCls}>
+                  {isBlobTesting ? d.testing : d.testBlob}
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </Accordion>}
+      </Accordion>
 
-      {/* ── VPS Accordion ────────────────────────────────────────────── */}
+      {/* ── VPS Media Optimizer ────────────────────────────────────────── */}
       <Accordion
         open={vpsOpen}
         onToggle={() => setVpsOpen((v) => !v)}
         title={d.vpsSectionTitle}
         isActiveProvider={false}
-        badgeLabel={form.mediaVpsUrl ? d.statusConfigured : d.statusNotConfigured}
-        badgeVariant={form.mediaVpsUrl ? 'success' : 'muted'}
+        badgeLabel={isSet.mediaVpsUrl ? d.statusConfigured : d.statusNotConfigured}
+        badgeVariant={isSet.mediaVpsUrl ? 'success' : 'muted'}
       >
         <div className="space-y-4 pt-1">
+          <p className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 font-mono text-[10px] text-warning/80 leading-relaxed">
+            ⚠ {d.mediaVpsWarning}
+          </p>
+
+          {/* VPS URL — superAdmin can edit, admin sees read-only */}
           <Field label={d.mediaVpsUrl}>
-            <input
-              type="url"
-              value={form.mediaVpsUrl ?? ''}
-              placeholder={d.mediaVpsUrlPlaceholder}
-              onChange={(e) => handleChange('mediaVpsUrl', e.target.value)}
-              className={inputCls}
-            />
+            {isSuperAdmin ? (
+              <input type="url" value={form.mediaVpsUrl ?? ''} placeholder={d.mediaVpsUrlPlaceholder}
+                onChange={(e) => handleChange('mediaVpsUrl', e.target.value)} className={inputCls} />
+            ) : (
+              <div className="flex h-9 items-center gap-2 rounded-md border border-border/40 bg-surface-2/40 px-3 font-mono text-sm text-muted/70 overflow-hidden cursor-default">
+                <span className="truncate flex-1">{form.mediaVpsUrl || d.mediaVpsUrlPlaceholder}</span>
+                <span className="shrink-0 rounded-sm border border-border/50 bg-surface px-1.5 py-0.5 font-mono text-[9px] text-muted/40 uppercase tracking-widest leading-none">
+                  read-only
+                </span>
+              </div>
+            )}
+            {!isSuperAdmin && (
+              <p className="font-mono text-[10px] text-muted/50 mt-1">{d.mediaVpsUrlLocked}</p>
+            )}
           </Field>
 
-          <Field label={d.mediaVpsKey}>
-            <div className="flex gap-2">
-              <div className="relative flex-1 min-w-0">
-                <input
-                  type={showKey ? 'text' : 'password'}
-                  value={form.mediaVpsKey ?? ''}
-                  onChange={(e) => handleChange('mediaVpsKey', e.target.value)}
-                  className={inputCls}
-                />
+          {/* VPS Key — superAdmin sees it, admin can only replace */}
+          {isSuperAdmin ? (
+            <div className="space-y-1.5">
+              <label className="block font-mono text-xs text-muted">{d.mediaVpsKey}</label>
+              <div className="flex gap-2">
+                <VpsKeyField value={form.mediaVpsKey ?? ''} onChange={(v) => handleChange('mediaVpsKey', v)}
+                  showLabel={d.showKey} hideLabel={d.hideKey} />
               </div>
-              <button
-                type="button"
-                onClick={() => setShowKey((v) => !v)}
-                className="rounded-md border border-border bg-surface-2 px-3 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
-              >
-                {showKey ? d.hideKey : d.showKey}
-              </button>
+              <a href="https://optimus.azanolabs.com/guide" target="_blank" rel="noopener noreferrer"
+                className="inline-block mt-1 font-mono text-xs text-primary/70 hover:text-primary transition-colors">
+                {d.apiDocsLink} ↗
+              </a>
             </div>
-            <a
-              href="https://optimus.azanolabs.com/guide"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1.5 inline-block font-mono text-xs text-primary/70 hover:text-primary transition-colors"
-            >
-              {d.apiDocsLink}
-            </a>
-          </Field>
+          ) : (
+            <MaskedField label={d.mediaVpsKey} isSet={isSet.mediaVpsKey}
+              placeholder="VPS API key" value={form.mediaVpsKey ?? ''}
+              onChange={(v) => handleChange('mediaVpsKey', v)} d={d} />
+          )}
         </div>
       </Accordion>
 
-      {/* ── Docs link ────────────────────────────────────────────────── */}
-      <DocLink href="/cms/docs#media" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
+      {/* Docs link */}
+      <DocLink href="/cms/docs#storageSetup" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
 
-      {/* ── Save row ─────────────────────────────────────────────────── */}
-      <div className="pt-1 space-y-2">
-        <p className="font-mono text-[11px] text-muted/60">{d.saveEmptyNotice}</p>
-        <div className="flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-          >
-            {isSaving ? d.saving : d.save}
-          </button>
+      {/* Save row */}
+      {canManage && (
+        <div className="pt-1 space-y-2">
+          <p className="font-mono text-[11px] text-muted/60">{d.saveEmptyNotice}</p>
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {isSaving ? d.saving : d.save}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-const inputCls =
-  'w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors'
-
-const ghostBtnCls =
-  'rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="block font-mono text-xs text-text-muted">{label}</label>
+      <label className="block font-mono text-xs text-muted">{label}</label>
       {children}
+    </div>
+  )
+}
+
+function BlobTokenField({ value, placeholder, onChange, showLabel, hideLabel }: {
+  value: string; placeholder: string; onChange: (v: string) => void
+  showLabel: string; hideLabel: string
+}) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="flex gap-2 w-full">
+      <input
+        type={show ? 'text' : 'password'}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className={inputCls + ' flex-1 min-w-0'}
+      />
+      <button type="button" onClick={() => setShow((v) => !v)}
+        className="rounded-md border border-border bg-surface-2 px-3 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer">
+        {show ? hideLabel : showLabel}
+      </button>
+    </div>
+  )
+}
+
+function VpsKeyField({ value, onChange, showLabel, hideLabel }: {
+  value: string; onChange: (v: string) => void
+  showLabel: string; hideLabel: string
+}) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="flex gap-2 w-full">
+      <input
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={inputCls + ' flex-1 min-w-0'}
+      />
+      <button type="button" onClick={() => setShow((v) => !v)}
+        className="rounded-md border border-border bg-surface-2 px-3 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer">
+        {show ? hideLabel : showLabel}
+      </button>
     </div>
   )
 }
@@ -369,7 +549,7 @@ type AccordionProps = {
 }
 
 function Accordion({ open, onToggle, title, badgeLabel, badgeVariant, isActiveProvider, children }: AccordionProps) {
-  const headerBg = open ? 'bg-primary/10' : 'bg-primary/5 hover:bg-primary/10'
+  const headerBg   = open ? 'bg-primary/10' : 'bg-primary/5 hover:bg-primary/10'
   const titleColor = open || isActiveProvider ? 'text-primary' : 'text-text'
   const borderColor = isActiveProvider ? 'border-primary/40' : 'border-border'
 
@@ -381,9 +561,7 @@ function Accordion({ open, onToggle, title, badgeLabel, badgeVariant, isActivePr
         className={`flex w-full items-center justify-between px-4 py-3 text-left transition-colors cursor-pointer ${headerBg}`}
       >
         <div className="flex items-center gap-2.5">
-          <span className={`font-mono text-xs font-semibold ${titleColor}`}>
-            {title}
-          </span>
+          <span className={`font-mono text-xs font-semibold ${titleColor}`}>{title}</span>
           <Badge variant={badgeVariant} size="sm" className="font-mono uppercase tracking-widest">
             {badgeLabel}
           </Badge>
@@ -393,8 +571,6 @@ function Accordion({ open, onToggle, title, badgeLabel, badgeVariant, isActivePr
           className={`transition-transform duration-300 ${open ? 'rotate-180 text-primary' : isActiveProvider ? 'text-primary/60' : 'text-muted'}`}
         />
       </button>
-
-      {/* grid-rows accordion — patrón estándar del proyecto */}
       <div
         className={`grid ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
         style={{ transition: 'grid-template-rows 280ms cubic-bezier(0.4, 0, 0.2, 1)' }}

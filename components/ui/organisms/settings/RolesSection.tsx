@@ -82,6 +82,7 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
 
   const [perms, setPerms]               = useState<PermRow[]>([])
   const [permsLoaded, setPermsLoaded]   = useState(false)
+  const [isProjectOverride, setIsProjectOverride] = useState(false)
   const [isSavingPerms, startSavePerms] = useTransition()
 
   const [sectionPerms, setSectionPerms] = useState<Partial<Record<SectionKey, boolean>>>({})
@@ -109,6 +110,7 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
     setPermsLoaded(false)
     setSectionPerms({})
     setWildcardActions([])
+    setIsProjectOverride(false)
 
     Promise.all([
       getPermissionsForRole(selectedId),
@@ -117,6 +119,7 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
       if (nodeRes.success) {
         setPerms(nodeRes.data.permissions)
         setWildcardActions(nodeRes.data.wildcardActions)
+        setIsProjectOverride(nodeRes.data.isProjectOverride)
       }
       if (sectionRes.success) {
         const map: Partial<Record<SectionKey, boolean>> = {}
@@ -239,6 +242,11 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
     <section className="space-y-4">
       <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
 
+      {/* Project-scope warning */}
+      <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 font-mono text-[10px] text-warning/80 leading-relaxed">
+        ⚠ {d.projectScopeWarning}
+      </div>
+
       {/* Two-panel layout — vertical on mobile, horizontal on md+ */}
       <div className="flex flex-col gap-3 md:flex-row md:gap-4 md:min-h-120">
 
@@ -286,8 +294,8 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
             )
           })}
 
-          {/* New role button */}
-          {isSuperAdmin && (
+          {/* New role button — admin or superAdmin */}
+          {(isSuperAdmin || isAdmin) && (
             <button
               onClick={() => setShowCreate(true)}
               className="shrink-0 flex items-center gap-1 rounded-md border border-dashed border-border/40 px-2.5 py-2 font-mono text-xs text-muted hover:text-text hover:border-border transition-colors cursor-pointer md:mt-1 md:w-full"
@@ -317,6 +325,15 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin }: RolesSection
                       : 'bg-accent/10 text-accent border-accent/30',
                   ].join(' ')}>
                     {selectedRole.isBuiltIn ? d.systemBadge : d.custom}
+                  </span>
+                  {/* Project override indicator */}
+                  <span className={[
+                    'rounded px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider border',
+                    isProjectOverride
+                      ? 'bg-primary/10 text-primary border-primary/30'
+                      : 'bg-surface-2/60 text-muted/50 border-border/40',
+                  ].join(' ')}>
+                    {isProjectOverride ? d.projectOverrideBadge : d.globalDefaultBadge}
                   </span>
                   {selectedRole.userCount > 0 && (
                     <span className="ml-auto font-mono text-[11px] text-muted/60">

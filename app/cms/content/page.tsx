@@ -28,7 +28,7 @@ export default async function ContentPage() {
   ])
 
   const activeProvider  = statusRes.success  ? statusRes.data.activeProvider   : 'r2'
-  const vpsConfigured   = settingsRes.success ? !!settingsRes.data.mediaVpsUrl  : false
+  const vpsConfigured   = settingsRes.success ? !!settingsRes.data.settings.mediaVpsUrl : false
   const storageSummary  = summaryRes.success  ? summaryRes.data                 : undefined
 
   return (

@@ -2,12 +2,10 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import {
-  listUsers,
+  listProjectUsers,
   inviteUser,
-  updateUserRole,
-  removeUser,
+  removeProjectMember,
   listRolesWithCount,
-  setUserSubscription,
   type UserWithRole,
 } from '@/lib/actions/settings.actions'
 import { ConfirmDialog } from '@/components/ui/molecules/ConfirmDialog'
@@ -19,33 +17,31 @@ import type { Dictionary } from '@/locales/en'
 export type UsersSectionProps = {
   currentUserId: string
   isSuperAdmin:  boolean
+  isAdmin:       boolean
   d:             Dictionary['settings']['users']
   loadingText:   string
 }
 
 type TempPasswordModal = { email: string; password: string; copied: boolean } | null
 
-export function UsersSection({ currentUserId, isSuperAdmin, d, loadingText }: UsersSectionProps) {
-  const [userList, setUserList]       = useState<UserWithRole[]>([])
-  const [roleOptions, setRoleOptions] = useState<Array<{ id: string; name: string }>>([])
-  const [loaded, setLoaded]           = useState(false)
-  const [tempModal, setTempModal]     = useState<TempPasswordModal>(null)
+export function UsersSection({ currentUserId, isSuperAdmin, isAdmin, d, loadingText }: UsersSectionProps) {
+  const [userList, setUserList]         = useState<UserWithRole[]>([])
+  const [roleOptions, setRoleOptions]   = useState<Array<{ id: string; name: string }>>([])
+  const [loaded, setLoaded]             = useState(false)
+  const [tempModal, setTempModal]       = useState<TempPasswordModal>(null)
   const [removeTarget, setRemoveTarget] = useState<UserWithRole | null>(null)
 
-  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteEmail, setInviteEmail]   = useState('')
   const [inviteRoleId, setInviteRoleId] = useState('')
 
-  const [isInviting, startInvite]     = useTransition()
-  const [updatingId, setUpdatingId]   = useState<string | null>(null)
-  const [removingId, setRemovingId]   = useState<string | null>(null)
-  const [togglingSubId, setTogglingSubId] = useState<string | null>(null)
+  const [isInviting, startInvite]       = useTransition()
+  const [removingId, setRemovingId]     = useState<string | null>(null)
 
-  const TRIAL_SECONDS = 7 * 86_400
-
-  const toast = useToast()
+  const canManage = isSuperAdmin || isAdmin
+  const toast     = useToast()
 
   useEffect(() => {
-    Promise.all([listUsers(), listRolesWithCount()]).then(([usRes, rolesRes]) => {
+    Promise.all([listProjectUsers(), listRolesWithCount()]).then(([usRes, rolesRes]) => {
       if (usRes.success) setUserList(usRes.data)
       if (rolesRes.success) {
         setRoleOptions(rolesRes.data.map((r) => ({ id: r.id, name: r.name })))
@@ -62,97 +58,67 @@ export function UsersSection({ currentUserId, isSuperAdmin, d, loadingText }: Us
       if (res.success) {
         toast.success(d.inviteSuccess)
         setInviteEmail('')
-        // Refresh user list
-        listUsers().then((r) => { if (r.success) setUserList(r.data) })
+        listProjectUsers().then((r) => { if (r.success) setUserList(r.data) })
         if (res.data.tempPassword) {
           setTempModal({ email: inviteEmail.trim(), password: res.data.tempPassword, copied: false })
         }
       } else {
-        toast.error(d.inviteError)
+        toast.error(res.error ?? d.inviteError)
       }
     })
-  }
-
-  async function handleRoleChange(userId: string, roleId: string) {
-    setUpdatingId(userId)
-    const res = await updateUserRole(userId, roleId)
-    setUpdatingId(null)
-    if (res.success) {
-      setUserList((prev) =>
-        prev.map((u) => {
-          if (u.id !== userId) return u
-          const role = roleOptions.find((r) => r.id === roleId)
-          return { ...u, roleId, roleName: role?.name ?? null }
-        }),
-      )
-      toast.success(d.roleChanged)
-    }
   }
 
   async function confirmRemove() {
     if (!removeTarget) return
     setRemovingId(removeTarget.id)
-    const res = await removeUser(removeTarget.id)
+    const res = await removeProjectMember(removeTarget.id)
     setRemovingId(null)
     setRemoveTarget(null)
     if (res.success) {
       setUserList((prev) => prev.filter((u) => u.id !== removeTarget.id))
       toast.success(d.removeSuccess)
+    } else {
+      toast.error(res.error ?? 'Error')
     }
   }
 
-  async function handleSubToggle(user: UserWithRole) {
-    const next = !user.cartumSuscriptor
-    setTogglingSubId(user.id)
-    const res = await setUserSubscription(user.id, next)
-    setTogglingSubId(null)
-    if (res.success) {
-      setUserList((prev) =>
-        prev.map((u) => u.id === user.id ? { ...u, cartumSuscriptor: next } : u),
-      )
-      toast.success(next ? d.subActivateSuccess : d.subRevokeSuccess)
-    }
-  }
-
-  if (!loaded) {
-    return (
-      <SectionLoader text={loadingText} />
-    )
-  }
+  if (!loaded) return <SectionLoader text={loadingText} />
 
   return (
     <div className="space-y-5">
       <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
 
-      {/* Invite form */}
-      <div className="rounded-md border border-border/60 bg-surface-2/40 p-4 space-y-2">
-        <p className="font-mono text-xs text-muted uppercase tracking-wider">{d.inviteTitle}</p>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <input
-            type="email"
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-            placeholder={d.emailPlaceholder}
-            className="w-full sm:flex-1 sm:min-w-40 rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
-          />
-          <select
-            value={inviteRoleId}
-            onChange={(e) => setInviteRoleId(e.target.value)}
-            className="w-full sm:w-auto rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text outline-none focus:border-primary/60 transition-colors cursor-pointer"
-          >
-            {roleOptions.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
-          <button
-            onClick={handleInvite}
-            disabled={isInviting || !inviteEmail.trim() || !inviteRoleId}
-            className="w-full sm:w-auto rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-          >
-            {isInviting ? d.inviting : d.inviteButton}
-          </button>
+      {/* Invite form — only for admins */}
+      {canManage && (
+        <div className="rounded-md border border-border/60 bg-surface-2/40 p-4 space-y-2">
+          <p className="font-mono text-xs text-muted uppercase tracking-wider">{d.inviteTitle}</p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder={d.emailPlaceholder}
+              className="w-full sm:flex-1 sm:min-w-40 rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
+            />
+            <select
+              value={inviteRoleId}
+              onChange={(e) => setInviteRoleId(e.target.value)}
+              className="w-full sm:w-auto rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text outline-none focus:border-primary/60 transition-colors cursor-pointer"
+            >
+              {roleOptions.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleInvite}
+              disabled={isInviting || !inviteEmail.trim() || !inviteRoleId}
+              className="w-full sm:w-auto rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {isInviting ? d.inviting : d.inviteButton}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* User list */}
       {userList.length === 0 ? (
@@ -160,7 +126,9 @@ export function UsersSection({ currentUserId, isSuperAdmin, d, loadingText }: Us
       ) : (
         <div className="space-y-1">
           {userList.map((user) => {
-            const isYou = user.id === currentUserId
+            const isYou          = user.id === currentUserId
+            const canRemoveThis  = canManage && !isYou && !user.isSuperAdmin
+
             return (
               <div
                 key={user.id}
@@ -174,62 +142,16 @@ export function UsersSection({ currentUserId, isSuperAdmin, d, loadingText }: Us
                 {/* Email */}
                 <span className="flex-1 truncate font-mono text-xs text-text">
                   {user.email}
-                  {isYou && (
-                    <span className="ml-1.5 text-muted/50">{d.youLabel}</span>
-                  )}
+                  {isYou && <span className="ml-1.5 text-muted/50">{d.youLabel}</span>}
                 </span>
 
-                {/* Role dropdown — disabled for self or super_admin */}
-                {isSuperAdmin && !user.isSuperAdmin ? (
-                  <select
-                    value={user.roleId ?? ''}
-                    onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                    disabled={updatingId === user.id}
-                    className="rounded-md border border-border bg-surface px-2 py-1 font-mono text-xs text-text outline-none focus:border-primary/60 transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    {roleOptions.map((r) => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="font-mono text-xs text-muted">
-                    {user.roleName ?? (user.isSuperAdmin ? 'super_admin' : '·')}
-                  </span>
-                )}
+                {/* Role badge (read-only — role change is in Members section) */}
+                <span className="font-mono text-xs text-muted">
+                  {user.isSuperAdmin ? 'super_admin' : (user.roleName ?? '·')}
+                </span>
 
-                {/* Subscription badge + toggle — non-superAdmin users only */}
-                {!user.isSuperAdmin && (() => {
-                  const daysLeft = user.cartumSuscriptor
-                    ? Math.max(0, Math.floor(
-                        (user.cartumSuscriptorTime + TRIAL_SECONDS - Date.now() / 1000) / 86_400,
-                      ))
-                    : 0
-                  const isActive = user.cartumSuscriptor && daysLeft > 0
-                  return (
-                    <span className={[
-                      'shrink-0 rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest',
-                      isActive
-                        ? 'border-warning/40 bg-warning/10 text-warning'
-                        : 'border-muted/20 bg-surface text-muted/50',
-                    ].join(' ')}>
-                      {isActive ? d.trialActive : d.trialExpired}
-                    </span>
-                  )
-                })()}
-                {isSuperAdmin && !isYou && !user.isSuperAdmin && (
-                  <button
-                    onClick={() => handleSubToggle(user)}
-                    disabled={togglingSubId === user.id}
-                    className="shrink-0 font-mono text-[10px] text-muted/60 hover:text-text transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {togglingSubId === user.id
-                      ? d.subToggling
-                      : user.cartumSuscriptor ? d.subToggleRevoke : d.subToggleActivate}
-                  </button>
-                )}
-
-                {/* Remove — super_admin only, not self */}
-                {isSuperAdmin && !isYou && !user.isSuperAdmin && (
+                {/* Remove — admin/superAdmin only, not self, not superAdmin targets */}
+                {canRemoveThis && (
                   <button
                     onClick={() => setRemoveTarget(user)}
                     disabled={removingId === user.id}

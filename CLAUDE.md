@@ -78,6 +78,41 @@ Los records se almacenan como JSONB en `records.data`, con las claves siendo el 
 
 ---
 
+## Reglas de Migraciones Drizzle
+
+### Regla de oro: SIEMPRE usar `pnpm db:generate`
+
+Cuando se necesite un cambio en la DB (nuevo campo, nueva tabla, nuevo índice, constraint):
+
+1. **Modificar el schema** en `db/schema/*.ts`
+2. **Generar la migración**: `pnpm db:generate`
+3. **Revisar el SQL generado** en `db/migrations/` antes de aplicar
+4. **Aplicar**: `pnpm db:migrate`
+
+### Nunca hacer manualmente
+
+- No crear archivos `.sql` en `db/migrations/` a mano
+- No editar `db/migrations/meta/_journal.json` a mano
+- No ejecutar SQL directamente contra la DB para cambios de schema
+
+### Por qué
+
+`db:generate` calcula el hash del SQL, el timestamp correcto y el diff exacto del schema. Hacerlo a mano produce timestamps incorrectos que confunden el orden de aplicación, hashes inconsistentes entre el journal y la DB, y migraciones que dicen "applied successfully" sin haber ejecutado el SQL.
+
+### Excepción permitida
+
+Si la migración ya fue registrada en `drizzle.__drizzle_migrations` pero el SQL no se ejecutó (estado inconsistente), aplicar el SQL directamente con `IF NOT EXISTS` / `IF EXISTS` para hacerlo idempotente. Luego correr `pnpm db:migrate` para verificar consistencia.
+
+### Scripts disponibles
+
+```
+pnpm db:generate   → genera migración a partir del diff del schema
+pnpm db:migrate    → aplica migraciones pendientes (corre como prebuild)
+pnpm db:studio     → Drizzle Studio UI para inspeccionar la DB
+```
+
+---
+
 ## Agente UI: Cartum UI Architect
 
 @.github/agents/cartum-ui-architect.md

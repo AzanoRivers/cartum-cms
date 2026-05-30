@@ -13,7 +13,7 @@ export type DocsSidebarProps = {
 }
 
 const TOP_IDS  = ['gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration', 'relationsGuide', 'multiProject'] as const
-const DEV_IDS  = ['nodesAndFieldsDev', 'webMigrationDev', 'multiProjectDev', 'media', 'apiForDevs', 'apiSchema', 'relations'] as const
+const DEV_IDS  = ['nodesAndFieldsDev', 'webMigrationDev', 'multiProjectDev', 'media', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations'] as const
 const ALL_IDS  = [...TOP_IDS, ...DEV_IDS] as const
 
 type SectionId = typeof ALL_IDS[number]
@@ -32,6 +32,7 @@ const ICONS: Record<SectionId, Parameters<typeof Icon>[0]['name']> = {
   webMigrationDev:   'Globe',
   multiProjectDev:   'Layers',
   media:             'Image',
+  storageSetup:      'HardDrive',
   apiForDevs:      'Code',
   apiSchema:       'Network',
   relations:       'GitMerge',
@@ -101,8 +102,8 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
             {/* Animated content */}
             <div
               style={{
-                maxHeight:  devOpen ? '300px' : '0px',
-                overflow:   'hidden',
+                maxHeight:  devOpen ? '600px' : '0px',
+                overflowY:  devOpen ? 'auto'   : 'hidden',
                 transition: 'max-height 300ms ease-out',
               }}
             >
@@ -156,9 +157,9 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
         {/* Animated content */}
         <div
           style={{
-            maxHeight:  mobileOpen ? '400px' : '0px',
+            maxHeight:  mobileOpen ? '70vh' : '0px',
             opacity:    mobileOpen ? 1 : 0,
-            overflow:   'hidden',
+            overflowY:  mobileOpen ? 'auto' : 'hidden',
             transition: 'max-height 300ms ease-out, opacity 200ms ease-out',
           }}
         >

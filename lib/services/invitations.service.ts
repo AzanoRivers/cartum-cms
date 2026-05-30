@@ -54,6 +54,7 @@ export const invitationsService = {
       inviteUrl:   `${baseUrl}/invite/${rawToken}`,
       expiryDays:  INVITE_EXPIRY_DAYS,
       locale:      (proj?.locale ?? 'en') as SupportedLocale,
+      baseUrl,
     })
   },
 
@@ -118,6 +119,7 @@ export const invitationsService = {
       inviteUrl:   `${baseUrl}/invite/${rawToken}`,
       expiryDays:  INVITE_EXPIRY_DAYS,
       locale:      (proj?.locale ?? 'en') as SupportedLocale,
+      baseUrl,
     })
   },
 }

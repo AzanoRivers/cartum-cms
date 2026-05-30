@@ -4,6 +4,7 @@ import { rolePermissions, roleSectionPermissions, usersRoles } from '@/db/schema
 import { getSetting } from '@/lib/settings/get-setting'
 import { rolesRepository } from '@/db/repositories/roles.repository'
 import { usersRepository } from '@/db/repositories/users.repository'
+import { projectMembershipsRepository } from '@/db/repositories/project-memberships.repository'
 import type {
   NodePermissions,
   PermissionOperation,
@@ -21,25 +22,38 @@ const NULL_PERMISSIONS: NodePermissions = {
 }
 
 /**
+ * Collects all role IDs for a user: global (usersRoles) + project membership.
+ * Project membership role takes precedence; both sources are unioned.
+ */
+async function collectRoleIds(userId: string, projectId?: string | null): Promise<string[]> {
+  const [globalRoles, projectRole] = await Promise.all([
+    rolesRepository.findByUserId(userId),
+    projectId ? projectMembershipsRepository.getUserProjectRole(userId, projectId) : Promise.resolve(null),
+  ])
+  const ids = new Set([
+    ...globalRoles.map((r) => r.id),
+    ...(projectRole ? [projectRole.roleId] : []),
+  ])
+  return [...ids]
+}
+
+/**
  * Resolves the effective permissions a user has for a given node.
  * Merges all role permissions — a single role granting an operation is enough.
  * Returns all-false if no permissions found.
  */
 async function resolvePermissions(
-  userId: string,
-  nodeId: string,
+  userId:    string,
+  nodeId:    string,
+  projectId?: string | null,
 ): Promise<NodePermissions> {
-  const userRoles = await rolesRepository.findByUserId(userId)
-  if (userRoles.length === 0) return { ...NULL_PERMISSIONS }
-
-  const roleIds = userRoles.map((r) => r.id)
+  const roleIds = await collectRoleIds(userId, projectId)
+  if (roleIds.length === 0) return { ...NULL_PERMISSIONS }
 
   const perms = await db
     .select()
     .from(rolePermissions)
-    .where(
-      eq(rolePermissions.nodeId, nodeId),
-    )
+    .where(eq(rolePermissions.nodeId, nodeId))
     .then((rows) => rows.filter((r) => roleIds.includes(r.roleId)))
 
   if (perms.length === 0) return { ...NULL_PERMISSIONS }
@@ -54,24 +68,52 @@ async function resolvePermissions(
 
 /**
  * Returns all node IDs where the user has can_read = true across any of their roles.
+ * Each role is resolved independently: project override first, then global table fallback.
+ * Results are unioned — a single role granting read on a node is enough.
  */
-async function getAccessibleNodes(userId: string): Promise<string[]> {
-  const userRoles = await rolesRepository.findByUserId(userId)
-  if (userRoles.length === 0) return []
+async function getAccessibleNodes(userId: string, projectId?: string | null): Promise<string[]> {
+  const roleIds = await collectRoleIds(userId, projectId)
+  if (roleIds.length === 0) return []
 
-  const roleIds = userRoles.map((r) => r.id)
+  const nodeIds = new Set<string>()
+  const globalFallbackRoleIds: string[] = []
 
-  const rows = await db
-    .select({ nodeId: rolePermissions.nodeId })
-    .from(rolePermissions)
-    .where(
-      and(
-        inArray(rolePermissions.roleId, roleIds),
-        eq(rolePermissions.canRead, true),
-      ),
-    )
+  if (projectId) {
+    for (const roleId of roleIds) {
+      const raw = await getSetting(`role_perms:${roleId}:${projectId}`)
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as Record<string, { read?: boolean }>
+          for (const [nodeId, p] of Object.entries(parsed)) {
+            if (p.read) nodeIds.add(nodeId)
+          }
+        } catch { /* ignore malformed — treat as no override */ }
+      } else {
+        // No project override for this role: use global table
+        globalFallbackRoleIds.push(roleId)
+      }
+    }
+  } else {
+    globalFallbackRoleIds.push(...roleIds)
+  }
 
-  return Array.from(new Set(rows.map((r) => r.nodeId).filter(Boolean) as string[]))
+  // Bulk-query global permissions for roles without project-specific overrides
+  if (globalFallbackRoleIds.length > 0) {
+    const rows = await db
+      .select({ nodeId: rolePermissions.nodeId })
+      .from(rolePermissions)
+      .where(
+        and(
+          inArray(rolePermissions.roleId, globalFallbackRoleIds),
+          eq(rolePermissions.canRead, true),
+        ),
+      )
+    for (const row of rows) {
+      if (row.nodeId) nodeIds.add(row.nodeId)
+    }
+  }
+
+  return [...nodeIds]
 }
 
 /**
@@ -213,25 +255,53 @@ async function setSectionPermissions(
 
 /**
  * Returns a map of section → canAccess for a given user.
+ * Project-specific overrides (stored in app_settings) take precedence over global table.
  * SuperAdmin callers bypass this — handle at the callsite.
  */
 async function getSectionPermissionsForUser(
-  userId: string,
+  userId:    string,
+  projectId?: string | null,
 ): Promise<Partial<Record<SectionKey, boolean>>> {
-  const rows = await db
-    .select({
-      section:   roleSectionPermissions.section,
-      canAccess: roleSectionPermissions.canAccess,
-    })
-    .from(roleSectionPermissions)
-    .innerJoin(usersRoles, eq(usersRoles.roleId, roleSectionPermissions.roleId))
-    .where(eq(usersRoles.userId, userId))
+  const roleIds = await collectRoleIds(userId, projectId)
+  if (roleIds.length === 0) return {}
 
   const result: Partial<Record<SectionKey, boolean>> = {}
-  for (const row of rows) {
-    const key = row.section as SectionKey
-    result[key] = result[key] || row.canAccess
+  const globalFallbackRoleIds: string[] = []
+
+  if (projectId) {
+    for (const roleId of roleIds) {
+      const raw = await getSetting(`role_sections:${roleId}:${projectId}`)
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as Partial<Record<SectionKey, boolean>>
+          for (const [k, v] of Object.entries(parsed)) {
+            const key = k as SectionKey
+            result[key] = result[key] || (v ?? false)
+          }
+        } catch { /* ignore malformed — treat as no override */ }
+      } else {
+        globalFallbackRoleIds.push(roleId)
+      }
+    }
+  } else {
+    globalFallbackRoleIds.push(...roleIds)
   }
+
+  // Bulk-query global section permissions for roles without project-specific overrides
+  if (globalFallbackRoleIds.length > 0) {
+    const rows = await db
+      .select({
+        section:   roleSectionPermissions.section,
+        canAccess: roleSectionPermissions.canAccess,
+      })
+      .from(roleSectionPermissions)
+      .where(inArray(roleSectionPermissions.roleId, globalFallbackRoleIds))
+    for (const row of rows) {
+      const key = row.section as SectionKey
+      result[key] = result[key] || row.canAccess
+    }
+  }
+
   return result
 }
 

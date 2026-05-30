@@ -7,12 +7,26 @@ export interface ProjectSettings {
 }
 
 export interface StorageSettings {
-  r2BucketName:    string
-  r2PublicUrl:     string
-  mediaVpsUrl?:    string
-  mediaVpsKey?:    string
-  blobToken?:      string
-  storageProvider: StorageProvider
+  r2Endpoint:        string
+  r2AccessKeyId:     string
+  r2SecretAccessKey: string
+  r2BucketName:      string
+  r2PublicUrl:       string
+  mediaVpsUrl?:      string
+  mediaVpsKey?:      string
+  blobToken?:        string
+  storageProvider:   StorageProvider
+}
+
+export interface StorageSettingsIsSet {
+  r2Endpoint:        boolean
+  r2AccessKeyId:     boolean
+  r2SecretAccessKey: boolean
+  r2BucketName:      boolean
+  r2PublicUrl:       boolean
+  mediaVpsUrl:       boolean
+  mediaVpsKey:       boolean
+  blobToken:         boolean
 }
 
 export interface UpdateProjectInput extends ProjectSettings {}

@@ -46,7 +46,7 @@ function UL({ items }: { items: string[] }) {
     <ul className="space-y-1 pl-3">
       {items.map((item, i) => (
         <li key={i} className="text-xs text-muted leading-5 flex gap-2">
-          <span className="text-primary/60 shrink-0">—</span>
+          <span className="text-primary/60 shrink-0">·</span>
           <span>{item}</span>
         </li>
       ))}
@@ -593,7 +593,7 @@ curl -X POST \\
   -d '{"name":"Laptop Pro","price":1299,"featured":true}' \\
   https://your-domain.com/api/v1/products
 
-# Partial update — only changed fields (update scope required)
+# Partial update: only changed fields (update scope required)
 curl -X PATCH \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
@@ -862,6 +862,72 @@ function MultiProjectDevSection({ d }: { d: DocsDict }) {
   )
 }
 
+// ── Section: Storage Setup ────────────────────────────────────────────────────
+
+function StorageSetupSection({ d }: { d: DocsDict }) {
+  const s = d.storageSetup
+  return (
+    <div className="space-y-6">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      {/* ── Cloudflare R2 ── */}
+      <div className="space-y-4">
+        <SubHeading>{s.r2Title}</SubHeading>
+        <Prose>{s.r2Intro}</Prose>
+        <UL items={Object.values(s.r2Steps)} />
+
+        <SubHeading>{s.r2EnvTitle}</SubHeading>
+        <DocsCodeBlock
+          language="env"
+          code={Object.values(s.r2EnvVars).join('\n')}
+        />
+
+        <SubHeading>{s.r2CorsTitle}</SubHeading>
+        <Note>{s.r2CorsNote}</Note>
+
+        <div className="flex items-center gap-2">
+          <a
+            href="https://developers.cloudflare.com/r2/get-started/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 font-mono text-xs text-primary hover:text-primary/80 transition-colors"
+          >
+            <span>Cloudflare R2 Dashboard ↗</span>
+          </a>
+        </div>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* ── Vercel Blob ── */}
+      <div className="space-y-4">
+        <SubHeading>{s.blobTitle}</SubHeading>
+        <Prose>{s.blobIntro}</Prose>
+        <UL items={Object.values(s.blobSteps)} />
+
+        <SubHeading>{s.blobEnvTitle}</SubHeading>
+        <DocsCodeBlock language="env" code={s.blobEnvVar} />
+
+        <div className="flex items-center gap-2">
+          <a
+            href="https://vercel.com/docs/storage/vercel-blob"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 font-mono text-xs text-primary hover:text-primary/80 transition-colors"
+          >
+            <span>Vercel Dashboard ↗</span>
+          </a>
+        </div>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      <Note>{s.scopeNote}</Note>
+    </div>
+  )
+}
+
 // ── Section registry ──────────────────────────────────────────────────────────
 
 type SectionId =
@@ -876,6 +942,7 @@ type SectionId =
   | 'webMigrationDev'
   | 'multiProjectDev'
   | 'media'
+  | 'storageSetup'
   | 'apiForDevs'
   | 'apiSchema'
   | 'relations'
@@ -885,7 +952,7 @@ type SectionId =
 const VALID_SECTION_IDS = new Set<string>([
   'gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration',
   'relationsGuide', 'multiProject', 'nodesAndFieldsDev', 'webMigrationDev',
-  'multiProjectDev', 'media', 'apiForDevs', 'apiSchema', 'relations',
+  'multiProjectDev', 'media', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations',
 ])
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -925,6 +992,7 @@ export function DocsPage({ d }: DocsPageProps) {
       case 'webMigrationDev':    return <WebMigrationDevSection d={d} />
       case 'multiProjectDev':    return <MultiProjectDevSection d={d} />
       case 'media':              return <MediaSection d={d} />
+      case 'storageSetup':    return <StorageSetupSection d={d} />
       case 'apiForDevs':      return <ApiForDevsSection d={d} />
       case 'apiSchema':       return <ApiSchemaSection d={d} />
       case 'relations':       return <RelationsSection d={d} />

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, uuid, uniqueIndex } from 'drizzle-orm/pg-core'
 import { project } from './project.schema'
 import { roles } from './roles.schema'
 import { users } from './users.schema'
@@ -13,7 +13,9 @@ export const projectInvitations = pgTable('project_invitations', {
   expiresAt:    timestamp('expires_at', { withTimezone: true }).notNull(),
   acceptedAt:   timestamp('accepted_at', { withTimezone: true }),
   createdAt:    timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => [
+  uniqueIndex('project_invitations_project_email_uidx').on(table.projectId, table.invitedEmail),
+])
 
 export type ProjectInvitation    = typeof projectInvitations.$inferSelect
 export type NewProjectInvitation = typeof projectInvitations.$inferInsert

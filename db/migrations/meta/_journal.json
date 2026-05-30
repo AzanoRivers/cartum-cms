@@ -99,6 +99,13 @@
       "when": 1779910431072,
       "tag": "0013_api_token_scope_exclusions",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1780012800000,
+      "tag": "0014_invitation_project_email_unique",
+      "breakpoints": false
     }
   ]
 }

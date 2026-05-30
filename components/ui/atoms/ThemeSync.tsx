@@ -9,6 +9,7 @@ export function ThemeSync({ theme }: Props) {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('cartum-theme', theme)
+    document.documentElement.removeAttribute('data-project-switching')
   }, [theme])
   return null
 }

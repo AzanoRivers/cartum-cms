@@ -132,6 +132,34 @@
       successToast:    'Password updated. You can now log in.',
       errorGeneric:    'An unexpected error occurred. Please try again.',
     },
+    invite: {
+      title:             "You've been invited",
+      subtitle:          'to join',
+      subtitleAs:        'as a',
+      expired:           'This invitation has expired.',
+      consumed:          'This invitation has already been used.',
+      wrongAccount:      "You're signed in as {current}, but this invitation is for {expected}.",
+      wrongAccountHint:  'Sign out and sign in with the correct account to accept.',
+      signedInAs:        'Signed in as',
+      acceptButton:      'Accept invitation →',
+      accepting:         'Joining…',
+      signInTitle:       'Sign in to accept this invitation',
+      registerTitle:     'Create your account to join',
+      passwordLabel:     'Password',
+      passwordPlaceholder: 'At least 8 characters',
+      passwordShow:      'Show',
+      passwordHide:      'Hide',
+      passwordRegenerate: 'Regenerate',
+      passwordCopy:      'Copy',
+      passwordCopied:    'Copied',
+      passwordNotice:    'Save this password. You will need it to sign in later.',
+      createButton:      'Create account and join →',
+      creating:          'Creating account…',
+      emailLabel:        'Email',
+      signInButton:      'Sign in and join →',
+      signingIn:         'Joining…',
+      goToLogin:         'Go to sign in',
+    },
   },
   cms: {
     topBar: {
@@ -143,7 +171,7 @@
       trialTooltip:      'CartumCMS subscription time',
     },
     projectSelector: {
-      newProject:  'New project',
+      newProject:  'New board',
       ariaLabel:   'Select project',
     },
     newProjectModal: {
@@ -261,6 +289,7 @@
         webMigrationDev:    'Web Migration',
         multiProject:       'Multi-Project',
         multiProjectDev:    'Multi-Project',
+        storageSetup:       'Storage Setup',
       },
       gettingStarted: {
         title:         'Getting Started',
@@ -505,8 +534,8 @@
           limit:   { name: 'limit',             type: 'number',   default: '20 (max 100)', desc: 'Items per page' },
           sort:    { name: 'sort',              type: 'string',   default: 'created_at',   desc: 'Field to sort by' },
           order:   { name: 'order',             type: 'asc|desc', default: 'desc',         desc: 'Sort direction' },
-          filter:  { name: 'filter[fieldName]', type: 'string',   default: '—',            desc: 'Filter by exact field value (e.g. filter[featured]=true). Multiple filters are ANDed.' },
-          include: { name: 'include',           type: 'string',   default: '—',            desc: 'Comma-separated relation fields to expand (e.g. author,category). UUID replaced by the full linked record.' },
+          filter:  { name: 'filter[fieldName]', type: 'string',   default: '-',            desc: 'Filter by exact field value (e.g. filter[featured]=true). Multiple filters are ANDed.' },
+          include: { name: 'include',           type: 'string',   default: '-',            desc: 'Comma-separated relation fields to expand (e.g. author,category). UUID replaced by the full linked record.' },
         },
         responseListTitle:   'Successful response: list',
         responseRecordTitle: 'Successful response: single record',
@@ -570,9 +599,9 @@
         consumingTitle: 'How to consume',
         consumingSteps: {
           step1: 'Call GET /api/v1/table to get all root decks with their merged cards and nested deck references.',
-          step2: 'Use the cards array directly — it already contains everything the deck inherits.',
+          step2: 'Use the cards array directly, it already contains everything the deck inherits.',
           step3: 'For each item in decks, call GET /api/v1/table/{deckId} to get its merged cards separately.',
-          step4: 'Never expect nested content inside decks — they are always shallow references.',
+          step4: 'Never expect nested content inside decks. They are always shallow references.',
         },
         exampleTitle: 'Response example',
         exampleNote:  'Blog Posts has a 1:1 relation with SEO node. The fields from SEO appear flat inside Blog Posts.',
@@ -623,6 +652,46 @@
         storageR2:    ['Cloudflare R2', '✓ Configure + use', '✓ Configure + use'],
         storageBlob:  ['Vercel Blob', '✓ Configure + use', '✗ Not available'],
         setupNote:    'The super admin\'s project membership is injected at setup time via `initializeSchemaService()` and kept in sync via a JWT fallback in `auth.ts`. No manual DB work is needed.',
+      },
+      storageSetup: {
+        title: 'Storage Setup',
+        intro: 'Step-by-step guides to connect Cloudflare R2 or Vercel Blob to your Cartum project. Settings are scoped per project and fall back to environment variables if not configured here.',
+        r2Title: 'Cloudflare R2',
+        r2Intro: 'Cloudflare R2 is an S3-compatible object storage with no egress fees. Follow these steps to get your credentials:',
+        r2Steps: {
+          s1: '1. Go to dash.cloudflare.com and log in to your account.',
+          s2: '2. In the left sidebar, click R2 Object Storage under "Storage & Databases".',
+          s3: '3. Click Create bucket. Enter a bucket name (e.g. my-cms-media), choose a region (Auto or closest to your users), then click Create bucket.',
+          s4: '4. Open the bucket, go to Settings, and under "Public access" enable R2.dev subdomain OR connect a custom domain. Copy the generated public URL: this is your R2_PUBLIC_URL.',
+          s5: '5. Back in the R2 dashboard, click Manage R2 API Tokens in the top-right corner.',
+          s6: '6. Click Create API token. Name it (e.g. cartum-rw), set Permissions to "Object Read & Write", select the specific bucket, then click Create API Token.',
+          s7: '7. Copy the Access Key ID and Secret Access Key shown. These are only shown once, save them securely.',
+          s8: '8. For the R2 Endpoint: go to your Cloudflare Dashboard overview, find your Account ID in the right sidebar. The endpoint format is: https://<account_id>.r2.cloudflarestorage.com',
+        },
+        r2EnvTitle: 'Environment variables',
+        r2EnvVars: {
+          v1: 'R2_ENDPOINT: https://<account_id>.r2.cloudflarestorage.com',
+          v2: 'R2_ACCESS_KEY_ID: Access Key ID from the API token',
+          v3: 'R2_SECRET_ACCESS_KEY: Secret Access Key from the API token',
+          v4: 'R2_BUCKET_NAME: bucket name (e.g. my-cms-media)',
+          v5: 'R2_PUBLIC_URL: public URL from step 4 (pub-xxx.r2.dev or custom domain)',
+        },
+        r2CorsTitle: 'CORS (auto-configured)',
+        r2CorsNote: 'Cartum automatically configures GET/HEAD CORS on your R2 bucket when you save storage settings. No manual CORS configuration is needed.',
+        blobTitle: 'Vercel Blob',
+        blobIntro: 'Vercel Blob is a managed storage service from Vercel. Follow these steps:',
+        blobSteps: {
+          s1: '1. Go to vercel.com, open your project dashboard.',
+          s2: '2. Click the Storage tab in the project navigation.',
+          s3: '3. Click Create, then select Blob.',
+          s4: '4. Give your blob store a name and click Create.',
+          s5: '5. Once created, open the blob store, go to the Settings tab.',
+          s6: '6. Under Tokens, click Create Token. Choose Read & Write permissions, then click Create.',
+          s7: '7. Copy the generated token (starts with vercel_blob_rw_). This is your BLOB_READ_WRITE_TOKEN.',
+        },
+        blobEnvTitle: 'Environment variable',
+        blobEnvVar: 'BLOB_READ_WRITE_TOKEN: the token from step 7',
+        scopeNote: 'All credentials saved in the Settings panel override environment variables for that specific project only. Other projects continue using their own settings or the instance defaults.',
       },
     },
     canvas: {
@@ -1064,6 +1133,7 @@
       selectProject:          'Select project',
       noProjects:             'No projects found.',
       dangerZone:             'Danger zone',
+      dangerDesc:             'Permanently deletes this project: all decks, cards, records and media files. Members keep their accounts but lose access. This cannot be undone.',
       deleteProject:          'Delete project',
       deleting:               'Deleting...',
       deleteSuccess:          'Project deleted.',
@@ -1080,57 +1150,73 @@
     },
     storage: {
       title:                   'Storage',
-      r2BucketName:            'R2 Bucket name',
+      projectScopeNote:        'Settings apply to this project only. Leave blank to inherit instance defaults.',
+      r2SectionTitle:          'Cloudflare R2',
+      r2Endpoint:              'R2 Endpoint',
+      r2EndpointPlaceholder:   'https://<account_id>.r2.cloudflarestorage.com',
+      r2AccessKeyId:           'Access Key ID',
+      r2AccessKeyIdPlaceholder: 'R2 access key ID',
+      r2SecretAccessKey:       'Secret Access Key',
+      r2SecretAccessKeyPlaceholder: 'R2 secret access key',
+      r2BucketName:            'Bucket name',
       r2BucketNamePlaceholder: 'my-bucket',
-      r2PublicUrl:             'R2 Public URL',
-      r2PublicUrlPlaceholder:  'https://pub-xxx.r2.dev',
+      r2PublicUrl:             'Public URL',
+      r2PublicUrlPlaceholder:  'https://pub-xxx.r2.dev or custom domain',
+      r2DocsLink:              'How to set up Cloudflare R2',
+      r2Warning:               'Incorrect credentials will prevent file uploads. Verify all values in the Cloudflare dashboard before saving.',
+      blobSectionTitle:        'Vercel Blob',
+      blobToken:               'Blob read/write token',
+      blobTokenPlaceholder:    'vercel_blob_rw_...',
+      blobTokenHint:           'From your Vercel dashboard, Storage, Blob, Token.',
+      blobDocsLink:            'How to set up Vercel Blob',
+      blobWarning:             'Incorrect token will prevent file uploads. Verify it in your Vercel project dashboard.',
+      testBlob:                'Test Blob connection',
+      testBlobOk:              'Blob connected.',
+      testBlobFail:            'Could not connect to Blob.',
       vpsSectionTitle:         'VPS Media Optimizer',
-      mediaVpsUrl:             'Optimization server URL',
+      mediaVpsUrl:             'Optimizer server URL',
       mediaVpsUrlPlaceholder:  'https://optimus.azanolabs.com',
-      mediaVpsKey:             'Optimization server API key',
+      mediaVpsUrlLocked:       'URL can only be changed by a super admin.',
+      mediaVpsKey:             'Optimizer API key',
+      mediaVpsWarning:         'An incorrect API key or URL will fall back to client-side compression without VPS optimization.',
+      apiDocsLink:             'API Docs',
+      fieldSet:                'Configured',
+      fieldNotSet:             'Not configured',
+      fieldReplaceLabel:       'Enter new value to replace',
       showKey:                 'Show',
       hideKey:                 'Hide',
-      apiDocsLink:             'API Docs �-',
-      testConnection:          'Test connection',
+      testConnection:          'Test R2 connection',
       testing:                 'Testing...',
       testOk:                  'Connected · {latencyMs}ms',
       testFail:                'Connection failed.',
-      save:                    'Save changes',
-      saving:                  'Saving...',
-      saved:                   'Storage settings saved.',
-      error:                   'Could not save storage settings.',
-      saveEmptyNotice:         'Saving empty values removes them from the database (env fallback resumes).',
-      // Provider selector
       providerLabel:           'Active provider',
       providerR2:              'Cloudflare R2',
       providerBlob:            'Vercel Blob',
       providerSaved:           'Provider updated.',
       providerError:           'Could not update provider.',
       providerSelectHint:      'Select the active storage provider for new uploads.',
-      // Status badges
       statusConfigured:        'Configured',
       statusNotConfigured:     'Not configured',
       statusActive:            'Active',
-      // R2 accordion
-      r2SectionTitle:          'Cloudflare R2',
-      // Blob accordion
-      blobSectionTitle:        'Vercel Blob',
-      blobToken:               'Blob read/write token',
-      blobTokenPlaceholder:    'vercel_blob_rw_...',
-      blobTokenHint:           'From your Vercel dashboard \u2192 Storage \u2192 Blob.',
-      testBlob:                'Test Blob connection',
-      testBlobOk:              'Blob connected.',
-      testBlobFail:            'Could not connect to Blob.',
-      docsLinkLabel:           'Storage documentation',
-      docsLinkDesc:            'Learn how to configure Cloudflare R2, Vercel Blob, and the VPS media optimizer.',
-    },
-    email: {
+      save:                    'Save changes',
+      saving:                  'Saving...',
+      saved:                   'Storage settings saved.',
+      error:                   'Could not save storage settings.',
+      saveEmptyNotice:         'Only filled fields are saved. Empty fields keep their current value.',
+      docsLinkLabel:           'Storage setup guides',
+      docsLinkDesc:            'Step-by-step guides for Cloudflare R2, Vercel Blob, and the media optimizer.',
+    },    email: {
       title:               'Email',
       notConfigured:       'Email delivery is not configured. Add a Resend API key to enable password recovery and user invites.',
       resendApiKey:        'Resend API key',
       resendKeyPlaceholder: 're_••••••••••••',
+      apiKeySet:           'API key configured',
+      apiKeyNotSet:        'No API key configured',
+      apiKeyReplaceLabel:  'Replace API key',
+      apiKeyReplacePlaceholder: 'Enter new key to replace the current one',
       fromEmailLabel:      'From email address',
       fromEmailHint:       'Must be from a verified domain in your Resend account.',
+      fromEmailDomainWarning: 'Changing the From domain may cause delivery failures if the new domain is not verified in Resend.',
       testEmail:           'Send test email',
       testing:             'Sending...',
       testOk:              'Test email sent.',
@@ -1139,6 +1225,7 @@
       saving:              'Saving...',
       saved:               'Email settings saved.',
       error:               'Could not save email settings.',
+      projectScopeNote:    'These settings apply to this project only. Leave blank to use the instance default.',
     },
     api: {
       title:           'API Tokens',
@@ -1250,6 +1337,9 @@
       sectionPermsError:     'Could not save permissions.',
       cancel:                'Cancel',
       userCount:             '{count} user(s)',
+      projectScopeWarning:   'Default roles apply to the entire CMS. Any changes you make here will be saved only for this project.',
+      projectOverrideBadge:  'Project override',
+      globalDefaultBadge:    'CMS default',
       builtInRoleLabels: {
         admin:      'Admin',
         editor:     'Editor',
@@ -1302,8 +1392,13 @@
       configSection:        'API Config',
       statusConfigured:     'Configured',
       statusNotConfigured:  'Not configured',
+      projectScopeNote:     'Settings apply to this project only. Leave blank to use the instance default.',
       apiUrl:               'API URL',
       apiKey:               'API Key',
+      apiKeySet:            'API key configured',
+      apiKeyNotSet:         'No API key configured',
+      apiKeyReplaceLabel:   'Replace API key',
+      apiKeyReplacePlaceholder: 'Enter new key to replace the current one',
       testConnection:       'Test connection',
       save:                 'Save',
       saving:               'Saving…',
@@ -1492,7 +1587,7 @@
       exportError:        'Export failed. Please try again.',
       resetError:         'Reset failed. Please try again.',
       purgeImagesTitle:   'Delete all images',
-      purgeImagesDesc:    'Permanently delete all media files (images and videos) from storage. Node data and records are preserved.',
+      purgeImagesDesc:    'Permanently delete all media files (images and videos) from storage for the current project. Content, decks and records are preserved. This action only affects the active project.',
       purgeImagesButton:  'Delete all images',
       purgeImagesDialog: {
         title:         'Delete all images?',
@@ -1548,6 +1643,10 @@
       ownerLabel:              'Owner',
       roleSuperAdmin:          'Super Admin',
       createdLabel:            'Created',
+      memberSingular:          'member',
+      memberPlural:            'members',
+      subActive:               'Active',
+      subExpired:              'Expired',
       noProjects:              'No projects found.',
       cannotDeleteSuperAdmin:  'Super admin projects cannot be deleted from this screen.',
       deleteButton:            'Delete',
@@ -1670,6 +1769,20 @@ export type Dictionary = {
       confirmPassword: string; submit: string; submitting: string
       successToast: string; errorGeneric: string
     }
+    invite: {
+      title: string; subtitle: string; subtitleAs: string
+      expired: string; consumed: string
+      wrongAccount: string; wrongAccountHint: string
+      signedInAs: string; acceptButton: string; accepting: string
+      signInTitle: string; registerTitle: string
+      passwordLabel: string; passwordPlaceholder: string
+      passwordShow: string; passwordHide: string
+      passwordRegenerate: string; passwordCopy: string; passwordCopied: string
+      passwordNotice: string
+      createButton: string; creating: string
+      emailLabel: string; signInButton: string; signingIn: string
+      goToLogin: string
+    }
   }
   cms: {
     topBar: { account: string; logOut: string; userMenuAriaLabel: string; freeTier: string; trialDaysLeft: string; trialTooltip: string }
@@ -1732,6 +1845,7 @@ export type Dictionary = {
         gettingStarted: string; navigation: string; nodesAndFields: string
         content: string; webMigration: string; relationsGuide: string; multiProject: string
         media: string; apiForDevs: string; apiSchema: string; relations: string; nodesAndFieldsDev: string; webMigrationDev: string; multiProjectDev: string
+        storageSetup: string
       }
       gettingStarted: {
         title: string; intro: string; conceptsTitle: string
@@ -1890,6 +2004,15 @@ export type Dictionary = {
         storageBlob: [string, string, string]
         setupNote: string
       }
+      storageSetup: {
+        title: string; intro: string
+        r2Title: string; r2Intro: string; r2Steps: Record<string, string>
+        r2EnvTitle: string; r2EnvVars: Record<string, string>
+        r2CorsTitle: string; r2CorsNote: string
+        blobTitle: string; blobIntro: string; blobSteps: Record<string, string>
+        blobEnvTitle: string; blobEnvVar: string
+        scopeNote: string
+      }
     }
     canvas: { ariaLabel: string; loading: string; empty: string; emptyHint: string; multiSelected: string; multiSelectedHint: string }
     nodeCard: {
@@ -2035,31 +2158,42 @@ export type Dictionary = {
       localeEn: string; localeEs: string
       save: string; saving: string; saved: string; error: string
       selectProject: string; noProjects: string
-      dangerZone: string; deleteProject: string; deleting: string; deleteSuccess: string; deleteError: string; singleProjectWarning: string
+      dangerZone: string; dangerDesc: string; deleteProject: string; deleting: string; deleteSuccess: string; deleteError: string; singleProjectWarning: string
       confirmDialog: { title: string; message: string; inputLabel: string; confirmPhrase: string; confirm: string; cancel: string }
     }
     storage: {
-      title: string
-      providerLabel: string; providerR2: string; providerBlob: string; providerSaved: string; providerError: string; providerSelectHint: string
-      statusConfigured: string; statusNotConfigured: string; statusActive: string
+      title: string; projectScopeNote: string
       r2SectionTitle: string
+      r2Endpoint: string; r2EndpointPlaceholder: string
+      r2AccessKeyId: string; r2AccessKeyIdPlaceholder: string
+      r2SecretAccessKey: string; r2SecretAccessKeyPlaceholder: string
       r2BucketName: string; r2BucketNamePlaceholder: string
       r2PublicUrl: string; r2PublicUrlPlaceholder: string
-      vpsSectionTitle: string; mediaVpsUrl: string; mediaVpsUrlPlaceholder: string; mediaVpsKey: string
-      showKey: string; hideKey: string; apiDocsLink: string
-      testConnection: string; testing: string; testOk: string; testFail: string
+      r2DocsLink: string; r2Warning: string
       blobSectionTitle: string
       blobToken: string; blobTokenPlaceholder: string; blobTokenHint: string
+      blobDocsLink: string; blobWarning: string
       testBlob: string; testBlobOk: string; testBlobFail: string
+      vpsSectionTitle: string; mediaVpsUrl: string; mediaVpsUrlPlaceholder: string
+      mediaVpsUrlLocked: string; mediaVpsKey: string; mediaVpsWarning: string; apiDocsLink: string
+      fieldSet: string; fieldNotSet: string; fieldReplaceLabel: string
+      showKey: string; hideKey: string
+      testConnection: string; testing: string; testOk: string; testFail: string
+      providerLabel: string; providerR2: string; providerBlob: string
+      providerSaved: string; providerError: string; providerSelectHint: string
+      statusConfigured: string; statusNotConfigured: string; statusActive: string
       save: string; saving: string; saved: string; error: string; saveEmptyNotice: string
       docsLinkLabel: string; docsLinkDesc: string
     }
     email: {
       title: string; notConfigured: string
       resendApiKey: string; resendKeyPlaceholder: string
-      fromEmailLabel: string; fromEmailHint: string
+      apiKeySet: string; apiKeyNotSet: string
+      apiKeyReplaceLabel: string; apiKeyReplacePlaceholder: string
+      fromEmailLabel: string; fromEmailHint: string; fromEmailDomainWarning: string
       testEmail: string; testing: string; testOk: string; testFail: string
       save: string; saving: string; saved: string; error: string
+      projectScopeNote: string
     }
     api: {
       title: string; tokenName: string; lastUsed: string; expiresCol: string
@@ -2101,6 +2235,7 @@ export type Dictionary = {
       saveSectionPerms: string; savingSectionPerms: string
       sectionPermsSaved: string; sectionPermsError: string
       cancel: string; userCount: string
+      projectScopeWarning: string; projectOverrideBadge: string; globalDefaultBadge: string
       builtInRoleLabels: Record<string, string>
     }
     account: {
@@ -2125,7 +2260,10 @@ export type Dictionary = {
       // Accordion section headers
       dealerSection: string; dealerDescription: string
       configSection: string; statusConfigured: string; statusNotConfigured: string
-      apiUrl: string; apiKey: string; testConnection: string; save: string; saving: string
+      projectScopeNote: string
+      apiUrl: string; apiKey: string
+      apiKeySet: string; apiKeyNotSet: string; apiKeyReplaceLabel: string; apiKeyReplacePlaceholder: string
+      testConnection: string; save: string; saving: string
       show: string; hide: string
       serverAvailable: string; serverBusy: string; serverNotConfigured: string
       connectionOk: string; connectionFail: string
@@ -2188,7 +2326,9 @@ export type Dictionary = {
     }
     cartumProjects: {
       title: string; subtitle: string; ownerLabel: string; roleSuperAdmin: string
-      createdLabel: string; noProjects: string; cannotDeleteSuperAdmin: string
+      createdLabel: string; memberSingular: string; memberPlural: string
+      subActive: string; subExpired: string
+      noProjects: string; cannotDeleteSuperAdmin: string
       deleteButton: string; deleting: string; deleteSuccess: string; deleteError: string
       docsLinkLabel: string; docsLinkDesc: string
       confirmDialog: {

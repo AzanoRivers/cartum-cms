@@ -45,9 +45,19 @@ async function requireAuth(): Promise<string> {
 
 async function getApiConfig(): Promise<{ apiUrl: string; apiKey: string }> {
   await requireAuth()
+  const projectId = await requireProjectId().catch(() => null)
+
+  async function resolveSetting(key: string, envFallback: string | undefined) {
+    if (projectId) {
+      const project = await getSetting(`${key}:${projectId}`)
+      if (project) return project
+    }
+    return getSetting(key, envFallback)
+  }
+
   const [url, key] = await Promise.all([
-    getSetting('scraper_api_url', process.env.SCRAPER_API_URL),
-    getSetting('scraper_api_key', process.env.SCRAPER_API_KEY),
+    resolveSetting('scraper_api_url', process.env.SCRAPER_API_URL),
+    resolveSetting('scraper_api_key', process.env.SCRAPER_API_KEY),
   ])
   if (!key) throw new Error('SCRAPER_NOT_CONFIGURED')
   return { apiUrl: url ?? DEFAULT_SCRAPER_URL, apiKey: key }

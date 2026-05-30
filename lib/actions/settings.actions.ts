@@ -1,6 +1,6 @@
 'use server'
 
-import { eq, and, ne, asc } from 'drizzle-orm'
+import { eq, and, ne, asc, count } from 'drizzle-orm'
 import { cookies } from 'next/headers'
 import { db } from '@/db'
 import { project, users, usersRoles, roles, rolePermissions, nodes, media, projectMemberships } from '@/db/schema'
@@ -29,6 +29,8 @@ import type {
 import { type ThemeId, THEMES } from '@/types/theme'
 import { revalidatePath } from 'next/cache'
 import { BUILT_IN_ROLE_NAMES, ROLE_ADMIN } from '@/types/roles'
+import { projectMembershipsRepository } from '@/db/repositories/project-memberships.repository'
+import { requireProjectId } from '@/lib/auth/get-project-id'
 
 // ── Auth guards ────────────────────────────────────────────────────────────────
 
@@ -233,28 +235,70 @@ export async function deleteUserProject(projectId: string): Promise<ActionResult
 
 // ── Storage ────────────────────────────────────────────────────────────────────
 
-export async function getStorageSettings(): Promise<ActionResult<StorageSettings>> {
+import type { StorageSettingsIsSet } from '@/types/settings'
+
+/** Guard: superAdmin or project admin. Returns session + isSuperAdmin + projectId. */
+async function requireStorageAccess() {
+  const session   = await auth()
+  if (!session) throw new Error('UNAUTHORIZED')
+  const projectId = await requireProjectId()
+  const canAccess = session.user.isSuperAdmin
+    || (session.user.roles ?? []).includes(ROLE_ADMIN)
+    || await projectMembershipsRepository.isMemberWithRole(session.user.id, projectId, 'admin')
+  if (!canAccess) throw new Error('FORBIDDEN')
+  return { session, projectId, isSuperAdmin: session.user.isSuperAdmin }
+}
+
+/** Resolves project-scoped storage setting: project key → global key → env fallback. */
+async function resolveStorageSetting(key: string, envFallback: string | undefined, projectId: string) {
+  return (
+    (await getSetting(`${key}:${projectId}`)) ??
+    (await getSetting(key, envFallback))
+  )
+}
+
+export async function getStorageSettings(): Promise<
+  ActionResult<{ settings: StorageSettings; isSet: StorageSettingsIsSet }>
+> {
   try {
-    await requireSuperAdmin()
-    const [rbn, rpu, mvu, mvk, bt, sp] = await Promise.all([
-      getSetting('r2_bucket_name',   process.env.R2_BUCKET_NAME),
-      getSetting('r2_public_url',    process.env.R2_PUBLIC_URL),
-      getSetting('media_vps_url',    process.env.MEDIA_VPS_URL),
-      getSetting('media_vps_key',    process.env.MEDIA_VPS_KEY),
-      getSetting('blob_token',       process.env.BLOB_READ_WRITE_TOKEN),
-      getSetting('storage_provider', 'r2'),
+    const { projectId, isSuperAdmin } = await requireStorageAccess()
+
+    const [ep, ak, sk, rbn, rpu, mvu, mvk, bt, sp] = await Promise.all([
+      resolveStorageSetting('r2_endpoint',      process.env.R2_ENDPOINT,          projectId),
+      resolveStorageSetting('r2_access_key_id', process.env.R2_ACCESS_KEY_ID,     projectId),
+      resolveStorageSetting('r2_secret_key',    process.env.R2_SECRET_ACCESS_KEY, projectId),
+      resolveStorageSetting('r2_bucket_name',   process.env.R2_BUCKET_NAME,       projectId),
+      resolveStorageSetting('r2_public_url',    process.env.R2_PUBLIC_URL,        projectId),
+      resolveStorageSetting('media_vps_url',    process.env.MEDIA_VPS_URL,        projectId),
+      resolveStorageSetting('media_vps_key',    process.env.MEDIA_VPS_KEY,        projectId),
+      resolveStorageSetting('blob_token',       process.env.BLOB_READ_WRITE_TOKEN, projectId),
+      resolveStorageSetting('storage_provider', 'r2',                             projectId),
     ])
-    return {
-      success: true,
-      data: {
-        r2BucketName:    rbn ?? '',
-        r2PublicUrl:     rpu ?? '',
-        mediaVpsUrl:     mvu,
-        mediaVpsKey:     mvk,
-        blobToken:       bt ?? '',
-        storageProvider: (sp === 'blob' ? 'blob' : 'r2'),
-      },
+
+    const isSet: StorageSettingsIsSet = {
+      r2Endpoint:        Boolean(ep),
+      r2AccessKeyId:     Boolean(ak),
+      r2SecretAccessKey: Boolean(sk),
+      r2BucketName:      Boolean(rbn),
+      r2PublicUrl:       Boolean(rpu),
+      mediaVpsUrl:       Boolean(mvu),
+      mediaVpsKey:       Boolean(mvk),
+      blobToken:         Boolean(bt),
     }
+
+    const settings: StorageSettings = {
+      r2Endpoint:        isSuperAdmin ? (ep  ?? '') : '',
+      r2AccessKeyId:     isSuperAdmin ? (ak  ?? '') : '',
+      r2SecretAccessKey: isSuperAdmin ? (sk  ?? '') : '',
+      r2BucketName:      isSuperAdmin ? (rbn ?? '') : '',
+      r2PublicUrl:       rpu ?? '',  // non-secret — all roles can see
+      mediaVpsUrl:       mvu ?? '',  // non-secret URL — all roles see
+      mediaVpsKey:       isSuperAdmin ? (mvk ?? '') : '',
+      blobToken:         isSuperAdmin ? (bt  ?? '') : '',
+      storageProvider:   (sp === 'blob' ? 'blob' : 'r2'),
+    }
+
+    return { success: true, data: { settings, isSet } }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
@@ -264,20 +308,31 @@ export async function updateStorageSettings(
   input: UpdateStorageInput,
 ): Promise<ActionResult<void>> {
   try {
-    const session = await requireSuperAdmin()
-    await Promise.all([
-      setSetting('r2_bucket_name',   input.r2BucketName    || undefined, session.user.id),
-      setSetting('r2_public_url',    input.r2PublicUrl      || undefined, session.user.id),
-      setSetting('media_vps_url',    input.mediaVpsUrl      || undefined, session.user.id),
-      setSetting('media_vps_key',    input.mediaVpsKey      || undefined, session.user.id),
-      setSetting('blob_token',       input.blobToken        || undefined, session.user.id),
-      setSetting('storage_provider', input.storageProvider  || 'r2',      session.user.id),
-    ])
+    const { session, projectId } = await requireStorageAccess()
+    const uid = session.user.id
 
-    // Auto-configure CORS on R2 bucket so the browser can fetch files directly
-    // (needed for client-side ZIP export — GET/HEAD only, safe for public media)
+    const saves: Promise<void>[] = []
+    const save = (key: string, val: string | undefined) => {
+      if (val) saves.push(setSetting(`${key}:${projectId}`, val, uid))
+    }
+
+    save('r2_endpoint',      input.r2Endpoint)
+    save('r2_access_key_id', input.r2AccessKeyId)
+    save('r2_secret_key',    input.r2SecretAccessKey)
+    save('r2_bucket_name',   input.r2BucketName)
+    save('r2_public_url',    input.r2PublicUrl)
+    save('media_vps_url',    input.mediaVpsUrl)
+    save('media_vps_key',    input.mediaVpsKey)
+    save('blob_token',       input.blobToken)
+    if (input.storageProvider) {
+      saves.push(setSetting(`storage_provider:${projectId}`, input.storageProvider, uid))
+    }
+
+    await Promise.all(saves)
+
+    // Auto-configure CORS on R2 bucket
     try {
-      const { client, bucket } = await getR2Client()
+      const { client, bucket } = await getR2Client(projectId)
       await client.send(new PutBucketCorsCommand({
         Bucket: bucket,
         CORSConfiguration: {
@@ -289,7 +344,7 @@ export async function updateStorageSettings(
           }],
         },
       }))
-    } catch { /* R2 not configured yet or CORS already set — skip */ }
+    } catch { /* R2 not yet configured — skip */ }
 
     return { success: true, data: undefined }
   } catch (err) {
@@ -301,8 +356,8 @@ export async function updateStorageProvider(
   provider: 'r2' | 'blob',
 ): Promise<ActionResult<void>> {
   try {
-    const session = await requireSuperAdmin()
-    await setSetting('storage_provider', provider, session.user.id)
+    const { session, projectId } = await requireStorageAccess()
+    await setSetting(`storage_provider:${projectId}`, provider, session.user.id)
     return { success: true, data: undefined }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
@@ -313,8 +368,8 @@ export async function testStorageConnection(): Promise<
   ActionResult<{ ok: boolean; latencyMs: number }>
 > {
   try {
-    await requireSuperAdmin()
-    const { client, bucket } = await getR2Client()
+    const { projectId } = await requireStorageAccess()
+    const { client, bucket } = await getR2Client(projectId)
     const testKey = `_cartum_ping_${Date.now()}`
     const started = Date.now()
     await client.send(
@@ -331,7 +386,7 @@ export async function testBlobConnection(): Promise<
   ActionResult<{ ok: boolean; latencyMs: number }>
 > {
   try {
-    await requireSuperAdmin()
+    await requireStorageAccess()
     const testPath = `_cartum_ping_${Date.now()}.txt`
     const started  = Date.now()
     const { publicUrl } = await blobUpload(testPath, Buffer.from('1'), 'text/plain')
@@ -346,17 +401,20 @@ export async function getStorageStatus(): Promise<
   ActionResult<{ r2Configured: boolean; blobConfigured: boolean; activeProvider: 'r2' | 'blob' }>
 > {
   try {
-    await requireSuperAdmin()
-    const [rbn, rpu, bt, sp] = await Promise.all([
-      getSetting('r2_bucket_name',   process.env.R2_BUCKET_NAME),
-      getSetting('r2_public_url',    process.env.R2_PUBLIC_URL),
-      getSetting('blob_token',       process.env.BLOB_READ_WRITE_TOKEN),
-      getSetting('storage_provider', 'r2'),
+    const { projectId } = await requireStorageAccess()
+    const [ep, ak, sk, rbn, rpu, bt, sp] = await Promise.all([
+      resolveStorageSetting('r2_endpoint',      process.env.R2_ENDPOINT,           projectId),
+      resolveStorageSetting('r2_access_key_id', process.env.R2_ACCESS_KEY_ID,      projectId),
+      resolveStorageSetting('r2_secret_key',    process.env.R2_SECRET_ACCESS_KEY,  projectId),
+      resolveStorageSetting('r2_bucket_name',   process.env.R2_BUCKET_NAME,        projectId),
+      resolveStorageSetting('r2_public_url',    process.env.R2_PUBLIC_URL,         projectId),
+      resolveStorageSetting('blob_token',       process.env.BLOB_READ_WRITE_TOKEN, projectId),
+      resolveStorageSetting('storage_provider', 'r2',                              projectId),
     ])
     return {
       success: true,
       data: {
-        r2Configured:   Boolean(rbn && rpu),
+        r2Configured:   Boolean(ep && ak && sk && rbn && rpu),
         blobConfigured: Boolean(bt),
         activeProvider: (sp === 'blob' ? 'blob' : 'r2'),
       },
@@ -368,14 +426,45 @@ export async function getStorageStatus(): Promise<
 
 // ── Email ──────────────────────────────────────────────────────────────────────
 
-export async function getEmailSettings(): Promise<ActionResult<{ resendApiKey: string; resendFromEmail: string }>> {
+/** Resolves project-scoped email setting with fallback to global then env. */
+async function resolveEmailSetting(key: string, envFallback: string | undefined, projectId: string) {
+  return (
+    (await getSetting(`${key}:${projectId}`)) ??
+    (await getSetting(key, envFallback))
+  )
+}
+
+/** Guard: superAdmin or project admin. Returns session + isSuperAdmin. */
+async function requireEmailAccess() {
+  const session   = await auth()
+  if (!session) throw new Error('UNAUTHORIZED')
+  const projectId = await requireProjectId()
+  const canAccess = session.user.isSuperAdmin
+    || (session.user.roles ?? []).includes(ROLE_ADMIN)
+    || await projectMembershipsRepository.isMemberWithRole(session.user.id, projectId, 'admin')
+  if (!canAccess) throw new Error('FORBIDDEN')
+  return { session, projectId, isSuperAdmin: session.user.isSuperAdmin }
+}
+
+export async function getEmailSettings(): Promise<ActionResult<{
+  resendApiKey:    string   // full key for superAdmin, '' for admin
+  resendFromEmail: string
+  apiKeyIsSet:     boolean  // whether a key exists (shown to admin without revealing value)
+}>> {
   try {
-    await requireSuperAdmin()
+    const { projectId, isSuperAdmin } = await requireEmailAccess()
     const [key, from] = await Promise.all([
-      getSetting('resend_api_key',   process.env.RESEND_API_KEY),
-      getSetting('resend_from_email', process.env.RESEND_FROM_EMAIL),
+      resolveEmailSetting('resend_api_key',   process.env.RESEND_API_KEY,   projectId),
+      resolveEmailSetting('resend_from_email', process.env.RESEND_FROM_EMAIL, projectId),
     ])
-    return { success: true, data: { resendApiKey: key ?? '', resendFromEmail: from ?? '' } }
+    return {
+      success: true,
+      data: {
+        resendApiKey:    isSuperAdmin ? (key ?? '') : '',
+        resendFromEmail: from ?? '',
+        apiKeyIsSet:     Boolean(key),
+      },
+    }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
@@ -383,10 +472,10 @@ export async function getEmailSettings(): Promise<ActionResult<{ resendApiKey: s
 
 export async function updateEmailSettings(apiKey: string, fromEmail: string): Promise<ActionResult<void>> {
   try {
-    const session = await requireSuperAdmin()
+    const { session, projectId } = await requireEmailAccess()
     await Promise.all([
-      setSetting('resend_api_key',   apiKey    || undefined, session.user.id),
-      setSetting('resend_from_email', fromEmail || undefined, session.user.id),
+      apiKey    ? setSetting(`resend_api_key:${projectId}`,    apiKey,     session.user.id) : Promise.resolve(),
+      fromEmail ? setSetting(`resend_from_email:${projectId}`, fromEmail,  session.user.id) : Promise.resolve(),
     ])
     return { success: true, data: undefined }
   } catch (err) {
@@ -396,10 +485,10 @@ export async function updateEmailSettings(apiKey: string, fromEmail: string): Pr
 
 export async function testEmailConnection(): Promise<ActionResult<{ sent: boolean }>> {
   try {
-    const session = await requireSuperAdmin()
+    const { session, projectId } = await requireEmailAccess()
     const [apiKey, fromEmail] = await Promise.all([
-      getSetting('resend_api_key',   process.env.RESEND_API_KEY),
-      getSetting('resend_from_email', process.env.RESEND_FROM_EMAIL),
+      resolveEmailSetting('resend_api_key',   process.env.RESEND_API_KEY,   projectId),
+      resolveEmailSetting('resend_from_email', process.env.RESEND_FROM_EMAIL, projectId),
     ])
     if (!apiKey)    return { success: false, error: 'No Resend API key configured.' }
     if (!fromEmail) return { success: false, error: 'No From email address configured.' }
@@ -430,9 +519,13 @@ export interface UserWithRole {
   cartumSuscriptorTime: number
 }
 
-export async function listUsers(): Promise<ActionResult<UserWithRole[]>> {
+/** Lists all members of the current active project. Accessible by any project member. */
+export async function listProjectUsers(): Promise<ActionResult<UserWithRole[]>> {
   try {
-    await requireAdmin()
+    const session = await auth()
+    if (!session) throw new Error('UNAUTHORIZED')
+    const projectId = await requireProjectId()
+
     const rows = await db
       .select({
         id:                   users.id,
@@ -441,35 +534,30 @@ export async function listUsers(): Promise<ActionResult<UserWithRole[]>> {
         createdAt:            users.createdAt,
         cartumSuscriptor:     users.cartumSuscriptor,
         cartumSuscriptorTime: users.cartumSuscriptorTime,
-        roleId:               roles.id,
+        roleId:               projectMemberships.roleId,
         roleName:             roles.name,
       })
-      .from(users)
-      .leftJoin(usersRoles, eq(usersRoles.userId, users.id))
-      .leftJoin(roles, eq(roles.id, usersRoles.roleId))
+      .from(projectMemberships)
+      .innerJoin(users, eq(users.id, projectMemberships.userId))
+      .innerJoin(roles, eq(roles.id, projectMemberships.roleId))
+      .where(eq(projectMemberships.projectId, projectId))
+      .orderBy(asc(users.email))
 
-    // One row per user (take first role if duplicates)
-    const seen = new Set<string>()
-    const result: UserWithRole[] = []
-    for (const r of rows) {
-      if (!seen.has(r.id)) {
-        seen.add(r.id)
-        result.push({
-          id:                   r.id,
-          email:                r.email,
-          isSuperAdmin:         r.isSuperAdmin,
-          createdAt:            r.createdAt,
-          cartumSuscriptor:     r.cartumSuscriptor,
-          cartumSuscriptorTime: r.cartumSuscriptorTime ?? 0,
-          roleId:               r.roleId   ?? null,
-          roleName:             r.roleName ?? null,
-        })
-      }
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        ...r,
+        cartumSuscriptorTime: r.cartumSuscriptorTime ?? 0,
+      })),
     }
-    return { success: true, data: result }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
+}
+
+/** Kept for backward-compat (super-admin global view). */
+export async function listUsers(): Promise<ActionResult<UserWithRole[]>> {
+  return listProjectUsers()
 }
 
 function generateTempPassword(): string {
@@ -483,23 +571,40 @@ export async function inviteUser(
   input: InviteUserInput,
 ): Promise<ActionResult<{ tempPassword?: string }>> {
   try {
-    await requireAdmin()
+    const session = await auth()
+    if (!session) throw new Error('UNAUTHORIZED')
+    const projectId = await requireProjectId()
+
+    // Only super_admin or project admin can invite
+    const canInvite = session.user.isSuperAdmin
+      || (session.user.roles ?? []).includes(ROLE_ADMIN)
+      || await projectMembershipsRepository.isMemberWithRole(session.user.id, projectId, 'admin')
+    if (!canInvite) throw new Error('FORBIDDEN')
+
     const existing = await usersRepository.findByEmail(input.email)
-    if (existing) return { success: false, error: 'Email already registered.' }
+    if (existing) {
+      // User exists — just add to this project if not already a member
+      const alreadyMember = await projectMembershipsRepository.isMember(existing.id, projectId)
+      if (alreadyMember) return { success: false, error: 'Email already a member of this project.' }
+      await projectMembershipsRepository.addMember(existing.id, projectId, input.roleId)
+      return { success: true, data: {} }
+    }
 
-    const rawPassword = generateTempPassword()
+    const rawPassword  = generateTempPassword()
     const passwordHash = await hashPassword(rawPassword)
-    const newUser = await usersRepository.create({ email: input.email, passwordHash })
+    const newUser      = await usersRepository.create({ email: input.email, passwordHash })
 
-    await db
-      .insert(usersRoles)
-      .values({ userId: newUser.id, roleId: input.roleId })
-      .onConflictDoNothing()
+    await projectMembershipsRepository.addMember(newUser.id, projectId, input.roleId)
 
-    const localeRows = await db.select({ locale: project.defaultLocale, name: project.name }).from(project).limit(1)
-    const locale      = (localeRows[0]?.locale ?? 'en') as SupportedLocale
-    const projectName = localeRows[0]?.name ?? undefined
-    const { sent } = await sendWelcomeEmail({
+    const [projRow] = await db
+      .select({ locale: project.defaultLocale, name: project.name })
+      .from(project)
+      .where(eq(project.id, projectId))
+      .limit(1)
+
+    const locale      = (projRow?.locale ?? 'en') as SupportedLocale
+    const projectName = projRow?.name ?? undefined
+    const { sent }    = await sendWelcomeEmail({
       to:          input.email,
       password:    rawPassword,
       cmsUrl:      process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
@@ -546,6 +651,32 @@ export async function removeUser(userId: string): Promise<ActionResult<void>> {
     if (userId === session.user.id)
       return { success: false, error: 'Cannot remove your own account.' }
     await db.delete(users).where(eq(users.id, userId))
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+/** Removes a user from the active project (not from the DB). Admin or super_admin only. */
+export async function removeProjectMember(userId: string): Promise<ActionResult<void>> {
+  try {
+    const session = await auth()
+    if (!session) throw new Error('UNAUTHORIZED')
+    const projectId = await requireProjectId()
+
+    if (userId === session.user.id)
+      return { success: false, error: 'Cannot remove yourself from the project.' }
+
+    const targetSuperAdmin = await usersRepository.isSuperAdmin(userId)
+    if (targetSuperAdmin)
+      return { success: false, error: 'Cannot remove a super admin.' }
+
+    const canRemove = session.user.isSuperAdmin
+      || (session.user.roles ?? []).includes(ROLE_ADMIN)
+      || await projectMembershipsRepository.isMemberWithRole(session.user.id, projectId, 'admin')
+    if (!canRemove) throw new Error('FORBIDDEN')
+
+    await projectMembershipsRepository.removeMember(userId, projectId)
     return { success: true, data: undefined }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
@@ -616,21 +747,52 @@ export async function getUsersForRole(
 export async function getPermissionsForRole(
   roleId: string,
 ): Promise<
-  ActionResult<{ permissions: NodePermissionRow[]; wildcardActions: Array<'read' | 'create' | 'update' | 'delete'> }>
+  ActionResult<{
+    permissions:     NodePermissionRow[]
+    wildcardActions: Array<'read' | 'create' | 'update' | 'delete'>
+    isProjectOverride: boolean
+  }>
 > {
   try {
     await requireAdmin()
+    const projectId = await requireProjectId().catch(() => null)
+
     const containerNodes = await db
       .select({ id: nodes.id, name: nodes.name })
       .from(nodes)
-      .where(eq(nodes.type, 'container'))
+      .where(
+        projectId
+          ? and(eq(nodes.type, 'container'), eq(nodes.projectId, projectId))
+          : eq(nodes.type, 'container'),
+      )
 
-    const existingPerms = await db
-      .select()
-      .from(rolePermissions)
-      .where(eq(rolePermissions.roleId, roleId))
+    let permMap: Map<string, { canRead: boolean; canCreate: boolean; canUpdate: boolean; canDelete: boolean }>
+    let isProjectOverride = false
 
-    const permMap = new Map(existingPerms.map((p) => [p.nodeId, p]))
+    if (projectId) {
+      const raw = await getSetting(`role_perms:${roleId}:${projectId}`)
+      if (raw) {
+        isProjectOverride = true
+        try {
+          const parsed = JSON.parse(raw) as Record<string, { read: boolean; create: boolean; update: boolean; delete: boolean }>
+          permMap = new Map(
+            Object.entries(parsed).map(([nodeId, p]) => [nodeId, {
+              canRead:   p.read,
+              canCreate: p.create,
+              canUpdate: p.update,
+              canDelete: p.delete,
+            }]),
+          )
+        } catch { permMap = new Map() }
+      } else {
+        const existingPerms = await db.select().from(rolePermissions).where(eq(rolePermissions.roleId, roleId))
+        permMap = new Map(existingPerms.map((p) => [p.nodeId, p]))
+      }
+    } else {
+      const existingPerms = await db.select().from(rolePermissions).where(eq(rolePermissions.roleId, roleId))
+      permMap = new Map(existingPerms.map((p) => [p.nodeId, p]))
+    }
+
     const permissions: NodePermissionRow[] = containerNodes.map((n) => {
       const p = permMap.get(n.id)
       return {
@@ -643,7 +805,10 @@ export async function getPermissionsForRole(
       }
     })
 
-    const wildcardRaw = await getSetting(`role_${roleId}_wildcard`)
+    // Wildcard: project-specific first, then global
+    const wildcardKey = projectId ? `role_wildcard:${roleId}:${projectId}` : null
+    const wildcardRaw = (wildcardKey ? await getSetting(wildcardKey) : null)
+      ?? await getSetting(`role_${roleId}_wildcard`)
     let wildcardActions: Array<'read' | 'create' | 'update' | 'delete'> = []
     if (wildcardRaw) {
       try {
@@ -655,7 +820,7 @@ export async function getPermissionsForRole(
       } catch { /* ignore malformed */ }
     }
 
-    return { success: true, data: { permissions, wildcardActions } }
+    return { success: true, data: { permissions, wildcardActions, isProjectOverride } }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
@@ -665,42 +830,63 @@ export async function saveRolePermissions(
   matrix: RolePermissionMatrix,
 ): Promise<ActionResult<void>> {
   try {
-    const session = await requireAdmin()
+    const session   = await requireAdmin()
+    const projectId = await requireProjectId().catch(() => null)
 
-    for (const item of matrix.nodePermissions) {
-      if (item.nodeId === '*') {
-        const val = JSON.stringify({
+    if (projectId) {
+      // Save as project-scoped override in app_settings
+      const permsObj: Record<string, { read: boolean; create: boolean; update: boolean; delete: boolean }> = {}
+      let wildcardData: { read: boolean; create: boolean; update: boolean; delete: boolean } | null = null
+
+      for (const item of matrix.nodePermissions) {
+        const d = {
           read:   item.actions.includes('read'),
           create: item.actions.includes('create'),
           update: item.actions.includes('update'),
           delete: item.actions.includes('delete'),
-        })
-        await setSetting(`role_${matrix.roleId}_wildcard`, val, session.user.id)
-        continue
+        }
+        if (item.nodeId === '*') {
+          wildcardData = d
+        } else {
+          permsObj[item.nodeId] = d
+        }
       }
 
-      const canRead   = item.actions.includes('read')
-      const canCreate = item.actions.includes('create')
-      const canUpdate = item.actions.includes('update')
-      const canDelete = item.actions.includes('delete')
-
-      if (!canRead && !canCreate && !canUpdate && !canDelete) {
-        await db
-          .delete(rolePermissions)
-          .where(
-            and(
-              eq(rolePermissions.roleId, matrix.roleId),
-              eq(rolePermissions.nodeId, item.nodeId),
-            ),
-          )
-      } else {
-        await db
-          .insert(rolePermissions)
-          .values({ roleId: matrix.roleId, nodeId: item.nodeId, canRead, canCreate, canUpdate, canDelete })
-          .onConflictDoUpdate({
-            target: [rolePermissions.roleId, rolePermissions.nodeId],
-            set:    { canRead, canCreate, canUpdate, canDelete },
+      await setSetting(`role_perms:${matrix.roleId}:${projectId}`, JSON.stringify(permsObj), session.user.id)
+      if (wildcardData !== null) {
+        await setSetting(`role_wildcard:${matrix.roleId}:${projectId}`, JSON.stringify(wildcardData), session.user.id)
+      }
+    } else {
+      // Global save (no project context — superAdmin direct)
+      for (const item of matrix.nodePermissions) {
+        if (item.nodeId === '*') {
+          const val = JSON.stringify({
+            read:   item.actions.includes('read'),
+            create: item.actions.includes('create'),
+            update: item.actions.includes('update'),
+            delete: item.actions.includes('delete'),
           })
+          await setSetting(`role_${matrix.roleId}_wildcard`, val, session.user.id)
+          continue
+        }
+
+        const canRead   = item.actions.includes('read')
+        const canCreate = item.actions.includes('create')
+        const canUpdate = item.actions.includes('update')
+        const canDelete = item.actions.includes('delete')
+
+        if (!canRead && !canCreate && !canUpdate && !canDelete) {
+          await db.delete(rolePermissions).where(
+            and(eq(rolePermissions.roleId, matrix.roleId), eq(rolePermissions.nodeId, item.nodeId)),
+          )
+        } else {
+          await db.insert(rolePermissions)
+            .values({ roleId: matrix.roleId, nodeId: item.nodeId, canRead, canCreate, canUpdate, canDelete })
+            .onConflictDoUpdate({
+              target: [rolePermissions.roleId, rolePermissions.nodeId],
+              set:    { canRead, canCreate, canUpdate, canDelete },
+            })
+        }
       }
     }
 
@@ -712,18 +898,40 @@ export async function saveRolePermissions(
 
 // ── Web Migration ──────────────────────────────────────────────────────────────
 
-export async function getWebMigrationSettings(): Promise<ActionResult<WebMigrationSettings>> {
+/** Guard: superAdmin or project admin. */
+async function requireWebMigrationAccess() {
+  const session   = await auth()
+  if (!session) throw new Error('UNAUTHORIZED')
+  const projectId = await requireProjectId()
+  const canAccess = session.user.isSuperAdmin
+    || (session.user.roles ?? []).includes(ROLE_ADMIN)
+    || await projectMembershipsRepository.isMemberWithRole(session.user.id, projectId, 'admin')
+  if (!canAccess) throw new Error('FORBIDDEN')
+  return { session, projectId, isSuperAdmin: session.user.isSuperAdmin }
+}
+
+async function resolveWebSetting(key: string, envFallback: string | undefined, projectId: string) {
+  return (
+    (await getSetting(`${key}:${projectId}`)) ??
+    (await getSetting(key, envFallback))
+  )
+}
+
+export async function getWebMigrationSettings(): Promise<
+  ActionResult<WebMigrationSettings & { apiKeyIsSet: boolean }>
+> {
   try {
-    await requireSuperAdmin()
+    const { projectId, isSuperAdmin } = await requireWebMigrationAccess()
     const [url, key] = await Promise.all([
-      getSetting('scraper_api_url', process.env.SCRAPER_API_URL),
-      getSetting('scraper_api_key', process.env.SCRAPER_API_KEY),
+      resolveWebSetting('scraper_api_url', process.env.SCRAPER_API_URL, projectId),
+      resolveWebSetting('scraper_api_key', process.env.SCRAPER_API_KEY, projectId),
     ])
     return {
       success: true,
       data: {
         scraperApiUrl: url ?? 'https://scraper.azanolabs.com',
-        scraperApiKey: key ?? '',
+        scraperApiKey: isSuperAdmin ? (key ?? '') : '',
+        apiKeyIsSet:   Boolean(key),
       },
     }
   } catch (err) {
@@ -735,11 +943,15 @@ export async function updateWebMigrationSettings(
   settings: WebMigrationSettings,
 ): Promise<ActionResult<void>> {
   try {
-    const session = await requireSuperAdmin()
-    await Promise.all([
-      setSetting('scraper_api_url', settings.scraperApiUrl || undefined, session.user.id),
-      setSetting('scraper_api_key', settings.scraperApiKey || undefined, session.user.id),
-    ])
+    const { session, projectId } = await requireWebMigrationAccess()
+    const saves: Promise<void>[] = []
+    if (settings.scraperApiUrl) {
+      saves.push(setSetting(`scraper_api_url:${projectId}`, settings.scraperApiUrl, session.user.id))
+    }
+    if (settings.scraperApiKey) {
+      saves.push(setSetting(`scraper_api_key:${projectId}`, settings.scraperApiKey, session.user.id))
+    }
+    if (saves.length > 0) await Promise.all(saves)
     return { success: true, data: undefined }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
@@ -749,28 +961,46 @@ export async function updateWebMigrationSettings(
 // ── Cartum Projects (super admin only) ────────────────────────────────────────
 
 export type CartumProjectRow = {
-  id:                string
-  name:              string
-  createdAt:         Date
-  ownerEmail:        string | null
-  ownerIsSuperAdmin: boolean | null
+  id:                   string
+  name:                 string
+  createdAt:            Date
+  ownerEmail:           string | null
+  ownerIsSuperAdmin:    boolean | null
+  ownerSuscriptor:      boolean | null
+  ownerSuscriptorTime:  number | null
+  memberCount:          number
 }
 
 export async function listCartumProjects(): Promise<ActionResult<CartumProjectRow[]>> {
   try {
     await requireSuperAdmin()
-    const rows = await db
-      .select({
-        id:                project.id,
-        name:              project.name,
-        createdAt:         project.createdAt,
-        ownerEmail:        users.email,
-        ownerIsSuperAdmin: users.isSuperAdmin,
-      })
-      .from(project)
-      .leftJoin(users, eq(users.id, project.ownerId))
-      .orderBy(asc(project.createdAt))
-    return { success: true, data: rows }
+
+    const [rows, counts] = await Promise.all([
+      db
+        .select({
+          id:                   project.id,
+          name:                 project.name,
+          createdAt:            project.createdAt,
+          ownerEmail:           users.email,
+          ownerIsSuperAdmin:    users.isSuperAdmin,
+          ownerSuscriptor:      users.cartumSuscriptor,
+          ownerSuscriptorTime:  users.cartumSuscriptorTime,
+        })
+        .from(project)
+        .leftJoin(users, eq(users.id, project.ownerId))
+        .orderBy(asc(project.createdAt)),
+      db
+        .select({ projectId: projectMemberships.projectId, n: count() })
+        .from(projectMemberships)
+        .groupBy(projectMemberships.projectId),
+    ])
+
+    const countMap = new Map(counts.map((c) => [c.projectId, c.n]))
+
+    return {
+      success: true,
+      data: rows.map((r) => ({ ...r, memberCount: countMap.get(r.id) ?? 0 })),
+    }
   } catch {
     return { success: false, error: 'Unauthorized' }
   }

@@ -12,6 +12,5 @@ export const AcceptInviteSchema = z.object({
 
 export const RegisterAndAcceptSchema = z.object({
   token:    z.string().min(1),
-  name:     z.string().min(1, 'Name is required').max(80),
   password: z.string().min(8, 'Password must be at least 8 characters'),
 })

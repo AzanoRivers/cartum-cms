@@ -247,6 +247,37 @@ canvas,
     transform-origin: center;
 }
 
+/* === PROJECT SWITCH OVERLAY ===
+   El script inline detecta sessionStorage y pone data-project-switching en <html>
+   ANTES de React. ThemeSync lo elimina cuando el tema correcto está aplicado. */
+html[data-project-switching]::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    background: var(--color-bg, #0a0a0f);
+    transition: none !important;
+}
+
+html[data-project-switching]::after {
+    content: '';
+    position: fixed;
+    top: calc(50% - 14px);
+    left: calc(50% - 14px);
+    width: 28px;
+    height: 28px;
+    z-index: 9999;
+    border: 2px solid color-mix(in srgb, var(--color-primary, #6366f1) 20%, transparent);
+    border-top-color: var(--color-primary, #6366f1);
+    border-radius: 9999px;
+    animation: project-switch-spin 0.7s linear infinite;
+    transition: none !important;
+}
+
+@keyframes project-switch-spin {
+    to { transform: rotate(360deg); }
+}
+
 /* === VHS ANIMATION LAYERS ===
    .vhs-transition::before → scanlines sweep
    .vhs-transition::after  → RGB shift glow

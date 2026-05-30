@@ -117,9 +117,23 @@ async function listAdminProjectIds(userId: string): Promise<string[]> {
   return rows.map((r) => r.projectId)
 }
 
+async function getUserProjectRole(
+  userId:    string,
+  projectId: string,
+): Promise<{ roleId: string; roleName: string } | null> {
+  const [row] = await db
+    .select({ roleId: projectMemberships.roleId, roleName: roles.name })
+    .from(projectMemberships)
+    .innerJoin(roles, eq(roles.id, projectMemberships.roleId))
+    .where(and(eq(projectMemberships.userId, userId), eq(projectMemberships.projectId, projectId)))
+    .limit(1)
+  return row ?? null
+}
+
 export const projectMembershipsRepository = {
   isMember,
   getUserProjects,
+  getUserProjectRole,
   addMember,
   removeMember,
   listMembers,

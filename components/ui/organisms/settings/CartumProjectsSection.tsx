@@ -74,7 +74,36 @@ export function CartumProjectsSection({ d, loadingText }: Props) {
               className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-4 py-3"
             >
               <div className="min-w-0 space-y-0.5">
-                <p className="font-mono text-sm text-text truncate">{proj.name}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-mono text-sm text-text truncate">{proj.name}</p>
+                  <span className="shrink-0 rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-[10px] text-muted">
+                    {proj.memberCount} {proj.memberCount === 1 ? d.memberSingular ?? 'member' : d.memberPlural ?? 'members'}
+                  </span>
+                  {/* Subscription badge */}
+                  {(() => {
+                    if (proj.ownerIsSuperAdmin) {
+                      return (
+                        <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[10px] text-primary">
+                          super_admin
+                        </span>
+                      )
+                    }
+                    const TRIAL_SECONDS = 7 * 86_400
+                    const isActive = proj.ownerSuscriptor
+                      && proj.ownerSuscriptorTime != null
+                      && (proj.ownerSuscriptorTime + TRIAL_SECONDS) > Date.now() / 1000
+                    return (
+                      <span className={[
+                        'shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px]',
+                        isActive
+                          ? 'border-warning/40 bg-warning/10 text-warning'
+                          : 'border-muted/20 bg-surface text-muted/50',
+                      ].join(' ')}>
+                        {isActive ? d.subActive : d.subExpired}
+                      </span>
+                    )
+                  })()}
+                </div>
                 <p className="font-mono text-[11px] text-muted flex items-center gap-1.5 flex-wrap">
                   <span className="truncate">{d.ownerLabel}: {proj.ownerEmail ?? '—'}</span>
                   {proj.ownerIsSuperAdmin && (

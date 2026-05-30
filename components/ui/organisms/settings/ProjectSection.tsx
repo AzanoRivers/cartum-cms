@@ -199,16 +199,17 @@ export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
           </div>
 
           {/* Danger zone */}
-          <div className="mt-4 rounded-md border border-red-500/30 bg-red-500/5 p-4 space-y-3">
-            <p className="font-mono text-xs text-red-400 uppercase tracking-widest">{d.dangerZone}</p>
+          <div className="mt-4 rounded-md border border-danger/30 bg-danger/5 p-4 space-y-3">
+            <p className="font-mono text-xs text-danger uppercase tracking-widest">{d.dangerZone}</p>
+            <p className="font-mono text-[11px] text-muted leading-relaxed">{d.dangerDesc}</p>
             <div className="flex items-center gap-4">
               {isSingleProject && (
-                <p className="font-mono text-xs text-text-muted">{d.singleProjectWarning}</p>
+                <p className="font-mono text-xs text-muted/60">{d.singleProjectWarning}</p>
               )}
               <button
                 onClick={() => { setConfirmInput(''); setShowConfirm(true) }}
                 disabled={isSingleProject}
-                className="ml-auto rounded-md border border-red-500/40 bg-transparent px-4 py-1.5 font-mono text-xs text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="ml-auto rounded-md border border-danger/40 bg-transparent px-4 py-1.5 font-mono text-xs text-danger transition-colors hover:bg-danger/10 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 {d.deleteProject}
               </button>

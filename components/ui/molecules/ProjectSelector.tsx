@@ -41,8 +41,9 @@ export function ProjectSelector({ currentProject, projects, onCreateNew }: Proje
     setGlobalLoading(true)
     startTransition(async () => {
       await switchProject(projectId)
-      // Hard navigation ensures a fresh request where the jwt() callback
-      // reliably reads the switch cookie and updates currentProjectId.
+      // Signal the next page to show an opaque overlay immediately (before React hydrates)
+      // so no theme flash is visible during the hard navigation.
+      try { sessionStorage.setItem('cartum-project-switching', '1') } catch {}
       window.location.href = '/cms/board'
     })
   }

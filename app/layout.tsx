@@ -44,7 +44,7 @@ export default async function RootLayout({
         <Script
           id="theme-hydration"
           strategy="beforeInteractive"
-        >{`(function(){try{if(window.location.pathname==='/cartum-player')return;var v=['dark','cyber-soft','light','dusk','matrix','cyber-human','stranger-things'];var s=localStorage.getItem('cartum-theme');var t=(s&&v.indexOf(s)!==-1)?s:'dusk';document.documentElement.dataset.theme=t;}catch(e){}})();`}</Script>
+        >{`(function(){try{if(window.location.pathname==='/cartum-player')return;var v=['dark','cyber-soft','light','dusk','matrix','cyber-human','stranger-things'];var s=localStorage.getItem('cartum-theme');var t=(s&&v.indexOf(s)!==-1)?s:'dusk';document.documentElement.dataset.theme=t;if(sessionStorage.getItem('cartum-project-switching')){sessionStorage.removeItem('cartum-project-switching');document.documentElement.setAttribute('data-project-switching','1');}}catch(e){}})();`}</Script>
       </head>
       <body>
         <a href="#main-content" className="skip-link">Skip to content</a>

@@ -12,9 +12,10 @@ import type { Dictionary } from '@/locales/en'
 export type DbSectionProps = {
   d:            Dictionary['settings']['db']
   isSuperAdmin: boolean
+  isAdmin:      boolean
 }
 
-export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
+export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
   const setGlobalLoading = useUIStore((s) => s.setGlobalLoading)
 
   const [isExporting,       startExport]       = useTransition()
@@ -273,8 +274,8 @@ export function DbSection({ d, isSuperAdmin }: DbSectionProps) {
         </button>
       </div>
 
-      {/* ── Block C: Purge images ─────────────────────────────────────────── */}
-      {isSuperAdmin && (
+      {/* ── Block C: Purge images — superAdmin and admin, current project only */}
+      {(isSuperAdmin || isAdmin) && (
         <div className="rounded-lg border border-warning/20 bg-warning/5 p-5 space-y-4">
           <div className="flex items-start gap-3">
             <Trash2 size={16} className="mt-0.5 text-warning shrink-0" strokeWidth={1.8} />

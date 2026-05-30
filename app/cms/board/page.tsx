@@ -37,7 +37,7 @@ export default async function BoardPage() {
   // Non-superAdmins see only the nodes for which they have canRead
   let nodes = allNodes
   if (!session?.user?.isSuperAdmin && userId) {
-    const accessibleIds = new Set(await rolesService.getAccessibleNodes(userId))
+    const accessibleIds = new Set(await rolesService.getAccessibleNodes(userId, projectId))
     nodes = allNodes.filter((n) => accessibleIds.has(n.id))
   }
 

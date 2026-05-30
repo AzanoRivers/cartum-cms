@@ -46,8 +46,8 @@ const ALL_SECTIONS: Array<{ key: SectionKey }> = [
   { key: 'api'             },
   { key: 'db'              },
   { key: 'webMigration'    },
-  { key: 'cartumProjects'  },
   { key: 'info'            },
+  { key: 'cartumProjects'  },
 ]
 
 export function SettingsPanel({
@@ -89,12 +89,14 @@ export function SettingsPanel({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, migrationActive]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ADMIN_SECTIONS: SectionKey[] = ['appearance', 'account', 'subscription', 'members', 'api', 'users', 'roles']
+  const ADMIN_SECTIONS: SectionKey[] = ['email', 'members', 'api', 'users', 'roles', 'webMigration']
+  const PUBLIC_SECTIONS: SectionKey[] = ['subscription', 'account', 'appearance']
 
   // Filter visible sections by role
   const visibleSections = ALL_SECTIONS.filter(({ key }) => {
     if (key === 'cartumProjects') return isSuperAdmin
     if (isSuperAdmin) return true
+    if (PUBLIC_SECTIONS.includes(key)) return true
     if (isAdmin && ADMIN_SECTIONS.includes(key)) return true
     return sectionPermissions[key] === true
   })
@@ -118,11 +120,11 @@ export function SettingsPanel({
       {activeSection === 'project' && (isSuperAdmin || sectionPermissions.project) && (
         <ProjectSection d={d.project} loadingText={d.loading} />
       )}
-      {activeSection === 'storage' && (isSuperAdmin || sectionPermissions.storage) && (
-        <StorageSection d={d.storage} isSuperAdmin={isSuperAdmin} loadingText={d.loading} />
+      {activeSection === 'storage' && (isSuperAdmin || isAdmin || sectionPermissions.storage) && (
+        <StorageSection d={d.storage} isSuperAdmin={isSuperAdmin} isAdmin={isAdmin} loadingText={d.loading} />
       )}
-      {activeSection === 'email' && (isSuperAdmin || sectionPermissions.email) && (
-        <EmailSection d={d.email} loadingText={d.loading} />
+      {activeSection === 'email' && (isSuperAdmin || isAdmin || sectionPermissions.email) && (
+        <EmailSection isSuperAdmin={isSuperAdmin} d={d.email} loadingText={d.loading} />
       )}
       {activeSection === 'api' && (isSuperAdmin || isAdmin || sectionPermissions.api) && (
         <ApiTokensSection d={d.api} loadingText={d.loading} />
@@ -139,6 +141,7 @@ export function SettingsPanel({
         <UsersSection
           currentUserId={userId}
           isSuperAdmin={isSuperAdmin}
+          isAdmin={isAdmin}
           d={d.users}
           loadingText={d.loading}
         />
@@ -152,10 +155,10 @@ export function SettingsPanel({
         />
       )}
       {activeSection === 'db' && (isSuperAdmin || sectionPermissions.db) && (
-        <DbSection d={d.db} isSuperAdmin={isSuperAdmin} />
+        <DbSection d={d.db} isSuperAdmin={isSuperAdmin} isAdmin={isAdmin} />
       )}
-      {activeSection === 'webMigration' && (
-        <WebMigrationSection d={d.webMigration} loadingText={d.loading} />
+      {activeSection === 'webMigration' && (isSuperAdmin || isAdmin || sectionPermissions.webMigration) && (
+        <WebMigrationSection d={d.webMigration} isSuperAdmin={isSuperAdmin} loadingText={d.loading} />
       )}
       {activeSection === 'cartumProjects' && isSuperAdmin && (
         <CartumProjectsSection d={d.cartumProjects} loadingText={d.loading} />
@@ -265,18 +268,26 @@ function SheetContent({ visibleSections, activeSection, openSettings, d, section
       <div className="shrink-0 border-b border-border">
         <div className="flex gap-1 overflow-x-auto no-scrollbar px-3 py-2">
           {visibleSections.map(({ key }) => (
-            <button
-              key={key}
-              onClick={() => openSettings(key)}
-              className={[
-                'shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer',
-                activeSection === key
-                  ? 'bg-select/15 text-select border border-select/20'
-                  : 'text-muted hover:text-text hover:bg-surface-2',
-              ].join(' ')}
-            >
-              {d.nav[key as keyof typeof d.nav] ?? key}
-            </button>
+            <div key={key} className="flex items-center shrink-0">
+              {key === 'cartumProjects' && (
+                <div className="flex items-center self-stretch mr-1">
+                  <div className="w-px h-4 bg-warning/30 mx-1" />
+                  <span className="font-mono text-[8px] text-warning/45 uppercase tracking-widest select-none">sa</span>
+                  <div className="w-px h-4 bg-warning/30 mx-1" />
+                </div>
+              )}
+              <button
+                onClick={() => openSettings(key)}
+                className={[
+                  'whitespace-nowrap rounded-md px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer',
+                  activeSection === key
+                    ? 'bg-select/15 text-select border border-select/20'
+                    : 'text-muted hover:text-text hover:bg-surface-2',
+                ].join(' ')}
+              >
+                {d.nav[key as keyof typeof d.nav] ?? key}
+              </button>
+            </div>
           ))}
         </div>
       </div>
@@ -351,6 +362,13 @@ function DialogContent({
           </div>
           {visibleSections.map(({ key }, i) => (
             <div key={key} className={i < visibleSections.length - 1 ? 'border-b border-border/20' : ''}>
+              {key === 'cartumProjects' && (
+                <div className="flex items-center gap-1.5 px-2 py-2">
+                  <div className="flex-1 h-px bg-warning/25" />
+                  <span className="font-mono text-[9px] text-warning/50 uppercase tracking-widest select-none">super_admin</span>
+                  <div className="flex-1 h-px bg-warning/25" />
+                </div>
+              )}
               <button
                 onClick={() => openSettings(key)}
                 className={[

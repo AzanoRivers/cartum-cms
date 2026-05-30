@@ -404,15 +404,30 @@ export async function importDatabaseAction(raw: unknown): Promise<ActionResult<n
 // ── Purge images ──────────────────────────────────────────────────────────────
 
 export async function purgeAllImagesAction(): Promise<ActionResult<{ storagePurge: StoragePurgeResult }>> {
-  const userId = await requireSuperAdmin()
-  if (!userId) return { success: false, error: 'Unauthorized' }
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: 'Unauthorized' }
+
+  let projectId: string
+  try {
+    projectId = await requireProjectId()
+  } catch {
+    return { success: false, error: 'NO_PROJECT' }
+  }
+
+  // Allow superAdmin or project admin
+  const { projectMembershipsRepository } = await import('@/db/repositories/project-memberships.repository')
+  const { ROLE_ADMIN } = await import('@/types/roles')
+  const canAccess = session.user.isSuperAdmin
+    || (session.user.roles ?? []).includes(ROLE_ADMIN)
+    || await projectMembershipsRepository.isMemberWithRole(session.user.id, projectId, 'admin')
+  if (!canAccess) return { success: false, error: 'Forbidden' }
 
   try {
-    // Delete storage files first (DB rows are the inventory — purge before truncate)
-    const storagePurge = await purgeAllMediaStorage()
+    // Purge only this project's media from storage
+    const storagePurge = await purgeProjectMediaStorage(projectId)
 
-    // Truncate the media table only — all other data stays intact
-    await safeDelete(media)
+    // Delete only this project's media rows
+    await db.delete(media).where(eq(media.projectId, projectId))
 
     return { success: true, data: { storagePurge } }
   } catch {

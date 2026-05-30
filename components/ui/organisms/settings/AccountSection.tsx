@@ -133,8 +133,11 @@ export function AccountSection({ currentEmail, d }: AccountSectionProps) {
         <label className="block font-mono text-xs text-muted uppercase tracking-wider">
           {d.currentEmail}
         </label>
-        <div className="flex h-9 items-center rounded-md border border-border bg-bg px-3 font-mono text-sm text-text overflow-hidden">
+        <div className="flex h-9 items-center gap-2 rounded-md border border-border/40 bg-surface-2/40 px-3 font-mono text-sm text-muted/70 overflow-hidden cursor-default select-all">
           <span className="truncate">{displayEmail}</span>
+          <span className="shrink-0 rounded-sm border border-border/50 bg-surface px-1.5 py-0.5 font-mono text-[9px] text-muted/40 uppercase tracking-widest leading-none">
+            read-only
+          </span>
         </div>
       </div>
 

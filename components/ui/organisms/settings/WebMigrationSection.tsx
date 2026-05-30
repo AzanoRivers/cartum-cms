@@ -28,8 +28,9 @@ import type { Dictionary } from '@/locales/en'
 import type { ScraperServerStatus, ScrapeJobStatus } from '@/types/scraper'
 
 export type WebMigrationSectionProps = {
-  d:           Dictionary['settings']['webMigration']
-  loadingText: string
+  d:            Dictionary['settings']['webMigration']
+  isSuperAdmin: boolean
+  loadingText:  string
 }
 
 // ── Accordion helper (same pattern as StorageSection) ─────────────────────────
@@ -234,7 +235,7 @@ function ChalkProgressBar({ pct }: { pct: number }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function WebMigrationSection({ d, loadingText }: WebMigrationSectionProps) {
+export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrationSectionProps) {
   // ── Accordion state ────────────────────────────────────────────────────────
   const [scraperOpen, setScraperOpen] = useState(true)
   const [configOpen,  setConfigOpen]  = useState(false)
@@ -242,6 +243,7 @@ export function WebMigrationSection({ d, loadingText }: WebMigrationSectionProps
   // ── API config state ───────────────────────────────────────────────────────
   const [apiUrl,       setApiUrl]       = useState('')
   const [apiKey,       setApiKey]       = useState('')
+  const [apiKeyIsSet,  setApiKeyIsSet]  = useState(false)
   const [showApiKey,   setShowApiKey]   = useState(false)
   const [loaded,       setLoaded]       = useState(false)
   const [serverStatus, setServerStatus] = useState<ScraperServerStatus | null>(null)
@@ -276,6 +278,7 @@ export function WebMigrationSection({ d, loadingText }: WebMigrationSectionProps
       if (res.success) {
         setApiUrl(res.data.scraperApiUrl ?? '')
         setApiKey(res.data.scraperApiKey ?? '')
+        setApiKeyIsSet(res.data.apiKeyIsSet ?? false)
       }
       setLoaded(true)
     })
@@ -305,7 +308,7 @@ export function WebMigrationSection({ d, loadingText }: WebMigrationSectionProps
     return () => clearInterval(id)
   }, [step])
 
-  const isConfigured = Boolean(apiKey)
+  const isConfigured = isSuperAdmin ? Boolean(apiKey) : apiKeyIsSet
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -315,8 +318,15 @@ export function WebMigrationSection({ d, loadingText }: WebMigrationSectionProps
         scraperApiUrl: apiUrl || undefined,
         scraperApiKey: apiKey || undefined,
       })
-      if (res.success) toast.success(d.save)
-      else toast.error(d.connectionFail)
+      if (res.success) {
+        toast.success(d.save)
+        if (!isSuperAdmin && apiKey) {
+          setApiKeyIsSet(true)
+          setApiKey('')
+        }
+      } else {
+        toast.error(d.connectionFail)
+      }
     })
   }
 
@@ -700,6 +710,8 @@ export function WebMigrationSection({ d, loadingText }: WebMigrationSectionProps
         }
       >
         <div className="space-y-4">
+          <p className="font-mono text-[10px] text-muted/60">{d.projectScopeNote}</p>
+
           {/* API URL */}
           <Field label={d.apiUrl}>
             <input
@@ -711,30 +723,56 @@ export function WebMigrationSection({ d, loadingText }: WebMigrationSectionProps
             />
           </Field>
 
-          {/* API Key */}
-          <Field label={d.apiKey}>
-            <div className="relative">
+          {/* API Key — superAdmin sees current value; admin sees status + write-only replace */}
+          {isSuperAdmin ? (
+            <Field label={d.apiKey}>
+              <div className="relative">
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={apiKey}
+                  placeholder="••••••••••••••••"
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className={`${inputCls} pr-9`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey((v) => !v)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors"
+                  tabIndex={-1}
+                  aria-label={showApiKey ? d.hide : d.show}
+                >
+                  {showApiKey
+                    ? <EyeOff size={14} strokeWidth={1.8} />
+                    : <Eye    size={14} strokeWidth={1.8} />
+                  }
+                </button>
+              </div>
+            </Field>
+          ) : (
+            <div className="space-y-1.5">
+              <label className="block font-mono text-xs text-muted">{d.apiKey}</label>
+              <div className={[
+                'flex h-9 items-center gap-2 rounded-md border px-3 font-mono text-xs',
+                apiKeyIsSet
+                  ? 'border-success/30 bg-success/5 text-success'
+                  : 'border-danger/30 bg-danger/5 text-danger/70',
+              ].join(' ')}>
+                <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{
+                  background: apiKeyIsSet ? 'var(--color-success)' : 'var(--color-danger)',
+                }} />
+                {apiKeyIsSet ? d.apiKeySet : d.apiKeyNotSet}
+              </div>
+              <label className="block font-mono text-[10px] text-muted/60 pt-0.5">{d.apiKeyReplaceLabel}</label>
               <input
-                type={showApiKey ? 'text' : 'password'}
+                type="password"
                 value={apiKey}
-                placeholder="••••••••••••••••"
+                placeholder={d.apiKeyReplacePlaceholder}
                 onChange={(e) => setApiKey(e.target.value)}
-                className={`${inputCls} pr-9`}
+                autoComplete="off"
+                className={inputCls}
               />
-              <button
-                type="button"
-                onClick={() => setShowApiKey((v) => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors"
-                tabIndex={-1}
-                aria-label={showApiKey ? d.hide : d.show}
-              >
-                {showApiKey
-                  ? <EyeOff size={14} strokeWidth={1.8} />
-                  : <Eye    size={14} strokeWidth={1.8} />
-                }
-              </button>
             </div>
-          </Field>
+          )}
 
           {/* Server status + action buttons */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
