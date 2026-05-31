@@ -2,18 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { Icon } from '@/components/ui/atoms/Icon'
+import { LanguageSelectorWrapper } from '@/components/ui/atoms/LanguageSelectorWrapper'
 import type { Dictionary } from '@/locales/en'
 
 type DocsSections = Dictionary['cms']['docs']['sections']
 
 export type DocsSidebarProps = {
-  sections: DocsSections
-  activeId: string
-  onSelect: (id: string) => void
+  sections:      DocsSections
+  activeId:      string
+  onSelect:      (id: string) => void
+  showLang?:     boolean
+  currentLocale?: 'en' | 'es'
 }
 
-const TOP_IDS  = ['gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration', 'relationsGuide', 'multiProject'] as const
-const DEV_IDS  = ['nodesAndFieldsDev', 'webMigrationDev', 'multiProjectDev', 'media', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations'] as const
+const TOP_IDS  = ['gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration', 'relationsGuide', 'multiProject', 'rolesGuide'] as const
+const DEV_IDS  = ['installation', 'nodesAndFieldsDev', 'webMigrationDev', 'multiProjectDev', 'media', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations'] as const
 const ALL_IDS  = [...TOP_IDS, ...DEV_IDS] as const
 
 type SectionId = typeof ALL_IDS[number]
@@ -28,9 +31,11 @@ const ICONS: Record<SectionId, Parameters<typeof Icon>[0]['name']> = {
   webMigration:    'Globe',
   relationsGuide:  'Link',
   multiProject:    'Layers',
+  rolesGuide:      'ShieldCheck',
   nodesAndFieldsDev: 'Database',
   webMigrationDev:   'Globe',
   multiProjectDev:   'Layers',
+  installation:      'Terminal',
   media:             'Image',
   storageSetup:      'HardDrive',
   apiForDevs:      'Code',
@@ -38,7 +43,7 @@ const ICONS: Record<SectionId, Parameters<typeof Icon>[0]['name']> = {
   relations:       'GitMerge',
 }
 
-export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) {
+export function DocsSidebar({ sections, activeId, onSelect, showLang = false, currentLocale = 'en' }: DocsSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [devOpen, setDevOpen]       = useState(() => DEV_SET.has(activeId))
 
@@ -132,7 +137,7 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
       </nav>
 
       {/* ── Mobile accordion trigger ───────────────────────────────────── */}
-      <div className="flex md:hidden shrink-0 flex-col border-b border-border bg-surface">
+      <div className="flex md:hidden shrink-0 flex-col border-b border-border bg-surface sticky top-0 z-20 relative">
         <button
           onClick={() => setMobileOpen((v) => !v)}
           className="flex w-full items-center justify-between px-4 py-3 cursor-pointer"
@@ -153,6 +158,13 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
             <Icon name="ChevronDown" size="sm" className="text-muted" />
           </span>
         </button>
+
+        {/* Language selector — floats below the bar, right-aligned, no background */}
+        {showLang && (
+          <div className="absolute top-full right-3 z-30 pt-1.5">
+            <LanguageSelectorWrapper defaultLocale={currentLocale} />
+          </div>
+        )}
 
         {/* Animated content */}
         <div
@@ -210,6 +222,7 @@ export function DocsSidebar({ sections, activeId, onSelect }: DocsSidebarProps) 
           </div>
         </div>
       </div>
+
     </>
   )
 }

@@ -463,7 +463,7 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
       </Accordion>
 
       {/* Docs link */}
-      <DocLink href="/cms/docs#storageSetup" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
+      <DocLink href="/docs#storageSetup" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
 
       {/* Save row */}
       {canManage && (

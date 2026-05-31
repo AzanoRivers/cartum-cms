@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DocsSidebar } from './DocsSidebar'
 import { DocsCodeBlock } from './DocsCodeBlock'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
@@ -10,32 +10,34 @@ import type { Dictionary } from '@/locales/en'
 type DocsDict = Dictionary['cms']['docs']
 
 export type DocsPageProps = {
-  d: DocsDict
+  d:       DocsDict
+  locale?: 'en' | 'es'
+  noPad?:  boolean
 }
 
 // ── Section content components ────────────────────────────────────────────────
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-mono text-sm font-semibold text-text mb-3">{children}</h2>
+    <h2 className="font-mono text-sm lg:text-base font-semibold text-text mb-3">{children}</h2>
   )
 }
 
 function SubHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="font-mono text-xs font-semibold text-text/80 mb-1.5 mt-4">{children}</h3>
+    <h3 className="font-mono text-xs lg:text-sm font-semibold text-text/80 mb-1.5 mt-4">{children}</h3>
   )
 }
 
 function Prose({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs text-muted leading-5">{children}</p>
+    <p className="text-xs lg:text-sm text-muted leading-5 lg:leading-6">{children}</p>
   )
 }
 
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-border bg-surface-2/50 px-3 py-2 text-xs text-muted leading-5 italic">
+    <div className="rounded-md border border-border bg-surface-2/50 px-3 py-2 text-xs lg:text-sm text-muted leading-5 lg:leading-6 italic">
       {children}
     </div>
   )
@@ -45,7 +47,7 @@ function UL({ items }: { items: string[] }) {
   return (
     <ul className="space-y-1 pl-3">
       {items.map((item, i) => (
-        <li key={i} className="text-xs text-muted leading-5 flex gap-2">
+        <li key={i} className="text-xs lg:text-sm text-muted leading-5 lg:leading-6 flex gap-2">
           <span className="text-primary/60 shrink-0">·</span>
           <span>{item}</span>
         </li>
@@ -91,11 +93,15 @@ function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
 
 // ── Section: Getting Started ──────────────────────────────────────────────────
 
-function GettingStartedSection({ d }: { d: DocsDict }) {
+function GettingStartedSection({ d, onSelect }: { d: DocsDict; onSelect: (id: SectionId) => void }) {
   const s = d.gettingStarted
   return (
     <div className="space-y-4">
       <SectionHeading>{s.title}</SectionHeading>
+      {/* Welcome message */}
+      <div className="rounded-md border border-primary/20 bg-primary/5 px-4 py-4 space-y-1">
+        <p className="text-xs lg:text-sm text-text/80 leading-relaxed lg:leading-6 italic">{s.welcome}</p>
+      </div>
       <Prose>{s.intro}</Prose>
       <div>
         <SubHeading>{s.conceptsTitle}</SubHeading>
@@ -107,6 +113,18 @@ function GettingStartedSection({ d }: { d: DocsDict }) {
           {s.flow}
         </div>
       </div>
+
+      {/* Link to installation */}
+      <button
+        onClick={() => onSelect('installation')}
+        className="group flex w-full items-center justify-between rounded-lg border border-border/60 bg-surface-2/20 px-4 py-3 transition-colors hover:border-primary/40 hover:bg-primary/5 cursor-pointer text-left"
+      >
+        <div className="min-w-0">
+          <p className="font-mono text-xs text-muted group-hover:text-text transition-colors">{s.installLink}</p>
+          <p className="font-mono text-[10px] text-primary/60 mt-0.5 group-hover:text-primary transition-colors">{d.sections.installation}</p>
+        </div>
+        <span className="shrink-0 text-muted group-hover:text-primary transition-colors ml-3">→</span>
+      </button>
     </div>
   )
 }
@@ -768,6 +786,63 @@ function ApiSchemaSection({ d }: { d: DocsDict }) {
   )
 }
 
+// ── Section: Roles Guide ─────────────────────────────────────────────────────
+
+function RolesGuideSection({ d }: { d: DocsDict }) {
+  const s = d.rolesGuide
+
+  const ROLE_COLORS: Record<string, string> = {
+    admin:      'border-primary/40 bg-primary/10 text-primary',
+    editor:     'border-accent/40 bg-accent/10 text-accent',
+    viewer:     'border-border bg-surface-2/60 text-muted',
+    restricted: 'border-danger/30 bg-danger/5 text-danger/80',
+  }
+
+  return (
+    <div className="space-y-5">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      <div>
+        <SubHeading>{s.defaultRolesTitle}</SubHeading>
+        <div className="space-y-3 mt-2">
+          {(['admin', 'editor', 'viewer', 'restricted'] as const).map((key) => {
+            const role = s.roles[key]
+            return (
+              <div key={key} className={`rounded-md border p-3 ${ROLE_COLORS[key]}`}>
+                <p className="font-mono text-xs font-semibold mb-1">{role.name}</p>
+                <p className="text-xs leading-5 opacity-80">{role.desc}</p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div>
+        <SubHeading>{s.projectScopeTitle}</SubHeading>
+        <Prose>{s.projectScopeDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.newProjectTitle}</SubHeading>
+        <Prose>{s.newProjectDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.inviteTitle}</SubHeading>
+        <Prose>{s.inviteDesc}</Prose>
+      </div>
+
+      <div>
+        <SubHeading>{s.superAdminTitle}</SubHeading>
+        <Prose>{s.superAdminDesc}</Prose>
+      </div>
+
+      <Note>{s.switchNote}</Note>
+    </div>
+  )
+}
+
 // ── Section: Multi-Project (user-facing) ─────────────────────────────────────
 
 function MultiProjectSection({ d }: { d: DocsDict }) {
@@ -862,6 +937,97 @@ function MultiProjectDevSection({ d }: { d: DocsDict }) {
   )
 }
 
+// ── Section: Installation ─────────────────────────────────────────────────────
+
+function InstallationSection({ d }: { d: DocsDict }) {
+  const s = d.installation
+  return (
+    <div className="space-y-6">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      {/* Prerequisites */}
+      <div>
+        <SubHeading>{s.prereqTitle}</SubHeading>
+        <UL items={Object.values(s.prereqs)} />
+      </div>
+
+      {/* Quick install */}
+      <div className="space-y-3">
+        <SubHeading>{s.quickTitle}</SubHeading>
+        <Prose>{s.quickDesc}</Prose>
+        <DocsCodeBlock
+          language="bash"
+          code={`pnpm create cartum-cms\n# or\nnpx create-cartum-cms\n# or\nyarn create cartum-cms`}
+        />
+        <p className="text-xs lg:text-sm text-muted">{s.quickThenTitle}</p>
+        <DocsCodeBlock
+          language="bash"
+          code={`cd your-project\npnpm db:migrate\npnpm dev`}
+        />
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Manual install */}
+      <div className="space-y-3">
+        <SubHeading>{s.manualTitle}</SubHeading>
+        <UL items={Object.values(s.manualSteps)} />
+        <DocsCodeBlock
+          language="bash"
+          code={`# 1. Clone\ngit clone https://github.com/azanoRivers/cartum-cms.git\n\n# 2. Install\ncd cartum-cms && pnpm install\n\n# 3. Environment\ncp .env.example .env\n\n# 4. Edit .env with your values, then:\n\n# 5. Migrate\npnpm db:migrate\n\n# 6. Start\npnpm dev`}
+        />
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Environment variables */}
+      <div className="space-y-4">
+        <SubHeading>{s.envTitle}</SubHeading>
+        <div>
+          <p className="font-mono text-[10px] lg:text-xs uppercase tracking-widest text-muted mb-2">{s.envRequired}</p>
+          <UL items={[
+            s.envVars.dbUrl,
+            s.envVars.dbProvider,
+            s.envVars.authSecret,
+            s.envVars.authUrl,
+            s.envVars.nodeEnv,
+          ]} />
+        </div>
+        <div>
+          <p className="font-mono text-[10px] lg:text-xs uppercase tracking-widest text-muted mb-2">{s.envOptional}</p>
+          <UL items={[
+            s.envVars.r2,
+            s.envVars.blob,
+            s.envVars.resend,
+            s.envVars.vps,
+          ]} />
+        </div>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Scripts */}
+      <div>
+        <SubHeading>{s.scriptsTitle}</SubHeading>
+        <UL items={Object.values(s.scripts)} />
+      </div>
+
+      {/* Repo link */}
+      <div className="flex items-center gap-2">
+        <a
+          href="https://github.com/azanoRivers/cartum-cms"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 font-mono text-xs text-primary hover:text-primary/80 transition-colors"
+        >
+          <span>{s.repoNote} ↗</span>
+        </a>
+      </div>
+    </div>
+  )
+}
+
 // ── Section: Storage Setup ────────────────────────────────────────────────────
 
 function StorageSetupSection({ d }: { d: DocsDict }) {
@@ -928,6 +1094,74 @@ function StorageSetupSection({ d }: { d: DocsDict }) {
   )
 }
 
+// ── Section nav ───────────────────────────────────────────────────────────────
+
+const ORDERED_SECTIONS = [
+  'gettingStarted','navigation','nodesAndFields','content','webMigration',
+  'relationsGuide','rolesGuide','multiProject',
+  'installation','nodesAndFieldsDev','webMigrationDev','multiProjectDev','media',
+  'storageSetup','apiForDevs','apiSchema','relations',
+] as const
+
+const DEV_SECTION_SET = new Set([
+  'installation','nodesAndFieldsDev','webMigrationDev','multiProjectDev','media',
+  'storageSetup','apiForDevs','apiSchema','relations',
+])
+
+function SectionNav({
+  activeId,
+  d,
+  onSelect,
+}: {
+  activeId: string
+  d:        DocsDict
+  onSelect: (id: string) => void
+}) {
+  const idx  = ORDERED_SECTIONS.indexOf(activeId as typeof ORDERED_SECTIONS[number])
+  const prev = idx > 0 ? ORDERED_SECTIONS[idx - 1] : null
+  const next = idx < ORDERED_SECTIONS.length - 1 ? ORDERED_SECTIONS[idx + 1] : null
+
+  if (!prev && !next) return null
+
+  function NavBtn({ id, dir }: { id: string; dir: 'prev' | 'next' }) {
+    const isDev  = DEV_SECTION_SET.has(id)
+    const label  = d.sections[id as keyof typeof d.sections] ?? id
+    const badge  = isDev ? d.devBadge : d.userBadge
+    return (
+      <button
+        onClick={() => onSelect(id)}
+        className={[
+          'group flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border/60 px-3 py-3 transition-colors hover:border-primary/40 hover:bg-primary/5 cursor-pointer',
+          dir === 'next' ? 'justify-end text-right' : 'text-left',
+        ].join(' ')}
+      >
+        {dir === 'prev' && <span className="shrink-0 text-muted group-hover:text-primary transition-colors">←</span>}
+        <div className="min-w-0 flex flex-wrap items-center gap-1.5">
+          {dir === 'next' && (
+            <span className={`shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-none font-medium ${isDev ? 'border-accent/40 bg-accent/10 text-accent' : 'border-primary/40 bg-primary/10 text-primary'}`}>
+              {badge}
+            </span>
+          )}
+          <span className="font-mono text-xs text-muted group-hover:text-text transition-colors leading-snug">{label}</span>
+          {dir === 'prev' && (
+            <span className={`shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-none font-medium ${isDev ? 'border-accent/40 bg-accent/10 text-accent' : 'border-primary/40 bg-primary/10 text-primary'}`}>
+              {badge}
+            </span>
+          )}
+        </div>
+        {dir === 'next' && <span className="shrink-0 text-muted group-hover:text-primary transition-colors">→</span>}
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-10 flex items-stretch gap-2 border-t border-border/50 pt-5">
+      {prev ? <NavBtn id={prev} dir="prev" /> : <div className="flex-1" />}
+      {next ? <NavBtn id={next} dir="next" /> : <div className="flex-1" />}
+    </div>
+  )
+}
+
 // ── Section registry ──────────────────────────────────────────────────────────
 
 type SectionId =
@@ -937,7 +1171,9 @@ type SectionId =
   | 'content'
   | 'webMigration'
   | 'relationsGuide'
+  | 'rolesGuide'
   | 'multiProject'
+  | 'installation'
   | 'nodesAndFieldsDev'
   | 'webMigrationDev'
   | 'multiProjectDev'
@@ -951,47 +1187,67 @@ type SectionId =
 
 const VALID_SECTION_IDS = new Set<string>([
   'gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration',
-  'relationsGuide', 'multiProject', 'nodesAndFieldsDev', 'webMigrationDev',
-  'multiProjectDev', 'media', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations',
+  'relationsGuide', 'rolesGuide', 'multiProject', 'nodesAndFieldsDev', 'webMigrationDev',
+  'multiProjectDev', 'media', 'installation', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations',
 ])
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export function DocsPage({ d }: DocsPageProps) {
+export function DocsPage({ d, locale, noPad = false }: DocsPageProps) {
+  const showLang = !!locale
   const [activeId, setActiveId]   = useState<SectionId>('gettingStarted')
   const [resolving, setResolving] = useState(true)
+  const mainRef = useRef<HTMLElement | null>(null)
+
+  // Scroll to top after section changes
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (mainRef.current) mainRef.current.scrollTop = 0
+      window.scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    })
+  }, [activeId])
 
   useEffect(() => {
     const hash = window.location.hash.slice(1)
     if (VALID_SECTION_IDS.has(hash)) setActiveId(hash as SectionId)
     setResolving(false)
 
-    function onHashChange() {
+    function syncFromHash() {
       const h = window.location.hash.slice(1)
       if (VALID_SECTION_IDS.has(h)) setActiveId(h as SectionId)
     }
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
+
+    // hashchange fires on anchor clicks; popstate fires on pushState back/forward
+    window.addEventListener('hashchange', syncFromHash)
+    window.addEventListener('popstate', syncFromHash)
+    return () => {
+      window.removeEventListener('hashchange', syncFromHash)
+      window.removeEventListener('popstate', syncFromHash)
+    }
   }, [])
 
   function selectSection(id: SectionId) {
     setActiveId(id)
-    history.replaceState(null, '', `#${id}`)
+    history.pushState(null, '', `#${id}`)
   }
 
   function renderSection() {
     switch (activeId) {
-      case 'gettingStarted':  return <GettingStartedSection d={d} />
+      case 'gettingStarted':  return <GettingStartedSection d={d} onSelect={selectSection} />
       case 'navigation':      return <NavigationSection d={d} />
       case 'nodesAndFields':  return <NodesAndFieldsSection d={d} />
       case 'content':         return <ContentSection d={d} />
       case 'webMigration':    return <WebMigrationSection d={d} />
       case 'relationsGuide':     return <RelationsGuideSection d={d} />
+      case 'rolesGuide':         return <RolesGuideSection d={d} />
       case 'multiProject':       return <MultiProjectSection d={d} />
       case 'nodesAndFieldsDev':  return <NodesAndFieldsDevSection d={d} />
       case 'webMigrationDev':    return <WebMigrationDevSection d={d} />
       case 'multiProjectDev':    return <MultiProjectDevSection d={d} />
       case 'media':              return <MediaSection d={d} />
+      case 'installation':    return <InstallationSection d={d} />
       case 'storageSetup':    return <StorageSetupSection d={d} />
       case 'apiForDevs':      return <ApiForDevsSection d={d} />
       case 'apiSchema':       return <ApiSchemaSection d={d} />
@@ -1000,15 +1256,17 @@ export function DocsPage({ d }: DocsPageProps) {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden pt-9 md:flex-row md:pt-0">
+    <div className={`flex flex-1 flex-col overflow-hidden md:flex-row ${noPad ? '' : 'pt-9 md:pt-0'}`}>
       <DocsSidebar
         sections={d.sections}
         activeId={activeId}
         onSelect={(id) => selectSection(id as SectionId)}
+        showLang={showLang}
+        currentLocale={locale ?? 'en'}
       />
 
       {/* Content area */}
-      <main className="flex-1 overflow-y-auto bg-bg">
+      <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-bg">
         {resolving ? (
           <div className="flex h-full items-center justify-center">
             <div className="flex flex-col items-center gap-4">
@@ -1023,12 +1281,70 @@ export function DocsPage({ d }: DocsPageProps) {
           </div>
         ) : (
           <VHSTransition duration="normal" trigger={activeId}>
-            <div className="mx-auto max-w-2xl px-6 pt-8 pb-28 md:pb-32">
+            <div className="mx-auto max-w-2xl lg:max-w-3xl px-6 lg:px-10 pt-8 pb-28 md:pb-32">
               {renderSection()}
+              <SectionNav activeId={activeId} d={d} onSelect={(id) => selectSection(id as SectionId)} />
             </div>
           </VHSTransition>
         )}
       </main>
+
+      {/* Floating footer — mobile: centered bottom; desktop: bottom-right */}
+      <div
+        className="flex fixed bottom-3 z-40 pointer-events-none flex-col items-center gap-1.5 w-[calc(100%-2rem)] left-1/2 -translate-x-1/2 md:w-auto md:left-auto md:right-4 md:translate-x-0 md:items-end"
+        aria-hidden="true"
+      >
+        {/* Line 1 — exact same as BrandFooter */}
+        <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-border/50 bg-surface px-4 py-1.5">
+          <span className="font-mono text-xs text-muted/80 tracking-wide select-none">by</span>
+          <a
+            href="https://azanorivers.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="brand-link font-mono text-xs tracking-wide text-muted transition-colors duration-300 hover:text-accent"
+          >
+            <span className="brand-glow">AzanoRivers</span>
+          </a>
+          <span className="font-mono text-xs text-muted/50 select-none">·</span>
+          <a
+            href="https://azanolabs.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="brand-link font-mono text-xs tracking-wide text-muted transition-colors duration-300 hover:text-primary"
+          >
+            <span className="brand-glow-primary">AzanoLabs</span>
+          </a>
+          <span className="font-mono text-xs text-muted/30 select-none">·</span>
+          <span className="cartum-neon-rainbow font-mono text-xs tracking-wide select-none font-semibold">CARTUM CMS</span>
+        </div>
+
+        {/* Line 2 — GitHub + X centered */}
+        <div className="pointer-events-auto flex items-center justify-center gap-3 rounded-full border border-border/50 bg-surface px-4 py-1.5 w-full">
+          <a
+            href="https://github.com/AzanoRivers/cartum-cms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 font-mono text-[11px] text-muted hover:text-text transition-colors"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+            </svg>
+            GitHub
+          </a>
+          <span className="font-mono text-[11px] text-muted/30 select-none">·</span>
+          <a
+            href="https://x.com/azanorivers"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 font-mono text-[11px] text-muted hover:text-text transition-colors"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+            AzanoRivers
+          </a>
+        </div>
+      </div>
     </div>
   )
 }

@@ -832,7 +832,7 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
       </Accordion>
 
       {/* ── Docs link ────────────────────────────────────────────────── */}
-      <DocLink href="/cms/docs#webMigration" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
+      <DocLink href="/docs#webMigration" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
     </div>
   )
 }

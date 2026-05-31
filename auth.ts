@@ -8,6 +8,7 @@ import { usersRepository } from '@/db/repositories/users.repository'
 import { rolesRepository } from '@/db/repositories/roles.repository'
 import { projectMembershipsRepository } from '@/db/repositories/project-memberships.repository'
 import { verifyPassword } from '@/lib/services/auth.service'
+import { getSetting } from '@/lib/settings/get-setting'
 import { ROLE_RESTRICTED } from '@/types/roles'
 import '@/types/auth'
 import { SWITCH_COOKIE } from '@/lib/auth/constants'
@@ -33,6 +34,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await verifyPassword(password, user.passwordHash)
         if (!valid) return null
+
+        // Block banned users
+        if (!user.isSuperAdmin) {
+          const isBanned = await getSetting(`user_banned:${user.id}`)
+          if (isBanned) throw new AccountDisabledError()
+        }
 
         const roleRows = await rolesRepository.findByUserId(user.id)
 

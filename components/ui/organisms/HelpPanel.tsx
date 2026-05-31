@@ -129,7 +129,7 @@ export function HelpPanel() {
               <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
                 {/* ── Docs button ───────────────────────────────────────── */}
                 <button
-                  onClick={() => { closeHelp(); setGlobalLoading(true); router.push('/cms/docs') }}
+                  onClick={() => { closeHelp(); window.open('/docs', '_blank') }}
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface-2 py-2.5 font-mono text-xs text-text transition-colors hover:border-primary/40 hover:bg-surface-2/80 cursor-pointer"
                 >
                   <Icon name="BookOpen" size="sm" className="text-primary" />

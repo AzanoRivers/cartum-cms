@@ -174,6 +174,11 @@
       newProject:  'New board',
       ariaLabel:   'Select project',
     },
+    noProject: {
+      title:    'No active project',
+      desc:     'You were removed from your project. Create a new board to continue using the CMS.',
+      button:   'Create new board',
+    },
     newProjectModal: {
       title:                  'New project',
       nameLabel:              'Project name',
@@ -281,6 +286,7 @@
         content:        'Content',
         webMigration:   'Web Migration',
         relationsGuide: 'Relations',
+        rolesGuide:     'Roles & Access',
         media:          'Media & Storage',
         apiForDevs:     'API for Developers',
         apiSchema:      'API: Table Discovery',
@@ -290,9 +296,13 @@
         multiProject:       'Multi-Project',
         multiProjectDev:    'Multi-Project',
         storageSetup:       'Storage Setup',
+        installation:       'Installation',
       },
+      userBadge: 'User Docs',
+      devBadge:  'Developer',
       gettingStarted: {
         title:         'Getting Started',
+        welcome:       'Hello. Thank you for your interest in Cartum CMS. This is a content and database manager designed to be used as a headless CMS. There are many CMS solutions out there, but most have a steep learning curve for both end users and developers. Cartum is built so that databases and REST APIs can be set up quickly and intuitively, under the idea of an infinite poker table. This project is designed to be used fast and easily in any type of project that needs a security layer, an API, and a content editing interface that is comfortable to use. I hope it helps you. — AzanoRivers',
         intro:         'Cartum is a serverless-first headless CMS with visual data modeling.',
         conceptsTitle: 'Core concepts',
         concepts: {
@@ -301,8 +311,9 @@
           record:     'Card: a single entry in a deck',
           connection: 'Link: a connection between two decks',
         },
-        flowTitle: 'Basic workflow',
-        flow:      'Create a deck, add attributes, go to Content, add cards',
+        flowTitle:   'Basic workflow',
+        flow:        'Create a deck, add attributes, go to Content, add cards',
+        installLink: 'Want to install Cartum using npm or pnpm? Check the installation guide:',
       },
       navigation: {
         title:          'Navigation',
@@ -427,6 +438,38 @@
         contentTitle: 'How do I use it when editing content?',
         contentDesc:  'When you open a card that has a relation field, you\'ll see a picker to choose a card from the linked deck. Select it and save. No database knowledge required - it works just like filling in any other field.',
         note:         'A relation never duplicates cards: it only stores a link. If you change a card in the target deck, the change appears automatically in every card that references it.',
+      },
+      rolesGuide: {
+        title: 'Roles and Access',
+        intro: 'Every user who accesses a board does so under a role. Roles determine what they can see and do, and they are always scoped to a specific project. The same person can be an Admin in one project and a Viewer in another.',
+        defaultRolesTitle: 'The four default roles',
+        roles: {
+          admin: {
+            name: 'Admin',
+            desc: 'Has full access to all decks and cards in the project. Can manage members, configure settings, create and delete decks, and edit all records. When you create a new project, you automatically become its Admin.',
+          },
+          editor: {
+            name: 'Editor',
+            desc: 'Sees every deck and card in the project and can create, edit and delete records. Cannot access project settings or invite other members. Ideal for team members who need to manage content without touching the project structure.',
+          },
+          viewer: {
+            name: 'Viewer (Lector)',
+            desc: 'Sees every deck and card in the project in read-only mode. Cannot create, edit or delete records. Cannot access settings. Ideal for stakeholders or clients who need visibility without the ability to change data.',
+          },
+          restricted: {
+            name: 'Restricted',
+            desc: 'A global suspension applied by a super admin. A restricted user cannot log in to the CMS at all, regardless of which project they belong to. It is not a project role: it is a system-level block.',
+          },
+        },
+        projectScopeTitle: 'Roles are per project',
+        projectScopeDesc:  'A role only applies inside the project where it was granted. If a user switches to a different project, the CMS reads the role they hold in that project and applies those restrictions immediately. There is no global role that follows the user across all projects, except for the super admin.',
+        newProjectTitle:   'Creating a project makes you Admin',
+        newProjectDesc:    'Any user who creates a new project is automatically assigned the Admin role for that project. From that moment they have full control: they can configure the board, invite other members and assign them a role, manage decks and records, and access all project settings.',
+        inviteTitle:       'Inviting someone to your project',
+        inviteDesc:        'Admins can invite users to a project from Settings, Members section. The invited person receives a link, creates their account if they do not have one, and joins the project with the role chosen at the time of invitation. Their role can be changed at any time from the Members section.',
+        superAdminTitle:   'Super admin',
+        superAdminDesc:    'The super admin is a special account created during the initial setup. It has unrestricted access to every project on the instance, can manage global users, configure instance-level variables, and perform operations that no project admin can carry out, such as resetting the CMS or managing subscriptions.',
+        switchNote:        'When you switch to a project where your role is Viewer, the board becomes read-only immediately. Switch back to a project where you are Admin and full access is restored. The interface adapts without requiring a logout.',
       },
       webMigrationDev: {
         title: 'Web Migration: Technical Details',
@@ -652,6 +695,56 @@
         storageR2:    ['Cloudflare R2', '✓ Configure + use', '✓ Configure + use'],
         storageBlob:  ['Vercel Blob', '✓ Configure + use', '✗ Not available'],
         setupNote:    'The super admin\'s project membership is injected at setup time via `initializeSchemaService()` and kept in sync via a JWT fallback in `auth.ts`. No manual DB work is needed.',
+      },
+      installation: {
+        title:       'Installation',
+        intro:       'Cartum CMS can be installed in two ways: using the interactive CLI (recommended) or by cloning the repository manually.',
+        quickTitle:  'Quick install (recommended)',
+        quickDesc:   'Use the CLI installer to set up a new project interactively. Choose your package manager:',
+        quickThenTitle: 'Then start your project:',
+        manualTitle: 'Manual installation',
+        manualSteps: {
+          s1: 'Clone the repository.',
+          s2: 'Install dependencies.',
+          s3: 'Copy the environment file.',
+          s4: 'Edit .env with your values.',
+          s5: 'Run database migrations.',
+          s6: 'Start the development server.',
+        },
+        envTitle:    'Environment variables',
+        envRequired: 'Required',
+        envOptional: 'Optional',
+        envVars: {
+          dbUrl:       'DATABASE_URL: PostgreSQL connection string (Neon or Supabase).',
+          dbProvider:  'DB_PROVIDER: Database provider. Values: "neon" or "supabase".',
+          authSecret:  'AUTH_SECRET: Random secret for authentication. Generate with: openssl rand -base64 32',
+          authUrl:     'AUTH_URL: Your app base URL without trailing slash.',
+          nodeEnv:     'NODE_ENV: "development" or "production".',
+          r2:          'R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL: Cloudflare R2 storage credentials.',
+          blob:        'BLOB_READ_WRITE_TOKEN: From Vercel Dashboard, Storage, Blob. Videos limited to 50 MB without VPS.',
+          resend:      'RESEND_API_KEY, RESEND_FROM_EMAIL: Resend email service credentials.',
+          vps:         'MEDIA_VPS_URL, MEDIA_VPS_KEY: Optional Optimus VPS for advanced media optimization.',
+        },
+        scriptsTitle: 'Available scripts',
+        scripts: {
+          dev:      'pnpm dev: Start the development server at localhost:3000.',
+          build:    'pnpm build: Build for production.',
+          start:    'pnpm start: Start the production server.',
+          migrate:  'pnpm db:migrate: Apply pending database migrations.',
+          generate: 'pnpm db:generate: Generate new migrations from schema changes.',
+          studio:   'pnpm db:studio: Open Drizzle Studio, a visual database explorer.',
+          seed:     'pnpm db:seed: Seed the database with default data.',
+          lint:     'pnpm lint: Run ESLint.',
+        },
+        prereqTitle: 'Prerequisites',
+        prereqs: {
+          db:   'PostgreSQL database via Neon or Supabase.',
+          node: 'Node.js 18 or later.',
+          pkg:  'pnpm, npm or yarn as your package manager.',
+          git:  'Git (for manual installation).',
+          ssl:  'openssl available in your terminal (for generating AUTH_SECRET).',
+        },
+        repoNote: 'Source code and issues: github.com/azanoRivers/cartum-cms',
       },
       storageSetup: {
         title: 'Storage Setup',
@@ -1100,6 +1193,7 @@
       db:              'Database',
       webMigration:    'Web Migration',
       cartumProjects:  'Cartum Projects',
+      variables:       'Variables',
     },
     panelTitle: 'SETTINGS',
     loading:    'Loading…',
@@ -1134,6 +1228,7 @@
       noProjects:             'No projects found.',
       dangerZone:             'Danger zone',
       dangerDesc:             'Permanently deletes this project: all decks, cards, records and media files. Members keep their accounts but lose access. This cannot be undone.',
+      onlyOwnerCanDelete:     'Only the project owner can delete this project.',
       deleteProject:          'Delete project',
       deleting:               'Deleting...',
       deleteSuccess:          'Project deleted.',
@@ -1268,34 +1363,76 @@
       docsLinkLabel: 'API documentation',
       docsLinkDesc:  'Learn how to authenticate requests, configure scopes, and consume the REST endpoints.',
     },
-    users: {
-      title:              'Users',
-      inviteTitle:        'Invite user',
-      emailLabel:         'Email address',
-      emailPlaceholder:   'user@example.com',
-      roleLabel:          'Role',
-      inviteButton:       'Send invite',
-      inviting:           'Inviting...',
-      inviteSuccess:      'User invited.',
-      inviteError:        'Could not invite user.',
-      roleChanged:        'Role updated.',
-      removeButton:       'Remove',
-      removing:           'Removing...',
-      removeSuccess:      'User removed.',
-      removeConfirmTitle: 'Remove this user?',
-      removeConfirmDesc:  'This action cannot be undone.',
-      noEmailNotice:      'Email is not configured. Share this temporary password with the user:',
-      copyPassword:       'Copy password',
-      close:              'Close',
-      empty:              'No other users yet.',
+    members: {
+      title:              'Members',
+      subtitle:           'All members assigned to the active project.',
+      inviteLabel:        'Invite a member',
+      emailPlaceholder:   'colleague@company.com',
+      inviting:           'Inviting…',
+      inviteButton:       'Invite',
+      currentMembers:     'Current members',
+      memberSingular:     'member',
+      memberPlural:       'members',
+      pendingTitle:       'Pending invitations',
+      pending:            'pending',
+      // MemberList strings
       youLabel:           '(you)',
-      trialActive:        'Trial active',
-      trialExpired:       'Trial expired',
-      subToggleRevoke:    'Revoke',
-      subToggleActivate:  'Activate',
-      subToggling:        '...',
-      subRevokeSuccess:   'Subscription revoked.',
-      subActivateSuccess: 'Subscription activated.',
+      changeRole:         'Change role',
+      removeButton:       'Remove',
+      removeConfirmTitle: 'Remove from project?',
+      removeConfirmDesc:  'The user will lose access to this project immediately.',
+      removeSuccess:      'Member removed.',
+      removeError:        'Could not remove member.',
+      roleUpdated:        'Role updated.',
+      noMembers:          'No members yet.',
+    },
+    users: {
+      title:              'All Users',
+      subtitle:           'All registered users across the entire CMS instance.',
+      empty:              'No users found.',
+      noResults:          'No users match the filter.',
+      youLabel:           '(you)',
+      colCreated:         'Member since',
+      filterSearch:       'Search by email…',
+      filterSortLabel:    'Sort by',
+      sortEmail:          'Email',
+      sortCreated:        'Oldest',
+      sortNewest:         'Newest',
+      sortSub:            'Subscription',
+      sortProjects:       'Projects',
+      sortOwned:          'Owner of',
+      colProjects:        'Projects',
+      colOwned:           'Owner of',
+      colSub:             'Subscription',
+      subDaysLeft:        '{n}d left',
+      subExpired:         'Expired',
+      // Ban
+      banButton:          'Ban',
+      unbanButton:        'Unban',
+      bannedBadge:        'Banned',
+      banConfirmTitle:    'Ban user?',
+      banConfirmDesc:     'The user will not be able to log in until unbanned.',
+      unbanConfirmTitle:  'Unban user?',
+      unbanConfirmDesc:   'The user will be able to log in again.',
+      banSuccess:         'User banned.',
+      unbanSuccess:       'User unbanned.',
+      // Delete
+      deleteButton:       'Delete',
+      deleteConfirmTitle: 'Delete user?',
+      deleteConfirmDesc:  'This permanently deletes the account. The user will be removed from all projects.',
+      deleteSuccess:      'User deleted.',
+      deleteError:        'Could not delete user.',
+      // Subscription
+      grantSubLabel:      'Subscription',
+      grantSubTitle:      'Manage subscription',
+      grantSubMonths:     '{n} mo.',
+      grantSubButton:     'Grant',
+      revokeSubButton:    'Revoke',
+      revokeSubConfirmTitle: 'Revoke subscription?',
+      revokeSubConfirmDesc:  'The user will lose access immediately.',
+      grantSubSuccess:    'Subscription granted.',
+      grantSubError:      'Could not grant subscription.',
+      revokeSubSuccess:   'Subscription revoked.',
     },
     roles: {
       title:                 'Roles',
@@ -1632,6 +1769,47 @@
         purgeFailWarn:      '{failed} file(s) could not be deleted from storage and may remain as orphans.',
       },
     },
+    variables: {
+      title:       'Instance Variables',
+      subtitle:    'Global default values for this CMS instance. Per-project overrides set in each section take precedence.',
+      saveButton:  'Save',
+      saving:      'Saving…',
+      saved:       'Saved.',
+      clearButton: 'Reset to env',
+      clearDesc:   'Remove the stored override and revert to the .env value.',
+      overrideBadge: 'Override',
+      envBadge:      'From .env',
+      readOnlyNote:  'Read-only. Requires app restart to change.',
+      show:          'Show',
+      hide:          'Hide',
+      // Groups
+      groupR2:       'Cloudflare R2',
+      groupBlob:     'Vercel Blob',
+      groupResend:   'Resend (Email)',
+      groupScraper:  'Scraper API',
+      groupAuth:     'Auth & Database',
+      groupMisc:     'Misc',
+      // Field labels
+      r2Endpoint:      'R2 Endpoint',
+      r2AccessKeyId:   'Access Key ID',
+      r2SecretKey:     'Secret Access Key',
+      r2BucketName:    'Bucket Name',
+      r2PublicUrl:     'Public URL',
+      blobToken:       'Blob Token',
+      resendApiKey:    'Resend API Key',
+      resendFromEmail: 'From Email',
+      scraperApiUrl:   'Scraper URL',
+      scraperApiKey:   'Scraper API Key',
+      cartumNewPlayer: 'CARTUM_NEW_PLAYER',
+      authUrl:         'AUTH_URL',
+      dbProvider:      'DB_PROVIDER',
+      databaseUrl:     'DATABASE_URL',
+      cartumNewPlayerHint: 'Set to "true" to enable the public registration page.',
+      resetAllButton:      'Reset all to .env defaults',
+      resetAllConfirmTitle: 'Reset all variables?',
+      resetAllConfirmDesc:  'This will remove all stored overrides. The CMS will revert to the values defined in the .env file.',
+      resetAllSuccess:     'All variables reset to .env defaults.',
+    },
     subscription: {
       title:       'Subscription',
       description: 'Here you will manage your Cartum CMS subscription. AzanoLabs is currently supported solely by AzanoRivers and it\'s a tremendous effort. Your support is an incredible play!',
@@ -1647,6 +1825,17 @@
       memberPlural:            'members',
       subActive:               'Active',
       subExpired:              'Expired',
+      images:                  'images',
+      videos:                  'videos',
+      noMedia:                 'No media',
+      filterSearch:            'Search by name…',
+      filterSortLabel:         'Sort by',
+      sortName:                'Name',
+      sortMembers:             'Members',
+      sortFiles:               'Files',
+      sortSize:                'Size',
+      sortCreated:             'Created',
+      noResults:               'No projects match the filter.',
       noProjects:              'No projects found.',
       cannotDeleteSuperAdmin:  'Super admin projects cannot be deleted from this screen.',
       deleteButton:            'Delete',
@@ -1787,6 +1976,7 @@ export type Dictionary = {
   cms: {
     topBar: { account: string; logOut: string; userMenuAriaLabel: string; freeTier: string; trialDaysLeft: string; trialTooltip: string }
     projectSelector: { newProject: string; ariaLabel: string }
+    noProject: { title: string; desc: string; button: string }
     newProjectModal: {
       title: string; nameLabel: string; namePlaceholder: string
       descriptionLabel: string; descriptionPlaceholder: string
@@ -1843,14 +2033,18 @@ export type Dictionary = {
       sidebarAriaLabel: string
       sections: {
         gettingStarted: string; navigation: string; nodesAndFields: string
-        content: string; webMigration: string; relationsGuide: string; multiProject: string
+        content: string; webMigration: string; relationsGuide: string; rolesGuide: string; multiProject: string
         media: string; apiForDevs: string; apiSchema: string; relations: string; nodesAndFieldsDev: string; webMigrationDev: string; multiProjectDev: string
         storageSetup: string
+        installation: string
       }
+      userBadge: string
+      devBadge: string
       gettingStarted: {
-        title: string; intro: string; conceptsTitle: string
+        title: string; welcome: string; intro: string; conceptsTitle: string
         concepts: { node: string; field: string; record: string; connection: string }
         flowTitle: string; flow: string
+        installLink: string
       }
       navigation: {
         title: string; dockTitle: string; dockDesc: string
@@ -1909,6 +2103,21 @@ export type Dictionary = {
         howTitle: string; how1: string; how2: string; how3: string
         contentTitle: string; contentDesc: string
         note: string
+      }
+      rolesGuide: {
+        title: string; intro: string
+        defaultRolesTitle: string
+        roles: {
+          admin:      { name: string; desc: string }
+          editor:     { name: string; desc: string }
+          viewer:     { name: string; desc: string }
+          restricted: { name: string; desc: string }
+        }
+        projectScopeTitle: string; projectScopeDesc: string
+        newProjectTitle: string; newProjectDesc: string
+        inviteTitle: string; inviteDesc: string
+        superAdminTitle: string; superAdminDesc: string
+        switchNote: string
       }
       media: {
         title: string; galleryTitle: string; galleryDesc: string
@@ -2012,6 +2221,16 @@ export type Dictionary = {
         blobTitle: string; blobIntro: string; blobSteps: Record<string, string>
         blobEnvTitle: string; blobEnvVar: string
         scopeNote: string
+      }
+      installation: {
+        title: string; intro: string
+        quickTitle: string; quickDesc: string; quickThenTitle: string
+        manualTitle: string; manualSteps: Record<string, string>
+        envTitle: string; envRequired: string; envOptional: string
+        envVars: Record<string, string>
+        scriptsTitle: string; scripts: Record<string, string>
+        prereqTitle: string; prereqs: Record<string, string>
+        repoNote: string
       }
     }
     canvas: { ariaLabel: string; loading: string; empty: string; emptyHint: string; multiSelected: string; multiSelectedHint: string }
@@ -2139,7 +2358,7 @@ export type Dictionary = {
     nav: {
       account: string; appearance: string; project: string; subscription: string; storage: string; email: string
       api: string; members: string; users: string; roles: string; info: string; db: string; webMigration: string
-      cartumProjects: string
+      cartumProjects: string; variables: string
     }
     appearance: {
       title: string; themeLabel: string; saved: string; saveError: string
@@ -2158,7 +2377,7 @@ export type Dictionary = {
       localeEn: string; localeEs: string
       save: string; saving: string; saved: string; error: string
       selectProject: string; noProjects: string
-      dangerZone: string; dangerDesc: string; deleteProject: string; deleting: string; deleteSuccess: string; deleteError: string; singleProjectWarning: string
+      dangerZone: string; dangerDesc: string; onlyOwnerCanDelete: string; deleteProject: string; deleting: string; deleteSuccess: string; deleteError: string; singleProjectWarning: string
       confirmDialog: { title: string; message: string; inputLabel: string; confirmPhrase: string; confirm: string; cancel: string }
     }
     storage: {
@@ -2208,17 +2427,31 @@ export type Dictionary = {
       exclusionModalTitle: string; exclusionModalClose: string; exclusionConfirm: string
       docsLinkLabel: string; docsLinkDesc: string
     }
-    users: {
-      title: string; inviteTitle: string; emailLabel: string; emailPlaceholder: string
-      roleLabel: string; inviteButton: string; inviting: string
-      inviteSuccess: string; inviteError: string; roleChanged: string
-      removeButton: string; removing: string; removeSuccess: string
+    members: {
+      title: string; subtitle: string; inviteLabel: string; emailPlaceholder: string
+      inviting: string; inviteButton: string
+      currentMembers: string; memberSingular: string; memberPlural: string
+      pendingTitle: string; pending: string
+      youLabel: string; changeRole: string; removeButton: string
       removeConfirmTitle: string; removeConfirmDesc: string
-      noEmailNotice: string; copyPassword: string; close: string
-      empty: string; youLabel: string
-      trialActive: string; trialExpired: string
-      subToggleRevoke: string; subToggleActivate: string; subToggling: string
-      subRevokeSuccess: string; subActivateSuccess: string
+      removeSuccess: string; removeError: string; roleUpdated: string; noMembers: string
+    }
+    users: {
+      title: string; subtitle: string; empty: string; noResults: string; youLabel: string
+      colCreated: string; colProjects: string; colOwned: string; colSub: string
+      filterSearch: string; filterSortLabel: string
+      sortEmail: string; sortCreated: string; sortNewest: string; sortSub: string; sortProjects: string; sortOwned: string
+      subDaysLeft: string; subExpired: string
+      banButton: string; unbanButton: string; bannedBadge: string
+      banConfirmTitle: string; banConfirmDesc: string
+      unbanConfirmTitle: string; unbanConfirmDesc: string
+      banSuccess: string; unbanSuccess: string
+      deleteButton: string; deleteConfirmTitle: string; deleteConfirmDesc: string
+      deleteSuccess: string; deleteError: string
+      grantSubLabel: string; grantSubTitle: string; grantSubMonths: string
+      grantSubButton: string; revokeSubButton: string
+      revokeSubConfirmTitle: string; revokeSubConfirmDesc: string
+      grantSubSuccess: string; grantSubError: string; revokeSubSuccess: string
     }
     roles: {
       title: string; builtIn: string; custom: string
@@ -2324,11 +2557,26 @@ export type Dictionary = {
       description: string
       comingSoon: string
     }
+    variables: {
+      title: string; subtitle: string
+      saveButton: string; saving: string; saved: string
+      clearButton: string; clearDesc: string
+      overrideBadge: string; envBadge: string; readOnlyNote: string; show: string; hide: string
+      groupR2: string; groupBlob: string; groupResend: string; groupScraper: string; groupAuth: string; groupMisc: string
+      r2Endpoint: string; r2AccessKeyId: string; r2SecretKey: string; r2BucketName: string; r2PublicUrl: string
+      blobToken: string; resendApiKey: string; resendFromEmail: string
+      scraperApiUrl: string; scraperApiKey: string; cartumNewPlayer: string; cartumNewPlayerHint: string
+      authUrl: string; dbProvider: string; databaseUrl: string
+      resetAllButton: string; resetAllConfirmTitle: string; resetAllConfirmDesc: string; resetAllSuccess: string
+    }
     cartumProjects: {
       title: string; subtitle: string; ownerLabel: string; roleSuperAdmin: string
       createdLabel: string; memberSingular: string; memberPlural: string
       subActive: string; subExpired: string
-      noProjects: string; cannotDeleteSuperAdmin: string
+      images: string; videos: string; noMedia: string
+      filterSearch: string; filterSortLabel: string
+      sortName: string; sortMembers: string; sortFiles: string; sortSize: string; sortCreated: string
+      noResults: string; noProjects: string; cannotDeleteSuperAdmin: string
       deleteButton: string; deleting: string; deleteSuccess: string; deleteError: string
       docsLinkLabel: string; docsLinkDesc: string
       confirmDialog: {

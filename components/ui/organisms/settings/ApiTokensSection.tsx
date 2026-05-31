@@ -282,7 +282,7 @@ export function ApiTokensSection({ d, loadingText }: ApiTokensSectionProps) {
       </div>
 
       {/* Docs link */}
-      <DocLink href="/cms/docs#apiForDevs" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
+      <DocLink href="/docs#apiForDevs" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
 
       {/* Exclusion modal */}
       {showExclModal && (

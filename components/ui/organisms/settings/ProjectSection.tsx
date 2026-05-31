@@ -28,6 +28,7 @@ export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
   // Edit form
   const [form, setForm]                   = useState<ProjectSettings>({ projectName: '', description: '', defaultLocale: 'en' })
   const [initialLocale, setInitialLocale] = useState<string>('')
+  const [isOwner, setIsOwner]             = useState(false)
   const [formLoaded, setFormLoaded]       = useState(false)
   const [isSaving, startSave]             = useTransition()
 
@@ -69,6 +70,7 @@ export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
       if (res.success) {
         setForm(res.data)
         setInitialLocale(res.data.defaultLocale)
+        setIsOwner(res.data.isOwner)
       }
       setFormLoaded(true)
     })
@@ -198,22 +200,26 @@ export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
             </button>
           </div>
 
-          {/* Danger zone */}
+          {/* Danger zone — only for project owner or superAdmin */}
           <div className="mt-4 rounded-md border border-danger/30 bg-danger/5 p-4 space-y-3">
             <p className="font-mono text-xs text-danger uppercase tracking-widest">{d.dangerZone}</p>
             <p className="font-mono text-[11px] text-muted leading-relaxed">{d.dangerDesc}</p>
-            <div className="flex items-center gap-4">
-              {isSingleProject && (
-                <p className="font-mono text-xs text-muted/60">{d.singleProjectWarning}</p>
-              )}
-              <button
-                onClick={() => { setConfirmInput(''); setShowConfirm(true) }}
-                disabled={isSingleProject}
-                className="ml-auto rounded-md border border-danger/40 bg-transparent px-4 py-1.5 font-mono text-xs text-danger transition-colors hover:bg-danger/10 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {d.deleteProject}
-              </button>
-            </div>
+            {isOwner ? (
+              <div className="flex items-center gap-4">
+                {isSingleProject && (
+                  <p className="font-mono text-xs text-muted/60">{d.singleProjectWarning}</p>
+                )}
+                <button
+                  onClick={() => { setConfirmInput(''); setShowConfirm(true) }}
+                  disabled={isSingleProject}
+                  className="ml-auto rounded-md border border-danger/40 bg-transparent px-4 py-1.5 font-mono text-xs text-danger transition-colors hover:bg-danger/10 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {d.deleteProject}
+                </button>
+              </div>
+            ) : (
+              <p className="font-mono text-[11px] text-muted/60">{d.onlyOwnerCanDelete}</p>
+            )}
           </div>
         </>
       )}

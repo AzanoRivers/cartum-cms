@@ -23,7 +23,7 @@ export function DockBar() {
   // Defaults to 110px (approx for a full dock); updated on first render.
   const [iconsHalfW, setIconsHalfW] = useState(110)
 
-  const isDocs    = pathname.startsWith('/cms/docs')
+  const isDocs    = pathname.startsWith('/cms/docs') || pathname.startsWith('/docs')
   const isContent = pathname === '/cms/content'
   const isHome    = pathname === '/cms/board'
 

@@ -1,10 +1,11 @@
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '@/db'
-import { rolePermissions, roleSectionPermissions, usersRoles } from '@/db/schema'
+import { nodes, rolePermissions, roleSectionPermissions, usersRoles } from '@/db/schema'
 import { getSetting } from '@/lib/settings/get-setting'
 import { rolesRepository } from '@/db/repositories/roles.repository'
 import { usersRepository } from '@/db/repositories/users.repository'
 import { projectMembershipsRepository } from '@/db/repositories/project-memberships.repository'
+import { ROLE_EDITOR, ROLE_VIEWER } from '@/types/roles'
 import type {
   NodePermissions,
   PermissionOperation,
@@ -13,6 +14,11 @@ import type {
   SectionKey,
   SectionPermission,
 } from '@/types/roles'
+
+// Full read+write permissions for built-in editor role
+const EDITOR_PERMISSIONS: NodePermissions = { canRead: true, canCreate: true, canUpdate: true, canDelete: true }
+// Read-only permissions for built-in viewer role
+const VIEWER_PERMISSIONS: NodePermissions = { canRead: true, canCreate: false, canUpdate: false, canDelete: false }
 
 const NULL_PERMISSIONS: NodePermissions = {
   canRead:   false,
@@ -39,14 +45,21 @@ async function collectRoleIds(userId: string, projectId?: string | null): Promis
 
 /**
  * Resolves the effective permissions a user has for a given node.
- * Merges all role permissions — a single role granting an operation is enough.
- * Returns all-false if no permissions found.
+ * Built-in editor/viewer roles in the project get implicit access without needing
+ * explicit role_permissions entries.
  */
 async function resolvePermissions(
   userId:    string,
   nodeId:    string,
   projectId?: string | null,
 ): Promise<NodePermissions> {
+  // Built-in role shortcut: editor/viewer get implicit project-wide access
+  if (projectId) {
+    const projectRole = await projectMembershipsRepository.getUserProjectRole(userId, projectId)
+    if (projectRole?.roleName === ROLE_EDITOR) return { ...EDITOR_PERMISSIONS }
+    if (projectRole?.roleName === ROLE_VIEWER) return { ...VIEWER_PERMISSIONS }
+  }
+
   const roleIds = await collectRoleIds(userId, projectId)
   if (roleIds.length === 0) return { ...NULL_PERMISSIONS }
 
@@ -67,11 +80,23 @@ async function resolvePermissions(
 }
 
 /**
- * Returns all node IDs where the user has can_read = true across any of their roles.
- * Each role is resolved independently: project override first, then global table fallback.
- * Results are unioned — a single role granting read on a node is enough.
+ * Returns all node IDs where the user has can_read = true.
+ * Built-in editor/viewer roles get implicit access to ALL project nodes.
+ * Custom roles or explicit overrides are resolved per-node.
  */
 async function getAccessibleNodes(userId: string, projectId?: string | null): Promise<string[]> {
+  // Built-in role shortcut: editor and viewer see every container node in their project
+  if (projectId) {
+    const projectRole = await projectMembershipsRepository.getUserProjectRole(userId, projectId)
+    if (projectRole?.roleName === ROLE_EDITOR || projectRole?.roleName === ROLE_VIEWER) {
+      const allNodes = await db
+        .select({ id: nodes.id })
+        .from(nodes)
+        .where(and(eq(nodes.projectId, projectId), eq(nodes.type, 'container')))
+      return allNodes.map((n) => n.id)
+    }
+  }
+
   const roleIds = await collectRoleIds(userId, projectId)
   if (roleIds.length === 0) return []
 

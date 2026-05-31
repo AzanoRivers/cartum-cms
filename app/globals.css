@@ -278,6 +278,11 @@ html[data-project-switching]::after {
     to { transform: rotate(360deg); }
 }
 
+@keyframes rainbow-shift {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 300% 50%; }
+}
+
 /* === VHS ANIMATION LAYERS ===
    .vhs-transition::before → scanlines sweep
    .vhs-transition::after  → RGB shift glow

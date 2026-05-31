@@ -1,9 +1,9 @@
 'use server'
 
-import { eq, and, ne, asc, count } from 'drizzle-orm'
+import { eq, and, ne, asc, count, sum, sql } from 'drizzle-orm'
 import { cookies } from 'next/headers'
 import { db } from '@/db'
-import { project, users, usersRoles, roles, rolePermissions, nodes, media, projectMemberships } from '@/db/schema'
+import { project, users, usersRoles, roles, rolePermissions, nodes, media, projectMemberships, appSettings } from '@/db/schema'
 import { usersRepository } from '@/db/repositories/users.repository'
 import { del as blobDel } from '@vercel/blob'
 import { auth } from '@/auth'
@@ -122,32 +122,62 @@ export async function listUserProjects(): Promise<
   ActionResult<{ projects: UserProjectRow[]; currentProjectId: string | null }>
 > {
   try {
-    const session = await requireSuperAdmin()
-    const userId  = session.user.id
-    const rows    = await db
-      .select({ id: project.id, name: project.name, createdAt: project.createdAt })
-      .from(project)
-      .where(eq(project.ownerId, userId))
-      .orderBy(asc(project.createdAt))
+    const session = await auth()
+    if (!session) throw new Error('UNAUTHORIZED')
+    const userId = session.user.id
+
+    let rows: UserProjectRow[]
+
+    if (session.user.isSuperAdmin) {
+      // SuperAdmin: projects they own
+      rows = await db
+        .select({ id: project.id, name: project.name, createdAt: project.createdAt })
+        .from(project)
+        .where(eq(project.ownerId, userId))
+        .orderBy(asc(project.createdAt))
+    } else {
+      // Admin/member: projects they belong to via projectMemberships
+      rows = await db
+        .select({ id: project.id, name: project.name, createdAt: project.createdAt })
+        .from(project)
+        .innerJoin(projectMemberships, eq(projectMemberships.projectId, project.id))
+        .where(eq(projectMemberships.userId, userId))
+        .orderBy(asc(project.createdAt))
+    }
+
     return { success: true, data: { projects: rows, currentProjectId: session.user.currentProjectId ?? null } }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
 }
 
-export async function getProjectSettingsById(projectId: string): Promise<ActionResult<ProjectSettings>> {
+export async function getProjectSettingsById(projectId: string): Promise<ActionResult<ProjectSettings & { isOwner: boolean }>> {
   try {
-    const session = await requireSuperAdmin()
-    const userId  = session.user.id
-    const [row]   = await db
-      .select({ name: project.name, description: project.description, defaultLocale: project.defaultLocale })
+    const session = await auth()
+    if (!session) throw new Error('UNAUTHORIZED')
+    const userId = session.user.id
+
+    // Must be owner, superAdmin, or project admin member
+    const canAccess = session.user.isSuperAdmin
+      || (session.user.roles ?? []).includes(ROLE_ADMIN)
+      || await projectMembershipsRepository.isMemberWithRole(userId, projectId, 'admin')
+    if (!canAccess) return { success: false, error: 'Forbidden.' }
+
+    const [row] = await db
+      .select({ name: project.name, description: project.description, defaultLocale: project.defaultLocale, ownerId: project.ownerId })
       .from(project)
-      .where(and(eq(project.id, projectId), eq(project.ownerId, userId)))
+      .where(eq(project.id, projectId))
       .limit(1)
     if (!row) return { success: false, error: 'Project not found.' }
+
     return {
       success: true,
-      data: { projectName: row.name, description: row.description ?? '', defaultLocale: row.defaultLocale as 'en' | 'es' },
+      data: {
+        projectName:    row.name,
+        description:    row.description ?? '',
+        defaultLocale:  row.defaultLocale as 'en' | 'es',
+        isOwner:        session.user.isSuperAdmin || row.ownerId === userId,
+      },
     }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
@@ -159,14 +189,15 @@ export async function updateProjectSettingsById(
   input: UpdateProjectInput,
 ): Promise<ActionResult<void>> {
   try {
-    const session = await requireSuperAdmin()
-    const userId  = session.user.id
-    const [owned] = await db
-      .select({ id: project.id })
-      .from(project)
-      .where(and(eq(project.id, projectId), eq(project.ownerId, userId)))
-      .limit(1)
-    if (!owned) return { success: false, error: 'Project not found.' }
+    const session = await auth()
+    if (!session) throw new Error('UNAUTHORIZED')
+    const userId = session.user.id
+
+    const canAccess = session.user.isSuperAdmin
+      || (session.user.roles ?? []).includes(ROLE_ADMIN)
+      || await projectMembershipsRepository.isMemberWithRole(userId, projectId, 'admin')
+    if (!canAccess) return { success: false, error: 'Forbidden.' }
+
     await db
       .update(project)
       .set({ name: input.projectName, description: input.description ?? null, defaultLocale: input.defaultLocale })
@@ -683,6 +714,132 @@ export async function removeProjectMember(userId: string): Promise<ActionResult<
   }
 }
 
+// ── Global user management (superAdmin only) ──────────────────────────────────
+
+const TRIAL_SECONDS = 7 * 86_400
+
+export interface GlobalUserRow {
+  id:                   string
+  email:                string
+  isSuperAdmin:         boolean
+  cartumSuscriptor:     boolean
+  cartumSuscriptorTime: number
+  projectCount:         number
+  ownedCount:           number
+  isBanned:             boolean
+  createdAt:            Date
+}
+
+export async function listAllUsersAdmin(): Promise<ActionResult<GlobalUserRow[]>> {
+  try {
+    await requireSuperAdmin()
+
+    const [allUsers, memberships, ownedCounts, bannedKeys] = await Promise.all([
+      db.select({
+        id:                   users.id,
+        email:                users.email,
+        isSuperAdmin:         users.isSuperAdmin,
+        cartumSuscriptor:     users.cartumSuscriptor,
+        cartumSuscriptorTime: users.cartumSuscriptorTime,
+        createdAt:            users.createdAt,
+      }).from(users).orderBy(asc(users.email)),
+
+      db.select({ userId: projectMemberships.userId })
+        .from(projectMemberships),
+
+      db.select({ ownerId: project.ownerId })
+        .from(project)
+        .where(sql`${project.ownerId} IS NOT NULL`),
+
+      db.select({ key: appSettings.key })
+        .from(appSettings)
+        .where(sql`${appSettings.key} LIKE 'user_banned:%'`),
+    ])
+
+    const memberCount = new Map<string, number>()
+    for (const m of memberships) {
+      memberCount.set(m.userId, (memberCount.get(m.userId) ?? 0) + 1)
+    }
+
+    const ownerCount = new Map<string, number>()
+    for (const o of ownedCounts) {
+      if (o.ownerId) ownerCount.set(o.ownerId, (ownerCount.get(o.ownerId) ?? 0) + 1)
+    }
+
+    const bannedSet = new Set(bannedKeys.map((k) => k.key.replace('user_banned:', '')))
+
+    return {
+      success: true,
+      data: allUsers.map((u) => ({
+        id:                   u.id,
+        email:                u.email,
+        isSuperAdmin:         u.isSuperAdmin,
+        cartumSuscriptor:     u.cartumSuscriptor,
+        cartumSuscriptorTime: u.cartumSuscriptorTime ?? 0,
+        projectCount:         memberCount.get(u.id) ?? 0,
+        ownedCount:           ownerCount.get(u.id) ?? 0,
+        isBanned:             bannedSet.has(u.id),
+        createdAt:            u.createdAt,
+      })),
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function banUserAction(userId: string): Promise<ActionResult<void>> {
+  try {
+    const session = await requireSuperAdmin()
+    if (userId === session.user.id) return { success: false, error: 'Cannot ban yourself.' }
+    const target = await usersRepository.findById(userId)
+    if (target?.isSuperAdmin) return { success: false, error: 'Cannot ban a super admin.' }
+    await setSetting(`user_banned:${userId}`, '1', session.user.id)
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function unbanUserAction(userId: string): Promise<ActionResult<void>> {
+  try {
+    const session = await requireSuperAdmin()
+    await setSetting(`user_banned:${userId}`, undefined, session.user.id)
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function grantSubscriptionAction(
+  userId: string,
+  months: number,
+): Promise<ActionResult<void>> {
+  try {
+    await requireSuperAdmin()
+    if (months < 1 || months > 12) return { success: false, error: 'Months must be between 1 and 12.' }
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    const newTime    = nowSeconds + months * 30 * 86_400 - TRIAL_SECONDS
+    await db.update(users)
+      .set({ cartumSuscriptor: true, cartumSuscriptorTime: newTime })
+      .where(eq(users.id, userId))
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function revokeSubscriptionAction(userId: string): Promise<ActionResult<void>> {
+  try {
+    await requireSuperAdmin()
+    await db.update(users)
+      .set({ cartumSuscriptor: false, cartumSuscriptorTime: 0 })
+      .where(eq(users.id, userId))
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
 // ── Roles ──────────────────────────────────────────────────────────────────────
 
 export interface RoleWithCount {
@@ -958,6 +1115,135 @@ export async function updateWebMigrationSettings(
   }
 }
 
+// ── Global Variables (super admin only) ───────────────────────────────────────
+
+type EnvVar = { value: string; isOverridden: boolean }
+
+export interface EnvSettings {
+  r2Endpoint:      EnvVar
+  r2AccessKeyId:   EnvVar
+  r2SecretKey:     EnvVar
+  r2BucketName:    EnvVar
+  r2PublicUrl:     EnvVar
+  blobToken:       EnvVar
+  resendApiKey:    EnvVar
+  resendFromEmail: EnvVar
+  scraperApiUrl:   EnvVar
+  scraperApiKey:   EnvVar
+  cartumNewPlayer: EnvVar
+  // Read-only from env — shown masked, not editable
+  authUrl:         string
+  dbProvider:      string
+  databaseUrl:     string
+}
+
+function maskDbUrl(raw: string | undefined): string {
+  if (!raw) return ''
+  try {
+    const u = new URL(raw)
+    if (u.password) u.password = '***'
+    return u.toString()
+  } catch {
+    return raw.slice(0, 20) + '…'
+  }
+}
+
+async function readEnvVar(key: string, envVal: string | undefined): Promise<EnvVar> {
+  const override = await getSetting(key)
+  return {
+    value:       override ?? envVal ?? '',
+    isOverridden: override !== null && override !== undefined,
+  }
+}
+
+export async function getEnvSettings(): Promise<ActionResult<EnvSettings>> {
+  try {
+    await requireSuperAdmin()
+    const [r2Ep, r2Ak, r2Sk, r2Bn, r2Pu, blob, rKey, rFrom, scUrl, scKey, player] = await Promise.all([
+      readEnvVar('r2_endpoint',      process.env.R2_ENDPOINT),
+      readEnvVar('r2_access_key_id', process.env.R2_ACCESS_KEY_ID),
+      readEnvVar('r2_secret_key',    process.env.R2_SECRET_ACCESS_KEY),
+      readEnvVar('r2_bucket_name',   process.env.R2_BUCKET_NAME),
+      readEnvVar('r2_public_url',    process.env.R2_PUBLIC_URL),
+      readEnvVar('blob_token',       process.env.BLOB_READ_WRITE_TOKEN),
+      readEnvVar('resend_api_key',   process.env.RESEND_API_KEY),
+      readEnvVar('resend_from_email',process.env.RESEND_FROM_EMAIL),
+      readEnvVar('scraper_api_url',  process.env.SCRAPER_API_URL),
+      readEnvVar('scraper_api_key',  process.env.SCRAPER_API_KEY),
+      readEnvVar('cartum_new_player',process.env.CARTUM_NEW_PLAYER),
+    ])
+    return {
+      success: true,
+      data: {
+        r2Endpoint:      r2Ep,
+        r2AccessKeyId:   r2Ak,
+        r2SecretKey:     r2Sk,
+        r2BucketName:    r2Bn,
+        r2PublicUrl:     r2Pu,
+        blobToken:       blob,
+        resendApiKey:    rKey,
+        resendFromEmail: rFrom,
+        scraperApiUrl:   scUrl,
+        scraperApiKey:   scKey,
+        cartumNewPlayer: player,
+        authUrl:         process.env.AUTH_URL ?? '',
+        dbProvider:      process.env.DB_PROVIDER ?? '',
+        databaseUrl:     maskDbUrl(process.env.DATABASE_URL),
+      },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function updateEnvVar(key: string, value: string): Promise<ActionResult<void>> {
+  try {
+    const session = await requireSuperAdmin()
+    // Safety: only allowed keys can be written this way
+    const ALLOWED = new Set([
+      'r2_endpoint','r2_access_key_id','r2_secret_key','r2_bucket_name','r2_public_url',
+      'blob_token','resend_api_key','resend_from_email','scraper_api_url','scraper_api_key',
+      'cartum_new_player',
+    ])
+    if (!ALLOWED.has(key)) return { success: false, error: 'Invalid key.' }
+    await setSetting(key, value || undefined, session.user.id)
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function clearAllEnvVars(): Promise<ActionResult<void>> {
+  try {
+    const session = await requireSuperAdmin()
+    const KEYS = [
+      'r2_endpoint','r2_access_key_id','r2_secret_key','r2_bucket_name','r2_public_url',
+      'blob_token','resend_api_key','resend_from_email','scraper_api_url','scraper_api_key',
+      'cartum_new_player',
+    ]
+    await Promise.all(KEYS.map((k) => setSetting(k, undefined, session.user.id)))
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function clearEnvVar(key: string): Promise<ActionResult<void>> {
+  try {
+    const session = await requireSuperAdmin()
+    const ALLOWED = new Set([
+      'r2_endpoint','r2_access_key_id','r2_secret_key','r2_bucket_name','r2_public_url',
+      'blob_token','resend_api_key','resend_from_email','scraper_api_url','scraper_api_key',
+      'cartum_new_player',
+    ])
+    if (!ALLOWED.has(key)) return { success: false, error: 'Invalid key.' }
+    await setSetting(key, undefined, session.user.id)
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
 // ── Cartum Projects (super admin only) ────────────────────────────────────────
 
 export type CartumProjectRow = {
@@ -969,13 +1255,17 @@ export type CartumProjectRow = {
   ownerSuscriptor:      boolean | null
   ownerSuscriptorTime:  number | null
   memberCount:          number
+  imageCount:           number
+  videoCount:           number
+  imageBytesTotal:      number
+  videoBytesTotal:      number
 }
 
 export async function listCartumProjects(): Promise<ActionResult<CartumProjectRow[]>> {
   try {
     await requireSuperAdmin()
 
-    const [rows, counts] = await Promise.all([
+    const [rows, counts, mediaStats] = await Promise.all([
       db
         .select({
           id:                   project.id,
@@ -993,13 +1283,48 @@ export async function listCartumProjects(): Promise<ActionResult<CartumProjectRo
         .select({ projectId: projectMemberships.projectId, n: count() })
         .from(projectMemberships)
         .groupBy(projectMemberships.projectId),
+      db
+        .select({
+          projectId:  media.projectId,
+          mimeType:   media.mimeType,
+          cnt:        count(),
+          totalBytes: sum(media.sizeBytes),
+        })
+        .from(media)
+        .groupBy(media.projectId, media.mimeType),
     ])
 
     const countMap = new Map(counts.map((c) => [c.projectId, c.n]))
 
+    type MediaStat = { images: number; videos: number; imageBytes: number; videoBytes: number }
+    const mediaMap = new Map<string, MediaStat>()
+    for (const m of mediaStats) {
+      if (!m.projectId) continue
+      const existing = mediaMap.get(m.projectId) ?? { images: 0, videos: 0, imageBytes: 0, videoBytes: 0 }
+      const bytes = Number(m.totalBytes ?? 0)
+      if (m.mimeType?.startsWith('image/')) {
+        existing.images += m.cnt
+        existing.imageBytes += bytes
+      } else if (m.mimeType?.startsWith('video/')) {
+        existing.videos += m.cnt
+        existing.videoBytes += bytes
+      }
+      mediaMap.set(m.projectId, existing)
+    }
+
     return {
       success: true,
-      data: rows.map((r) => ({ ...r, memberCount: countMap.get(r.id) ?? 0 })),
+      data: rows.map((r) => {
+        const ms = mediaMap.get(r.id)
+        return {
+          ...r,
+          memberCount:      countMap.get(r.id) ?? 0,
+          imageCount:       ms?.images    ?? 0,
+          videoCount:       ms?.videos    ?? 0,
+          imageBytesTotal:  ms?.imageBytes ?? 0,
+          videoBytesTotal:  ms?.videoBytes ?? 0,
+        }
+      }),
     }
   } catch {
     return { success: false, error: 'Unauthorized' }

@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import {
-  listProjectUsers,
-  inviteUser,
-  removeProjectMember,
-  listRolesWithCount,
-  type UserWithRole,
+  listAllUsersAdmin,
+  banUserAction,
+  unbanUserAction,
+  removeUser,
+  grantSubscriptionAction,
+  revokeSubscriptionAction,
+  type GlobalUserRow,
 } from '@/lib/actions/settings.actions'
-import { ConfirmDialog } from '@/components/ui/molecules/ConfirmDialog'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { useToast } from '@/lib/hooks/useToast'
 import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
@@ -22,143 +23,287 @@ export type UsersSectionProps = {
   loadingText:   string
 }
 
-type TempPasswordModal = { email: string; password: string; copied: boolean } | null
+const TRIAL_SECONDS = 7 * 86_400
+const MONTH_OPTIONS = [1, 3, 6, 12] as const
 
-export function UsersSection({ currentUserId, isSuperAdmin, isAdmin, d, loadingText }: UsersSectionProps) {
-  const [userList, setUserList]         = useState<UserWithRole[]>([])
-  const [roleOptions, setRoleOptions]   = useState<Array<{ id: string; name: string }>>([])
-  const [loaded, setLoaded]             = useState(false)
-  const [tempModal, setTempModal]       = useState<TempPasswordModal>(null)
-  const [removeTarget, setRemoveTarget] = useState<UserWithRole | null>(null)
+function daysLeft(user: GlobalUserRow): number {
+  const now = Date.now() / 1000
+  return Math.max(0, Math.floor((user.cartumSuscriptorTime + TRIAL_SECONDS - now) / 86_400))
+}
 
-  const [inviteEmail, setInviteEmail]   = useState('')
-  const [inviteRoleId, setInviteRoleId] = useState('')
+function subIsActive(user: GlobalUserRow): boolean {
+  return user.cartumSuscriptor && daysLeft(user) > 0
+}
 
-  const [isInviting, startInvite]       = useTransition()
-  const [removingId, setRemovingId]     = useState<string | null>(null)
+type ModalKind =
+  | { type: 'ban';   user: GlobalUserRow }
+  | { type: 'unban'; user: GlobalUserRow }
+  | { type: 'delete'; user: GlobalUserRow }
+  | { type: 'sub';   user: GlobalUserRow; months: number }
+  | { type: 'revokeSub'; user: GlobalUserRow }
+  | null
 
-  const canManage = isSuperAdmin || isAdmin
-  const toast     = useToast()
+// ── Inline VHS modal — project convention (no overlay) ────────────────────────
+function InlineModal({
+  title, desc, confirmLabel, cancelLabel, destructive, onConfirm, onCancel, children,
+}: {
+  title:        string
+  desc:         string
+  confirmLabel: string
+  cancelLabel:  string
+  destructive?: boolean
+  onConfirm:    () => void
+  onCancel:     () => void
+  children?:    React.ReactNode
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 z-60" aria-hidden onClick={onCancel} />
+      <div className="fixed inset-0 z-[61] flex items-center justify-center pointer-events-none p-4">
+        <VHSTransition duration="fast" className="w-full max-w-sm pointer-events-auto">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`h-0.5 w-full ${destructive ? 'bg-danger' : 'bg-accent'}`} />
+            <div className="px-5 py-5 space-y-4">
+              <div className="space-y-1">
+                <h3 className="font-mono text-sm font-semibold text-text">{title}</h3>
+                <p className="font-mono text-xs text-muted leading-relaxed">{desc}</p>
+              </div>
+              {children}
+              <div className="flex justify-end gap-2 border-t border-border/40 pt-3">
+                <button
+                  onClick={onCancel}
+                  className="rounded-lg border border-border bg-surface-2 px-4 py-1.5 font-mono text-xs text-text hover:bg-surface hover:border-primary/40 transition-colors cursor-pointer"
+                >
+                  {cancelLabel}
+                </button>
+                <button
+                  onClick={onConfirm}
+                  className={`rounded-lg px-4 py-1.5 font-mono text-xs font-semibold text-white transition-colors cursor-pointer ${
+                    destructive ? 'bg-danger hover:bg-danger/85' : 'bg-primary hover:bg-primary/85'
+                  }`}
+                >
+                  {confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </VHSTransition>
+      </div>
+    </>
+  )
+}
+
+type SortKey = 'email' | 'createdAt' | 'createdAtDesc' | 'subDays' | 'projects' | 'owned'
+
+export function UsersSection({ currentUserId, d, loadingText }: UsersSectionProps) {
+  const [userList, setUserList] = useState<GlobalUserRow[]>([])
+  const [loaded, setLoaded]     = useState(false)
+  const [modal, setModal]       = useState<ModalKind>(null)
+  const [search, setSearch]     = useState('')
+  const [sortKey, setSortKey]   = useState<SortKey>('email')
+  const [, startAction]         = useTransition()
+  const toast = useToast()
 
   useEffect(() => {
-    Promise.all([listProjectUsers(), listRolesWithCount()]).then(([usRes, rolesRes]) => {
-      if (usRes.success) setUserList(usRes.data)
-      if (rolesRes.success) {
-        setRoleOptions(rolesRes.data.map((r) => ({ id: r.id, name: r.name })))
-        if (rolesRes.data.length > 0) setInviteRoleId(rolesRes.data[0].id)
-      }
+    listAllUsersAdmin().then((r) => {
+      if (r.success) setUserList(r.data)
       setLoaded(true)
     })
   }, [])
 
-  function handleInvite() {
-    if (!inviteEmail.trim() || !inviteRoleId) return
-    startInvite(async () => {
-      const res = await inviteUser({ email: inviteEmail.trim(), roleId: inviteRoleId })
-      if (res.success) {
-        toast.success(d.inviteSuccess)
-        setInviteEmail('')
-        listProjectUsers().then((r) => { if (r.success) setUserList(r.data) })
-        if (res.data.tempPassword) {
-          setTempModal({ email: inviteEmail.trim(), password: res.data.tempPassword, copied: false })
-        }
-      } else {
-        toast.error(res.error ?? d.inviteError)
-      }
-    })
-  }
+  function close() { setModal(null) }
 
-  async function confirmRemove() {
-    if (!removeTarget) return
-    setRemovingId(removeTarget.id)
-    const res = await removeProjectMember(removeTarget.id)
-    setRemovingId(null)
-    setRemoveTarget(null)
-    if (res.success) {
-      setUserList((prev) => prev.filter((u) => u.id !== removeTarget.id))
-      toast.success(d.removeSuccess)
-    } else {
-      toast.error(res.error ?? 'Error')
-    }
+  function handleConfirm() {
+    if (!modal) return
+
+    startAction(async () => {
+      if (modal.type === 'ban') {
+        const res = await banUserAction(modal.user.id)
+        if (res.success) {
+          setUserList((p) => p.map((u) => u.id === modal.user.id ? { ...u, isBanned: true } : u))
+          toast.success(d.banSuccess)
+        } else toast.error(res.error ?? 'Error')
+
+      } else if (modal.type === 'unban') {
+        const res = await unbanUserAction(modal.user.id)
+        if (res.success) {
+          setUserList((p) => p.map((u) => u.id === modal.user.id ? { ...u, isBanned: false } : u))
+          toast.success(d.unbanSuccess)
+        } else toast.error(res.error ?? 'Error')
+
+      } else if (modal.type === 'delete') {
+        const res = await removeUser(modal.user.id)
+        if (res.success) {
+          setUserList((p) => p.filter((u) => u.id !== modal.user.id))
+          toast.success(d.deleteSuccess)
+        } else toast.error(d.deleteError)
+
+      } else if (modal.type === 'sub') {
+        const res = await grantSubscriptionAction(modal.user.id, modal.months)
+        if (res.success) {
+          const nowSec = Math.floor(Date.now() / 1000)
+          const newTime = nowSec + modal.months * 30 * 86_400 - TRIAL_SECONDS
+          setUserList((p) => p.map((u) =>
+            u.id === modal.user.id ? { ...u, cartumSuscriptor: true, cartumSuscriptorTime: newTime } : u,
+          ))
+          toast.success(d.grantSubSuccess)
+        } else toast.error(d.grantSubError)
+
+      } else if (modal.type === 'revokeSub') {
+        const res = await revokeSubscriptionAction(modal.user.id)
+        if (res.success) {
+          setUserList((p) => p.map((u) =>
+            u.id === modal.user.id ? { ...u, cartumSuscriptor: false, cartumSuscriptorTime: 0 } : u,
+          ))
+          toast.success(d.revokeSubSuccess)
+        } else toast.error(d.grantSubError)
+      }
+
+      close()
+    })
   }
 
   if (!loaded) return <SectionLoader text={loadingText} />
 
+  const sortOptions: { key: SortKey; label: string }[] = [
+    { key: 'email',        label: d.sortEmail     },
+    { key: 'createdAt',    label: d.sortCreated   },
+    { key: 'createdAtDesc',label: d.sortNewest    },
+    { key: 'subDays',      label: d.sortSub       },
+    { key: 'projects',     label: d.sortProjects  },
+    { key: 'owned',        label: d.sortOwned     },
+  ]
+
+  const filtered = userList
+    .filter((u) => !search || u.email.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (sortKey === 'email')         return a.email.localeCompare(b.email)
+      if (sortKey === 'createdAt')     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      if (sortKey === 'createdAtDesc') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      if (sortKey === 'subDays')       return daysLeft(b) - daysLeft(a)
+      if (sortKey === 'projects')      return b.projectCount - a.projectCount
+      if (sortKey === 'owned')         return b.ownedCount - a.ownedCount
+      return 0
+    })
+
   return (
-    <div className="space-y-5">
-      <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
+        <p className="font-mono text-[10px] text-muted/60">{d.subtitle}</p>
+      </div>
 
-      {/* Invite form — only for admins */}
-      {canManage && (
-        <div className="rounded-md border border-border/60 bg-surface-2/40 p-4 space-y-2">
-          <p className="font-mono text-xs text-muted uppercase tracking-wider">{d.inviteTitle}</p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder={d.emailPlaceholder}
-              className="w-full sm:flex-1 sm:min-w-40 rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
-            />
-            <select
-              value={inviteRoleId}
-              onChange={(e) => setInviteRoleId(e.target.value)}
-              className="w-full sm:w-auto rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-sm text-text outline-none focus:border-primary/60 transition-colors cursor-pointer"
-            >
-              {roleOptions.map((r) => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
-            </select>
-            <button
-              onClick={handleInvite}
-              disabled={isInviting || !inviteEmail.trim() || !inviteRoleId}
-              className="w-full sm:w-auto rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-            >
-              {isInviting ? d.inviting : d.inviteButton}
-            </button>
-          </div>
+      {/* Search + Sort */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={d.filterSearch}
+          className="flex-1 rounded-md border border-border bg-surface-2 px-3 py-1.5 font-mono text-xs text-text placeholder:text-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
+        />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="font-mono text-[10px] text-muted/60">{d.filterSortLabel}:</span>
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="rounded-md border border-border bg-surface-2 px-2 py-1.5 font-mono text-xs text-text outline-none focus:border-primary/60 transition-colors cursor-pointer"
+          >
+            {sortOptions.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
+            ))}
+          </select>
         </div>
-      )}
+      </div>
 
-      {/* User list */}
       {userList.length === 0 ? (
         <p className="font-mono text-xs text-muted/50">{d.empty}</p>
+      ) : filtered.length === 0 ? (
+        <p className="font-mono text-xs text-muted/50">{d.noResults}</p>
       ) : (
-        <div className="space-y-1">
-          {userList.map((user) => {
-            const isYou          = user.id === currentUserId
-            const canRemoveThis  = canManage && !isYou && !user.isSuperAdmin
+        <div className="space-y-2">
+          {filtered.map((user) => {
+            const isYou  = user.id === currentUserId
+            const active = subIsActive(user)
+            const days   = daysLeft(user)
 
             return (
               <div
                 key={user.id}
-                className="flex items-center gap-3 rounded-md border border-border/50 bg-surface-2/30 px-3 py-2 hover:bg-surface-2/60 transition-colors"
+                className={[
+                  'rounded-md border p-3 transition-colors',
+                  user.isBanned
+                    ? 'border-danger/30 bg-danger/5'
+                    : 'border-border/50 bg-surface-2/30',
+                ].join(' ')}
               >
-                {/* Avatar */}
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-surface font-mono text-[10px] text-muted uppercase">
-                  {user.email.slice(0, 2)}
+                {/* Top row: avatar + email + badges */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-surface font-mono text-[10px] text-muted uppercase">
+                    {user.email.slice(0, 2)}
+                  </div>
+                  <span className="flex-1 min-w-0 truncate font-mono text-xs text-text">
+                    {user.email}
+                    {isYou && <span className="ml-1.5 text-muted/50">{d.youLabel}</span>}
+                  </span>
+                  {user.isSuperAdmin && (
+                    <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] text-primary">super_admin</span>
+                  )}
+                  {user.isBanned && (
+                    <span className="shrink-0 rounded-full border border-danger/40 bg-danger/10 px-1.5 py-0.5 font-mono text-[9px] text-danger">{d.bannedBadge}</span>
+                  )}
                 </div>
 
-                {/* Email */}
-                <span className="flex-1 truncate font-mono text-xs text-text">
-                  {user.email}
-                  {isYou && <span className="ml-1.5 text-muted/50">{d.youLabel}</span>}
-                </span>
+                {/* Stats row */}
+                <div className="flex items-center gap-3 mt-1.5 flex-wrap pl-9">
+                  <span className="font-mono text-[10px] text-muted/60">
+                    {d.colCreated}: <span className="text-muted">{new Date(user.createdAt).toLocaleDateString()}</span>
+                  </span>
+                  <span className="font-mono text-[10px] text-muted/60">
+                    {d.colProjects}: <span className="text-muted">{user.projectCount}</span>
+                  </span>
+                  <span className="font-mono text-[10px] text-muted/60">
+                    {d.colOwned}: <span className="text-muted">{user.ownedCount}</span>
+                  </span>
+                  {!user.isSuperAdmin && (
+                    <span className={`font-mono text-[10px] ${active ? 'text-success' : 'text-muted/40'}`}>
+                      {d.colSub}: {active ? d.subDaysLeft.replace('{n}', String(days)) : d.subExpired}
+                    </span>
+                  )}
+                </div>
 
-                {/* Role badge (read-only — role change is in Members section) */}
-                <span className="font-mono text-xs text-muted">
-                  {user.isSuperAdmin ? 'super_admin' : (user.roleName ?? '·')}
-                </span>
-
-                {/* Remove — admin/superAdmin only, not self, not superAdmin targets */}
-                {canRemoveThis && (
-                  <button
-                    onClick={() => setRemoveTarget(user)}
-                    disabled={removingId === user.id}
-                    className="font-mono text-xs text-danger/60 hover:text-danger transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {removingId === user.id ? d.removing : d.removeButton}
-                  </button>
+                {/* Action buttons — real buttons, bigger on mobile */}
+                {!isYou && !user.isSuperAdmin && (
+                  <div className="flex flex-wrap items-center gap-2 mt-3 pl-9">
+                    <button
+                      onClick={() => setModal({ type: 'sub', user, months: 1 })}
+                      className="flex-1 sm:flex-none rounded-md border border-accent/40 bg-accent/10 px-3 py-1.5 font-mono text-xs text-accent hover:bg-accent/20 transition-colors cursor-pointer"
+                    >
+                      {d.grantSubLabel}
+                    </button>
+                    <button
+                      onClick={() => setModal({ type: user.isBanned ? 'unban' : 'ban', user })}
+                      className={[
+                        'flex-1 sm:flex-none rounded-md border px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer',
+                        user.isBanned
+                          ? 'border-success/40 bg-success/10 text-success hover:bg-success/20'
+                          : 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20',
+                      ].join(' ')}
+                    >
+                      {user.isBanned ? d.unbanButton : d.banButton}
+                    </button>
+                    <button
+                      onClick={() => setModal({ type: 'delete', user })}
+                      className="flex-1 sm:flex-none rounded-md border border-danger/40 bg-danger/10 px-3 py-1.5 font-mono text-xs text-danger hover:bg-danger/20 transition-colors cursor-pointer"
+                    >
+                      {d.deleteButton}
+                    </button>
+                  </div>
                 )}
               </div>
             )
@@ -166,54 +311,93 @@ export function UsersSection({ currentUserId, isSuperAdmin, isAdmin, d, loadingT
         </div>
       )}
 
-      {/* Remove confirmation */}
-      {removeTarget && (
-        <ConfirmDialog
-          open
-          title={d.removeConfirmTitle}
-          description={d.removeConfirmDesc}
-          confirmLabel={d.removeButton}
-          cancelLabel={d.close}
+      {/* ── Modals ──────────────────────────────────────────────────────────── */}
+
+      {modal?.type === 'ban' && (
+        <InlineModal
+          title={d.banConfirmTitle}
+          desc={d.banConfirmDesc}
+          confirmLabel={d.banButton}
+          cancelLabel="Cancel"
           destructive
-          onConfirm={confirmRemove}
-          onCancel={() => setRemoveTarget(null)}
+          onConfirm={handleConfirm}
+          onCancel={close}
         />
       )}
 
-      {/* Temp password modal */}
-      {tempModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center pointer-events-none">
-          <VHSTransition duration="fast" className="w-full max-w-sm mx-4 pointer-events-auto">
-            <div className="w-full rounded-xl border border-border bg-surface shadow-2xl overflow-hidden">
-              <div className="h-0.5 w-full bg-primary" />
-              <div className="p-6 space-y-4">
-                <p className="font-mono text-xs text-muted leading-relaxed">{d.noEmailNotice}</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 overflow-x-auto rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-accent select-all">
-                    {tempModal.password}
-                  </code>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(tempModal.password)
-                      setTempModal((m) => m ? { ...m, copied: true } : null)
-                    }}
-                    className="shrink-0 rounded-md border border-border px-3 py-2 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
-                  >
-                    {tempModal.copied ? '✓' : d.copyPassword}
-                  </button>
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setTempModal(null)}
-                    className="rounded-md border border-border px-4 py-1.5 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer"
-                  >
-                    {d.close}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </VHSTransition>
-        </div>
+      {modal?.type === 'unban' && (
+        <InlineModal
+          title={d.unbanConfirmTitle}
+          desc={d.unbanConfirmDesc}
+          confirmLabel={d.unbanButton}
+          cancelLabel="Cancel"
+          onConfirm={handleConfirm}
+          onCancel={close}
+        />
+      )}
+
+      {modal?.type === 'delete' && (
+        <InlineModal
+          title={d.deleteConfirmTitle}
+          desc={`${modal.user.email} — ${d.deleteConfirmDesc}`}
+          confirmLabel={d.deleteButton}
+          cancelLabel="Cancel"
+          destructive
+          onConfirm={handleConfirm}
+          onCancel={close}
+        />
+      )}
+
+      {modal?.type === 'revokeSub' && (
+        <InlineModal
+          title={d.revokeSubConfirmTitle}
+          desc={d.revokeSubConfirmDesc}
+          confirmLabel={d.revokeSubButton}
+          cancelLabel="Cancel"
+          destructive
+          onConfirm={handleConfirm}
+          onCancel={close}
+        />
+      )}
+
+      {modal?.type === 'sub' && (
+        <InlineModal
+          title={d.grantSubTitle}
+          desc={modal.user.email}
+          confirmLabel={d.grantSubButton}
+          cancelLabel="Cancel"
+          onConfirm={handleConfirm}
+          onCancel={close}
+        >
+          {/* Month selector */}
+          <div className="grid grid-cols-4 gap-2">
+            {MONTH_OPTIONS.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setModal({ ...modal, months: m })}
+                className={[
+                  'rounded-md border py-2 font-mono text-xs transition-colors cursor-pointer',
+                  modal.months === m
+                    ? 'border-accent bg-accent/15 text-accent'
+                    : 'border-border text-muted hover:text-text hover:border-border/80',
+                ].join(' ')}
+              >
+                {d.grantSubMonths.replace('{n}', String(m))}
+              </button>
+            ))}
+          </div>
+          {/* Revoke option if subscription active */}
+          {subIsActive(modal.user) && (
+            <button
+              type="button"
+              onClick={() => setModal({ type: 'revokeSub', user: modal.user })}
+              className="w-full text-left font-mono text-[10px] text-danger/70 hover:text-danger transition-colors cursor-pointer mt-1"
+            >
+              {d.revokeSubButton} →
+            </button>
+          )}
+        </InlineModal>
       )}
     </div>
   )

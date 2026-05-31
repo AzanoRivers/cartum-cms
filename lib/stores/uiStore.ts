@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { BreadcrumbItem } from '@/types/nodes'
 import type { CmsDictionary } from '@/locales/en'
 
-export type SettingsSection = 'account' | 'appearance' | 'project' | 'subscription' | 'storage' | 'email' | 'api' | 'members' | 'users' | 'roles' | 'info' | 'db' | 'webMigration' | 'cartumProjects'
+export type SettingsSection = 'account' | 'appearance' | 'project' | 'subscription' | 'storage' | 'email' | 'api' | 'members' | 'users' | 'roles' | 'info' | 'db' | 'webMigration' | 'cartumProjects' | 'variables'
 
 interface UIState {
   settingsOpen: boolean

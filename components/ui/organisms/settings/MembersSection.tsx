@@ -13,6 +13,7 @@ import { PendingInvitationList, type PendingInviteRow } from '@/components/ui/mo
 import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
 import { useToast } from '@/lib/hooks/useToast'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
+import type { Dictionary } from '@/locales/en'
 
 type RoleOption    = { id: string; name: string }
 type ProjectOption = { id: string; name: string }
@@ -21,10 +22,11 @@ type Props = {
   userId:       string
   isSuperAdmin: boolean
   isAdmin:      boolean
+  d:            Dictionary['settings']['members']
   loadingText:  string
 }
 
-export function MembersSection({ userId, isSuperAdmin, isAdmin, loadingText }: Props) {
+export function MembersSection({ userId, isSuperAdmin, isAdmin, d, loadingText }: Props) {
   const [members,   setMembers]   = useState<MemberRow[]>([])
   const [pending,   setPending]   = useState<PendingInviteRow[]>([])
   const [roles,     setRoles]     = useState<RoleOption[]>([])
@@ -83,17 +85,20 @@ export function MembersSection({ userId, isSuperAdmin, isAdmin, loadingText }: P
 
   return (
     <VHSTransition duration="fast" trigger className="space-y-6">
-      <h2 className="font-mono text-sm font-semibold text-text">Members</h2>
+      <div className="space-y-1">
+        <h2 className="font-mono text-sm font-semibold text-text">{d.title}</h2>
+        <p className="font-mono text-[11px] text-muted/70">{d.subtitle}</p>
+      </div>
 
       {/* ── Invite form ──────────────────────────────────────────────────────── */}
       <div className="rounded-lg border border-border bg-surface-2 p-4 space-y-3">
-        <p className="font-mono text-xs text-muted">Invite a member</p>
+        <p className="font-mono text-xs text-muted">{d.inviteLabel}</p>
         <div className="flex flex-wrap gap-2">
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="colleague@company.com"
+            placeholder={d.emailPlaceholder}
             disabled={isInviting}
             className="flex-1 min-w-44 rounded-md border border-border bg-surface px-3 py-2 font-mono text-xs text-text placeholder:text-muted/60 focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
           />
@@ -124,7 +129,7 @@ export function MembersSection({ userId, isSuperAdmin, isAdmin, loadingText }: P
             disabled={isInviting || !email.trim() || !roleId || !projectId}
             className="rounded-md bg-primary px-4 py-2 font-mono text-xs text-white hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-60"
           >
-            {isInviting ? 'Inviting…' : 'Invite'}
+            {isInviting ? d.inviting : d.inviteButton}
           </button>
         </div>
       </div>
@@ -133,15 +138,18 @@ export function MembersSection({ userId, isSuperAdmin, isAdmin, loadingText }: P
       <div>
         <div className="flex items-center justify-between mb-3">
           <p className="font-mono text-xs font-medium text-muted uppercase tracking-wide">
-            Current members
+            {d.currentMembers}
           </p>
-          <span className="font-mono text-[10px] text-muted">{members.length} member{members.length !== 1 ? 's' : ''}</span>
+          <span className="font-mono text-[10px] text-muted">
+            {members.length} {members.length === 1 ? d.memberSingular : d.memberPlural}
+          </span>
         </div>
         <div className="rounded-lg border border-border bg-surface-2 px-4">
           <MemberList
             members={members}
             roles={roles}
             currentUserId={userId}
+            d={d}
             onRefresh={loadData}
           />
         </div>
@@ -151,10 +159,10 @@ export function MembersSection({ userId, isSuperAdmin, isAdmin, loadingText }: P
       <div>
         <div className="flex items-center justify-between mb-3">
           <p className="font-mono text-xs font-medium text-muted uppercase tracking-wide">
-            Pending invitations
+            {d.pendingTitle}
           </p>
           {pending.length > 0 && (
-            <span className="font-mono text-[10px] text-muted">{pending.length} pending</span>
+            <span className="font-mono text-[10px] text-muted">{pending.length} {d.pending}</span>
           )}
         </div>
         <div className="rounded-lg border border-border bg-surface-2 px-4">

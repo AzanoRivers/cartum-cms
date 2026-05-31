@@ -5,6 +5,7 @@ import { getDictionary } from '@/locales'
 import { detectLocaleFromHeader } from '@/lib/i18n/getLocale'
 import { LoginForm } from '@/components/ui/organisms/LoginForm'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
+import { getSetting } from '@/lib/settings/get-setting'
 
 export default async function LoginPage({
   searchParams,
@@ -18,7 +19,8 @@ export default async function LoginPage({
   const headerStore         = await headers()
   const locale              = detectLocaleFromHeader(headerStore.get('accept-language'))
   const dict                = getDictionary(locale).auth.login
-  const registrationEnabled = process.env.CARTUM_NEW_PLAYER === 'true'
+  const newPlayerSetting     = await getSetting('cartum_new_player', process.env.CARTUM_NEW_PLAYER)
+  const registrationEnabled  = newPlayerSetting === 'true'
 
   return (
     <main className="relative min-h-dvh flex items-center justify-center bg-bg">

@@ -20,6 +20,7 @@ import { DbSection } from '@/components/ui/organisms/settings/DbSection'
 import { SubscriptionSection } from '@/components/ui/organisms/settings/SubscriptionSection'
 import { MembersSection } from '@/components/ui/organisms/settings/MembersSection'
 import { CartumProjectsSection } from '@/components/ui/organisms/settings/CartumProjectsSection'
+import { EnvVarsSection } from '@/components/ui/organisms/settings/EnvVarsSection'
 import type { Dictionary } from '@/locales/en'
 import type { SectionKey } from '@/types/roles'
 
@@ -41,13 +42,15 @@ const ALL_SECTIONS: Array<{ key: SectionKey }> = [
   { key: 'members'         },
   { key: 'email'           },
   { key: 'storage'         },
-  { key: 'users'           },
   { key: 'roles'           },
   { key: 'api'             },
   { key: 'db'              },
   { key: 'webMigration'    },
   { key: 'info'            },
+  // superAdmin-only zone
   { key: 'cartumProjects'  },
+  { key: 'users'           },
+  { key: 'variables'       },
 ]
 
 export function SettingsPanel({
@@ -89,12 +92,13 @@ export function SettingsPanel({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, migrationActive]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ADMIN_SECTIONS: SectionKey[] = ['email', 'members', 'api', 'users', 'roles', 'webMigration']
+  const ADMIN_SECTIONS: SectionKey[] = ['email', 'members', 'api', 'roles', 'webMigration']
   const PUBLIC_SECTIONS: SectionKey[] = ['subscription', 'account', 'appearance']
+  const SUPER_ONLY: SectionKey[]      = ['cartumProjects', 'users', 'variables']
 
   // Filter visible sections by role
   const visibleSections = ALL_SECTIONS.filter(({ key }) => {
-    if (key === 'cartumProjects') return isSuperAdmin
+    if (SUPER_ONLY.includes(key)) return isSuperAdmin
     if (isSuperAdmin) return true
     if (PUBLIC_SECTIONS.includes(key)) return true
     if (isAdmin && ADMIN_SECTIONS.includes(key)) return true
@@ -134,10 +138,11 @@ export function SettingsPanel({
           userId={userId}
           isSuperAdmin={isSuperAdmin}
           isAdmin={isAdmin}
+          d={d.members}
           loadingText={d.loading}
         />
       )}
-      {activeSection === 'users' && (isSuperAdmin || isAdmin || sectionPermissions.users) && (
+      {activeSection === 'users' && isSuperAdmin && (
         <UsersSection
           currentUserId={userId}
           isSuperAdmin={isSuperAdmin}
@@ -162,6 +167,9 @@ export function SettingsPanel({
       )}
       {activeSection === 'cartumProjects' && isSuperAdmin && (
         <CartumProjectsSection d={d.cartumProjects} loadingText={d.loading} />
+      )}
+      {activeSection === 'variables' && isSuperAdmin && (
+        <EnvVarsSection d={d.variables} loadingText={d.loading} />
       )}
       {activeSection === 'info' && (
         <InfoSection d={d.info} />
@@ -369,6 +377,7 @@ function DialogContent({
                   <div className="flex-1 h-px bg-warning/25" />
                 </div>
               )}
+
               <button
                 onClick={() => openSettings(key)}
                 className={[

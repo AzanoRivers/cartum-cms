@@ -11,9 +11,10 @@ import { GlobalLoader } from '@/components/ui/atoms/GlobalLoader'
 import { ThemeSync } from '@/components/ui/atoms/ThemeSync'
 import { rolesService } from '@/lib/services/roles.service'
 import { projectMembershipsRepository } from '@/db/repositories/project-memberships.repository'
-import { ROLE_ADMIN } from '@/types/roles'
+import { ROLE_ADMIN, ROLE_EDITOR } from '@/types/roles'
 import { getTheme } from '@/lib/settings/get-setting'
 import { getMyProjects } from '@/lib/actions/project.actions'
+import { NoProjectModal } from '@/components/ui/molecules/NoProjectModal'
 import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 
 export default async function CMSLayout({ children }: { children: React.ReactNode }) {
@@ -27,13 +28,16 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
   const cartumSuscriptor     = session.user.cartumSuscriptor ?? true
   const cartumSuscriptorTime = session.user.cartumSuscriptorTime ?? 0
 
-  const [sectionPermissions, isProjectAdmin, theme, allProjects] = await Promise.all([
+  const [sectionPermissions, isProjectAdmin, isProjectEditor, theme, allProjects] = await Promise.all([
     isSuperAdmin
       ? Promise.resolve({} as Awaited<ReturnType<typeof rolesService.getSectionPermissionsForUser>>)
       : rolesService.getSectionPermissionsForUser(userId, currentProjectId),
     isSuperAdmin || !currentProjectId
       ? Promise.resolve(false)
       : projectMembershipsRepository.isMemberWithRole(userId, currentProjectId, ROLE_ADMIN),
+    !currentProjectId
+      ? Promise.resolve(false)
+      : projectMembershipsRepository.isMemberWithRole(userId, currentProjectId, ROLE_EDITOR),
     getTheme(currentProjectId),
     getMyProjects(),
   ])
@@ -51,7 +55,8 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
   const dict = getDictionary(locale)
   const cmsDict = dict.cms
   const settingsDict = dict.settings
-  const canAccessBuilder = (session.user.isSuperAdmin ?? false) || isAdmin
+  // Admin and Editor can interact with the board builder; Viewer is read-only
+  const canAccessBuilder = isSuperAdmin || isAdmin || isProjectEditor
 
   const ua = (await headers()).get('user-agent') ?? ''
   const mobile = isMobileUserAgent(ua)
@@ -59,12 +64,15 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
   const userEmail    = session.user?.email ?? ''
   const userInitials = userEmail ? userEmail.slice(0, 2).toUpperCase() : '??'
 
+  const noProject = projects.length === 0
+
   if (mobile) {
     return (
       <>
         <ThemeSync theme={theme} />
         <CmsDictionarySetter dict={cmsDict} canAccessBuilder={canAccessBuilder} />
         <GlobalLoader />
+        {noProject && <NoProjectModal d={dict.cms.noProject} />}
         <MobileLayout
           currentProject={currentProject}
           projects={projects}
@@ -89,6 +97,7 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
       <ThemeSync theme={theme} />
       <CmsDictionarySetter dict={cmsDict} canAccessBuilder={canAccessBuilder} />
       <GlobalLoader />
+      {noProject && <NoProjectModal d={dict.cms.noProject} />}
       <DesktopLayout
         currentProject={currentProject}
         projects={projects}
