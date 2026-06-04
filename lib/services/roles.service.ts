@@ -394,7 +394,12 @@ async function getSectionPermissionsForUser(
     globalFallbackRoleIds.push(...roleIds)
   }
 
-  if (globalFallbackRoleIds.length > 0) {
+  // Query global DB table for:
+  // a) roles that had no project override at all (globalFallbackRoleIds)
+  // b) roles that HAD a project override but may be missing newly-added sections
+  //    (sections added after the override was saved won't be in app_settings)
+  const allRoleIds = [...new Set([...roleIds, ...globalFallbackRoleIds])]
+  if (allRoleIds.length > 0) {
     const rows = await db
       .select({
         section:    roleSectionPermissions.section,
@@ -402,14 +407,25 @@ async function getSectionPermissionsForUser(
         canActions: roleSectionPermissions.canActions,
       })
       .from(roleSectionPermissions)
-      .where(inArray(roleSectionPermissions.roleId, globalFallbackRoleIds))
+      .where(inArray(roleSectionPermissions.roleId, allRoleIds))
     for (const row of rows) {
       const key = row.section as SectionKey
-      const existing = result[key]
-      result[key] = {
-        canView:    (existing?.canView    ?? false) || row.canAccess,
-        canActions: (existing?.canActions ?? false) || row.canActions,
+      // Only fill in sections not already resolved from app_settings override
+      if (result[key] === undefined) {
+        result[key] = {
+          canView:    row.canAccess,
+          canActions: row.canActions,
+        }
       }
+    }
+  }
+
+  // Sections that must be accessible to everyone by default (open-access fallback).
+  // Applied only when the DB has no entry yet (seed pending) — DB/app_settings values take precedence.
+  const OPEN_ACCESS_SECTIONS: SectionKey[] = ['help']
+  for (const key of OPEN_ACCESS_SECTIONS) {
+    if (result[key] === undefined) {
+      result[key] = { canView: true, canActions: true }
     }
   }
 

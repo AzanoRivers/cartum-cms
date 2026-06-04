@@ -95,6 +95,13 @@ export async function requireSectionActions(
     .where(and(eq(roleSectionPermissions.roleId, projectRole.roleId), eq(roleSectionPermissions.section, section)))
     .limit(1)
 
+  if (rows.length === 0) {
+    // No DB entry yet (seed pending) — apply open-access default for universal sections
+    const OPEN_ACCESS_SECTIONS = ['help'] as string[]
+    if (OPEN_ACCESS_SECTIONS.includes(section)) return
+    throw new Error('FORBIDDEN')
+  }
+
   if (!rows[0]?.canActions) throw new Error('FORBIDDEN')
 }
 

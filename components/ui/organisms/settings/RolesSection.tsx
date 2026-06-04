@@ -166,8 +166,10 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin, canActions = t
         const rIsViewer = roleName === ROLE_VIEWER
 
         // Sections where editor can view+act, viewer can only view
-        const EDITOR_SECTIONS: SectionKey[] = ['project', 'appearance', 'account', 'webMigration', 'info']
-        const VIEWER_SECTIONS:  SectionKey[] = ['project', 'appearance', 'account', 'info']
+        const EDITOR_SECTIONS: SectionKey[] = ['project', 'appearance', 'account', 'webMigration', 'help', 'info']
+        const VIEWER_SECTIONS:  SectionKey[] = ['project', 'appearance', 'account', 'help', 'info']
+        // Sections where viewer also gets canActions (not just canView)
+        const VIEWER_ACTION_SECTIONS: SectionKey[] = ['help']
 
         const map: Partial<Record<SectionKey, SectionAccess>> = {}
 
@@ -187,7 +189,7 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin, canActions = t
             const key = sp.section as SectionKey
             map[key] = {
               canView:    VIEWER_SECTIONS.includes(key),
-              canActions: false,
+              canActions: VIEWER_ACTION_SECTIONS.includes(key),
             }
           }
         } else {
@@ -196,6 +198,13 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin, canActions = t
             map[sp.section as SectionKey] = { canView: sp.canAccess, canActions: sp.canActions }
           }
         }
+
+        // Fallback: if help is not in sectionRes.data yet (seed not run),
+        // ensure it appears with correct defaults for non-restricted roles
+        if (map['help'] === undefined && (rIsAdmin || rIsEditor || rIsViewer)) {
+          map['help'] = { canView: true, canActions: true }
+        }
+
         setSectionPerms(map)
       }
       if (galleryRes.success) setGalleryPerms(galleryRes.data)

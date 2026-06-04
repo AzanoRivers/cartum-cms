@@ -150,6 +150,10 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText, canActio
     r2Endpoint: false, r2AccessKeyId: false, r2SecretAccessKey: false,
     r2BucketName: false, r2PublicUrl: false, mediaVpsUrl: false, mediaVpsKey: false, blobToken: false,
   })
+  const [isProjectSpecific, setIsProjectSpecific] = useState<StorageSettingsIsSet>({
+    r2Endpoint: false, r2AccessKeyId: false, r2SecretAccessKey: false,
+    r2BucketName: false, r2PublicUrl: false, mediaVpsUrl: false, mediaVpsKey: false, blobToken: false,
+  })
   const [status, setStatus] = useState<StorageStatus | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [r2Open, setR2Open]     = useState(false)
@@ -170,6 +174,7 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText, canActio
       if (settingsRes.success) {
         setForm(settingsRes.data.settings)
         setIsSet(settingsRes.data.isSet)
+        setIsProjectSpecific(settingsRes.data.isProjectSpecific)
       }
       if (statusRes.success) {
         setStatus(statusRes.data)
@@ -185,16 +190,22 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText, canActio
     setBlobTestResult(null)
   }
 
-  // Validate admin can switch to a provider: target must have credentials configured or entered
+  // Validate admin can switch to a provider.
+  // Admin CANNOT rely on env var credentials (they shouldn't see those values).
+  // Admin can switch if:
+  //   a) The project already has its OWN saved credentials (isProjectSpecific = true), OR
+  //   b) Admin has just entered credentials in the form fields (form values non-empty)
+  // SuperAdmin: allowed when bothConfigured (checked at render level).
   function canSwitchTo(provider: StorageProvider): boolean {
-    if (isSuperAdmin) return true // superAdmin: any switch when bothConfigured (checked at render)
+    if (isSuperAdmin) return true
     if (provider === 'r2') {
-      const hasExisting = isSet.r2Endpoint && isSet.r2AccessKeyId && isSet.r2SecretAccessKey && isSet.r2BucketName
-      const hasEntered  = !!(form.r2Endpoint && form.r2AccessKeyId && form.r2SecretAccessKey && form.r2BucketName)
-      return hasExisting || hasEntered
+      const hasProjectCreds = isProjectSpecific.r2Endpoint && isProjectSpecific.r2AccessKeyId &&
+                              isProjectSpecific.r2SecretAccessKey && isProjectSpecific.r2BucketName
+      const hasEntered      = !!(form.r2Endpoint && form.r2AccessKeyId &&
+                                 form.r2SecretAccessKey && form.r2BucketName)
+      return hasProjectCreds || hasEntered
     }
-    // blob
-    return isSet.blobToken || !!form.blobToken
+    return isProjectSpecific.blobToken || !!form.blobToken
   }
 
   function handleProviderSwitch(provider: StorageProvider) {

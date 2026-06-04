@@ -13,7 +13,7 @@ type SectionKey = typeof SECTIONS[number]
 
 const SECTIONS = [
   'project', 'appearance', 'account', 'email', 'storage',
-  'members', 'users', 'roles', 'api', 'db', 'webMigration', 'info',
+  'members', 'users', 'roles', 'api', 'db', 'webMigration', 'help', 'info',
 ] as const
 
 const DEFAULT_ROLES = [
@@ -29,11 +29,12 @@ const SECTION_PERMISSIONS: Record<string, Partial<Record<SectionKey, SectionPerm
   [ROLE_EDITOR]: {
     project: { view: true, actions: true }, appearance: { view: true, actions: true },
     account: { view: true, actions: true }, webMigration: { view: true, actions: true },
-    info:    { view: true, actions: true },
+    help:    { view: true, actions: true }, info:          { view: true, actions: true },
   },
   [ROLE_VIEWER]: {
     project:    { view: true, actions: false }, appearance: { view: true, actions: false },
-    account:    { view: true, actions: false }, info:        { view: true, actions: false },
+    account:    { view: true, actions: false }, help:        { view: true, actions: true },
+    info:       { view: true, actions: false },
   },
   [ROLE_RESTRICTED]: {},
 }

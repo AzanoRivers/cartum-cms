@@ -5,7 +5,7 @@ import { AlertTriangle } from 'lucide-react'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import type { Dictionary } from '@/locales/en'
 
-export type DangerResetDialogDict = Dictionary['settings']['db']['resetDialog']
+export type DangerResetDialogDict = Dictionary['settings']['superDb']['resetDialog']
 
 export type DangerResetDialogProps = {
   onConfirm:  () => void

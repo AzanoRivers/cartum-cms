@@ -2,7 +2,7 @@
 
 import { auth } from '@/auth'
 import { db } from '@/db'
-import { sql, eq, inArray } from 'drizzle-orm'
+import { sql, eq, inArray, and, not } from 'drizzle-orm'
 import { cookies } from 'next/headers'
 import {
   nodes,
@@ -20,6 +20,7 @@ import {
   project,
   projectMemberships,
   projectSettings,
+  projectInvitations,
   roles,
   users,
   userEmailRegistry,
@@ -123,6 +124,20 @@ async function purgeAllMediaStorage(): Promise<StoragePurgeResult> {
   return { deleted, failed, r2Orphans, blobOrphans }
 }
 
+// ── Project backup types ──────────────────────────────────────────────────────
+
+type ProjectBackup = {
+  type:         'cartum-project'
+  version:      '1.0'
+  exportedAt:   string
+  projectName:  string
+  nodes:        unknown[]
+  fieldMeta:    unknown[]
+  nodeRelations: unknown[]
+  records:      unknown[]
+  media:        unknown[]
+}
+
 // ── Auth guard ────────────────────────────────────────────────────────────────
 
 async function requireSuperAdmin(): Promise<string | null> {
@@ -143,6 +158,7 @@ type CmsBackup = {
   roles?:                   unknown[]
   usersRoles?:              unknown[]
   projectMemberships?:      unknown[]  // v1.3+
+  projectInvitations?:      unknown[]  // v1.4+
   apiTokens?:               unknown[]
   appSettings?:             unknown[]
   projectSettings?:         unknown[]  // v1.3+
@@ -164,14 +180,16 @@ export async function exportDatabaseAction(): Promise<ActionResult<{ json: strin
 
   const [
     projectData, usersData, rolesData, usersRolesData, projectMembershipsData,
-    apiTokensData, appSettingsData, projectSettingsData, roleSectionPermissionsData,
-    nodesData, fieldMetaData, nodeRelationsData, recordsData, mediaData, rolePermissionsData,
+    projectInvitationsData, apiTokensData, appSettingsData, projectSettingsData,
+    roleSectionPermissionsData, nodesData, fieldMetaData, nodeRelationsData,
+    recordsData, mediaData, rolePermissionsData,
   ] = await Promise.all([
     db.select().from(project),
     db.select().from(users),
     db.select().from(roles),
     db.select().from(usersRoles),
     db.select().from(projectMemberships),
+    db.select().from(projectInvitations),
     db.select().from(apiTokens),
     db.select().from(appSettings),
     db.select().from(projectSettings),
@@ -185,13 +203,14 @@ export async function exportDatabaseAction(): Promise<ActionResult<{ json: strin
   ])
 
   const backup: CmsBackup = {
-    version:                 '1.3',
+    version:                 '1.4',
     exportedAt:              new Date().toISOString(),
     project:                 projectData,
     users:                   usersData,
     roles:                   rolesData,
     usersRoles:              usersRolesData,
     projectMemberships:      projectMembershipsData,
+    projectInvitations:      projectInvitationsData,
     apiTokens:               apiTokensData,
     appSettings:             appSettingsData,
     projectSettings:         projectSettingsData,
@@ -330,6 +349,7 @@ export async function importDatabaseAction(raw: unknown): Promise<ActionResult<n
     roles:                  arr('roles'),
     usersRoles:             arr('usersRoles'),
     projectMemberships:     arr('projectMemberships'),
+    projectInvitations:     arr('projectInvitations'),
     apiTokens:              arr('apiTokens'),
     appSettings:            arr('appSettings'),
     projectSettings:        arr('projectSettings'),
@@ -383,6 +403,7 @@ export async function importDatabaseAction(raw: unknown): Promise<ActionResult<n
       await ins(users,                  backup.users!)
       await ins(usersRoles,             backup.usersRoles!)
       await ins(projectMemberships,     backup.projectMemberships!)  // needs project + roles + users
+      await ins(projectInvitations,     backup.projectInvitations!)  // needs project + roles + users
       await ins(apiTokens,              backup.apiTokens!)
       await ins(roleSectionPermissions, backup.roleSectionPermissions!)
       await ins(nodes,                  sortedNodes)
@@ -393,6 +414,175 @@ export async function importDatabaseAction(raw: unknown): Promise<ActionResult<n
       await ins(rolePermissions,        backup.rolePermissions!)
       await ins(appSettings,            backup.appSettings!)
       await ins(projectSettings,        backup.projectSettings!)     // needs project + users
+    })
+  } catch {
+    return { success: false, error: 'db_error' }
+  }
+
+  return { success: true, data: null }
+}
+
+// ── Export project (scoped to current project) ───────────────────────────────
+
+export async function exportProjectAction(): Promise<ActionResult<{ json: string; filename: string }>> {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: 'Unauthorized' }
+
+  let projectId: string
+  try { projectId = await requireProjectId() }
+  catch { return { success: false, error: 'NO_PROJECT' } }
+
+  const { projectMembershipsRepository } = await import('@/db/repositories/project-memberships.repository')
+  const canAccess = session.user.isSuperAdmin
+    || await projectMembershipsRepository.isMemberWithRole(session.user.id, projectId, 'admin')
+  if (!canAccess) return { success: false, error: 'Forbidden' }
+
+  const [proj] = await db.select({ name: project.name }).from(project).where(eq(project.id, projectId)).limit(1)
+
+  const nodesData = await db.select().from(nodes).where(eq(nodes.projectId, projectId))
+  const nodeIds   = nodesData.map((n) => n.id)
+
+  const [fieldMetaData, nodeRelationsData, recordsData, mediaData] = await Promise.all([
+    nodeIds.length > 0 ? db.select().from(fieldMeta).where(inArray(fieldMeta.nodeId, nodeIds)) : Promise.resolve([]),
+    nodeIds.length > 0 ? db.select().from(nodeRelations).where(inArray(nodeRelations.sourceNodeId, nodeIds)) : Promise.resolve([]),
+    nodeIds.length > 0 ? db.select().from(records).where(inArray(records.nodeId, nodeIds)) : Promise.resolve([]),
+    db.select().from(media).where(eq(media.projectId, projectId)),
+  ])
+
+  const backup: ProjectBackup = {
+    type:         'cartum-project',
+    version:      '1.0',
+    exportedAt:   new Date().toISOString(),
+    projectName:  proj?.name ?? 'project',
+    nodes:        nodesData,
+    fieldMeta:    fieldMetaData,
+    nodeRelations: nodeRelationsData,
+    records:      recordsData,
+    media:        mediaData,
+  }
+
+  const safeName = (proj?.name ?? 'project').replace(/[^a-z0-9]/gi, '-').toLowerCase()
+  const dateStr  = new Date().toISOString().slice(0, 10)
+  const filename = `cartum-project-${safeName}-${dateStr}.json`
+
+  return { success: true, data: { json: JSON.stringify(backup, null, 2), filename } }
+}
+
+// ── Import project (replace current project content, INTACTA — no ID remap) ──
+
+export async function importProjectAction(raw: unknown): Promise<ActionResult<null>> {
+  const session = await auth()
+  if (!session?.user?.id) return { success: false, error: 'Unauthorized' }
+
+  let projectId: string
+  try { projectId = await requireProjectId() }
+  catch { return { success: false, error: 'NO_PROJECT' } }
+
+  const { projectMembershipsRepository } = await import('@/db/repositories/project-memberships.repository')
+  const canAccess = session.user.isSuperAdmin
+    || await projectMembershipsRepository.isMemberWithRole(session.user.id, projectId, 'admin')
+  if (!canAccess) return { success: false, error: 'Forbidden' }
+
+  if (
+    typeof raw !== 'object' || raw === null ||
+    (raw as Record<string, unknown>).type !== 'cartum-project' ||
+    !Array.isArray((raw as Record<string, unknown>).nodes) ||
+    !Array.isArray((raw as Record<string, unknown>).fieldMeta) ||
+    !Array.isArray((raw as Record<string, unknown>).nodeRelations) ||
+    !Array.isArray((raw as Record<string, unknown>).records) ||
+    !Array.isArray((raw as Record<string, unknown>).media)
+  ) {
+    return { success: false, error: 'invalid_backup' }
+  }
+
+  const backup = raw as ProjectBackup
+
+  // Validate item shapes
+  for (const n of backup.nodes) {
+    if (!isRecord(n) || typeof n.id !== 'string' || typeof n.name !== 'string' || typeof n.type !== 'string') {
+      return { success: false, error: 'invalid_nodes' }
+    }
+  }
+  for (const fm of backup.fieldMeta) {
+    if (!isRecord(fm) || typeof fm.id !== 'string' || typeof fm.nodeId !== 'string') {
+      return { success: false, error: 'invalid_field_meta' }
+    }
+  }
+  for (const m of backup.media) {
+    if (!isRecord(m) || typeof m.id !== 'string' || typeof m.key !== 'string') {
+      return { success: false, error: 'invalid_media' }
+    }
+  }
+
+  // Identify slugs from backup that conflict with OTHER projects
+  // (current project slugs will be freed when we delete below — same transaction)
+  const slugsInBackup = backup.nodes
+    .filter((n) => isRecord(n) && typeof n.slug === 'string' && n.slug)
+    .map((n) => (n as Record<string, unknown>).slug as string)
+
+  const conflictingSlugs = new Set<string>()
+  if (slugsInBackup.length > 0) {
+    const existing = await db
+      .select({ slug: nodes.slug })
+      .from(nodes)
+      .where(and(inArray(nodes.slug, slugsInBackup), not(eq(nodes.projectId, projectId))))
+    existing.forEach((r) => r.slug && conflictingSlugs.add(r.slug))
+  }
+
+  // Prepare nodes: keep original IDs, update projectId, handle slug conflicts
+  const preparedNodes = backup.nodes
+    .filter((n) => isRecord(n) && typeof n.id === 'string')
+    .map((n) => {
+      const node = n as Record<string, unknown>
+      const originalSlug = typeof node.slug === 'string' ? node.slug : null
+      return {
+        ...node,
+        projectId,
+        slug: originalSlug && !conflictingSlugs.has(originalSlug) ? originalSlug : null,
+      }
+    })
+
+  // Prepare fieldMeta + nodeRelations + records: keep original IDs, no changes needed
+  // (nodeIds still match since we preserved them above)
+  const preparedFieldMeta = backup.fieldMeta.filter(
+    (fm) => isRecord(fm) && typeof fm.nodeId === 'string',
+  )
+  const preparedRelations = backup.nodeRelations.filter(
+    (rel) => isRecord(rel) && typeof rel.sourceNodeId === 'string' && typeof rel.targetNodeId === 'string',
+  )
+  const preparedRecords = backup.records.filter(
+    (rec) => isRecord(rec) && typeof rec.nodeId === 'string',
+  )
+
+  // Prepare media: keep original IDs, update projectId + uploadedBy
+  const preparedMedia = backup.media
+    .filter((m) => isRecord(m) && typeof m.id === 'string')
+    .map((m) => ({
+      ...(m as Record<string, unknown>),
+      projectId,
+      uploadedBy: session.user.id,
+    }))
+
+  const sortedNodes = topoSortNodes(preparedNodes)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type Tx = any
+  try {
+    await db.transaction(async (tx: Tx) => {
+      // Clear current project content
+      // node CASCADE handles: fieldMeta, nodeRelations, records, rolePermissions
+      await tx.delete(media).where(eq(media.projectId, projectId))
+      await tx.delete(nodes).where(eq(nodes.projectId, projectId))
+
+      // Insert with original IDs preserved — INTACTA restore
+      const ins = async (table: unknown, rows: unknown[]) => {
+        if (rows.length > 0) await (tx as Tx).insert(table).values(rows)
+      }
+      await ins(nodes,        sortedNodes)
+      await ins(fieldMeta,    preparedFieldMeta)
+      await ins(nodeRelations, preparedRelations)
+      await ins(records,      preparedRecords)
+      await ins(media,        preparedMedia)
     })
   } catch {
     return { success: false, error: 'db_error' }

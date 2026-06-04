@@ -68,6 +68,7 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
     || isProjectAdmin
 
 
+
   const isProjectEditor = schemaPermissions.canCreate && schemaPermissions.canUpdate
     && schemaPermissions.canDelete && schemaPermissions.canConnect
 

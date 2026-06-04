@@ -17,7 +17,7 @@ export type DocsSidebarProps = {
 }
 
 const TOP_IDS  = ['gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration', 'relationsGuide', 'multiProject', 'rolesGuide'] as const
-const DEV_IDS  = ['installation', 'usersGuide', 'nodesAndFieldsDev', 'emailSetup', 'webMigrationDev', 'multiProjectDev', 'media', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations'] as const
+const DEV_IDS  = ['installation', 'usersGuide', 'nodesAndFieldsDev', 'importExport', 'emailSetup', 'webMigrationDev', 'multiProjectDev', 'media', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations'] as const
 const ALL_IDS  = [...TOP_IDS, ...DEV_IDS] as const
 
 type SectionId = typeof ALL_IDS[number]
@@ -35,6 +35,7 @@ const ICONS: Record<SectionId, Parameters<typeof Icon>[0]['name']> = {
   rolesGuide:      'ShieldCheck',
   usersGuide:        'Users',
   nodesAndFieldsDev: 'Database',
+  importExport:      'ArchiveRestore',
   emailSetup:        'Mail',
   webMigrationDev:   'Globe',
   multiProjectDev:   'Layers',

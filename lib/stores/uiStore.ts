@@ -4,7 +4,7 @@ import type { CmsDictionary } from '@/locales/en'
 import type { SchemaPermissions } from '@/types/roles'
 import { DEFAULT_SCHEMA_PERMS_READONLY } from '@/types/roles'
 
-export type SettingsSection = 'account' | 'appearance' | 'project' | 'subscription' | 'storage' | 'email' | 'api' | 'members' | 'users' | 'roles' | 'help' | 'info' | 'db' | 'webMigration' | 'defaults' | 'cartumProjects' | 'variables'
+export type SettingsSection = 'account' | 'appearance' | 'project' | 'subscription' | 'storage' | 'email' | 'api' | 'members' | 'users' | 'roles' | 'help' | 'info' | 'db' | 'webMigration' | 'defaults' | 'cartumProjects' | 'variables' | 'superDb'
 
 interface UIState {
   settingsOpen: boolean

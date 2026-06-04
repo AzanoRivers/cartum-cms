@@ -5,7 +5,7 @@ import type { Dictionary } from '@/locales/en'
 
 const SECTION_KEYS: SectionKey[] = [
   'project', 'appearance', 'account', 'email', 'storage',
-  'users', 'roles', 'api', 'db', 'webMigration', 'info',
+  'users', 'roles', 'api', 'db', 'webMigration', 'help', 'info',
 ]
 
 // info section has no meaningful actions — only view applies

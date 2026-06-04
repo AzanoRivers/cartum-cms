@@ -317,7 +317,7 @@ async function resolveStorageSetting(key: string, envFallback: string | undefine
 }
 
 export async function getStorageSettings(): Promise<
-  ActionResult<{ settings: StorageSettings; isSet: StorageSettingsIsSet }>
+  ActionResult<{ settings: StorageSettings; isSet: StorageSettingsIsSet; isProjectSpecific: StorageSettingsIsSet }>
 > {
   try {
     const { projectId, isSuperAdmin } = await requireStorageAccess()
@@ -334,6 +334,18 @@ export async function getStorageSettings(): Promise<
       resolveStorageSetting('storage_provider', 'r2',                             projectId),
     ])
 
+    // Project-specific: only values saved by user in app_settings (not env var fallbacks)
+    const [psEp, psAk, psSk, psRbn, psRpu, psMvu, psMvk, psBt] = await Promise.all([
+      getSetting(`r2_endpoint:${projectId}`),
+      getSetting(`r2_access_key_id:${projectId}`),
+      getSetting(`r2_secret_key:${projectId}`),
+      getSetting(`r2_bucket_name:${projectId}`),
+      getSetting(`r2_public_url:${projectId}`),
+      getSetting(`media_vps_url:${projectId}`),
+      getSetting(`media_vps_key:${projectId}`),
+      getSetting(`blob_token:${projectId}`),
+    ])
+
     const isSet: StorageSettingsIsSet = {
       r2Endpoint:        Boolean(ep),
       r2AccessKeyId:     Boolean(ak),
@@ -343,6 +355,18 @@ export async function getStorageSettings(): Promise<
       mediaVpsUrl:       Boolean(mvu),
       mediaVpsKey:       Boolean(mvk),
       blobToken:         Boolean(bt),
+    }
+
+    // isProjectSpecific: true only when the project has its OWN override (not inherited from env)
+    const isProjectSpecific: StorageSettingsIsSet = {
+      r2Endpoint:        Boolean(psEp),
+      r2AccessKeyId:     Boolean(psAk),
+      r2SecretAccessKey: Boolean(psSk),
+      r2BucketName:      Boolean(psRbn),
+      r2PublicUrl:       Boolean(psRpu),
+      mediaVpsUrl:       Boolean(psMvu),
+      mediaVpsKey:       Boolean(psMvk),
+      blobToken:         Boolean(psBt),
     }
 
     const settings: StorageSettings = {
@@ -357,7 +381,7 @@ export async function getStorageSettings(): Promise<
       storageProvider:   (sp === 'blob' ? 'blob' : 'r2'),
     }
 
-    return { success: true, data: { settings, isSet } }
+    return { success: true, data: { settings, isSet, isProjectSpecific } }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }

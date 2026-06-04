@@ -330,6 +330,73 @@ function NodesAndFieldsDevSection({ d }: { d: DocsDict }) {
   )
 }
 
+// ── Section: Import & Export ─────────────────────────────────────────────────
+
+function ImportExportSection({ d }: { d: DocsDict }) {
+  const s = d.importExport
+  return (
+    <div className="space-y-6">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      {/* Project scope */}
+      <div className="space-y-4">
+        <SubHeading>{s.projectTitle}</SubHeading>
+        <Prose>{s.projectDesc}</Prose>
+
+        <div className="space-y-3">
+          <p className="font-mono text-xs font-semibold text-text/70 uppercase tracking-widest">{s.exportTitle}</p>
+          <UL items={Object.values(s.exportSteps)} />
+        </div>
+
+        <div className="space-y-3">
+          <p className="font-mono text-xs font-semibold text-text/70 uppercase tracking-widest">{s.importTitle}</p>
+          <Prose>{s.importDesc}</Prose>
+          <UL items={Object.values(s.importSteps)} />
+        </div>
+
+        <div className="rounded-md border border-warning/25 bg-warning/5 px-4 py-3 space-y-1">
+          <p className="font-mono text-xs font-semibold text-warning uppercase tracking-wider">{s.importWarnTitle}</p>
+          <p className="font-mono text-xs text-warning/80 leading-relaxed">{s.importWarn}</p>
+        </div>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Super scope */}
+      <div className="space-y-4">
+        <SubHeading>{s.superTitle}</SubHeading>
+        <Prose>{s.superDesc}</Prose>
+
+        <div className="space-y-3">
+          <p className="font-mono text-xs font-semibold text-text/70 uppercase tracking-widest">{s.superExportTitle}</p>
+          <UL items={Object.values(s.superExportSteps)} />
+        </div>
+
+        <div className="space-y-3">
+          <p className="font-mono text-xs font-semibold text-text/70 uppercase tracking-widest">{s.superImportTitle}</p>
+          <UL items={Object.values(s.superImportSteps)} />
+        </div>
+
+        <div className="rounded-md border border-danger/25 bg-danger/5 px-4 py-3">
+          <p className="font-mono text-xs text-danger/80 leading-relaxed">{s.superImportWarn}</p>
+        </div>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Media note */}
+      <Note>{s.mediaNote}</Note>
+
+      {/* Formats */}
+      <div className="space-y-2">
+        <SubHeading>{s.formatTitle}</SubHeading>
+        <UL items={[s.formatProject, s.formatSuper]} />
+      </div>
+    </div>
+  )
+}
+
 // ── Section: Content ──────────────────────────────────────────────────────────
 
 function ContentSection({ d }: { d: DocsDict }) {
@@ -1271,7 +1338,7 @@ function StorageSetupSection({ d }: { d: DocsDict }) {
 const ORDERED_SECTIONS = [
   'gettingStarted','navigation','nodesAndFields','content','webMigration',
   'relationsGuide','rolesGuide','multiProject',
-  'installation','usersGuide','nodesAndFieldsDev','emailSetup','webMigrationDev','multiProjectDev','media',
+  'installation','usersGuide','nodesAndFieldsDev','importExport','emailSetup','webMigrationDev','multiProjectDev','media',
   'storageSetup','apiForDevs','apiSchema','relations',
 ] as const
 
@@ -1348,6 +1415,7 @@ type SectionId =
   | 'installation'
   | 'usersGuide'
   | 'nodesAndFieldsDev'
+  | 'importExport'
   | 'emailSetup'
   | 'webMigrationDev'
   | 'multiProjectDev'
@@ -1361,7 +1429,8 @@ type SectionId =
 
 const VALID_SECTION_IDS = new Set<string>([
   'gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration',
-  'relationsGuide', 'rolesGuide', 'multiProject', 'nodesAndFieldsDev', 'usersGuide', 'emailSetup', 'webMigrationDev',
+  'relationsGuide', 'rolesGuide', 'multiProject', 'nodesAndFieldsDev', 'importExport',
+  'usersGuide', 'emailSetup', 'webMigrationDev',
   'multiProjectDev', 'media', 'installation', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations',
 ])
 
@@ -1419,6 +1488,7 @@ export function DocsPage({ d, locale, noPad = false }: DocsPageProps) {
       case 'multiProject':       return <MultiProjectSection d={d} />
       case 'usersGuide':         return <UsersGuideSection d={d} />
       case 'nodesAndFieldsDev':  return <NodesAndFieldsDevSection d={d} />
+      case 'importExport':       return <ImportExportSection d={d} />
       case 'emailSetup':         return <EmailSetupSection d={d} />
       case 'webMigrationDev':    return <WebMigrationDevSection d={d} />
       case 'multiProjectDev':    return <MultiProjectDevSection d={d} />

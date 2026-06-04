@@ -23,6 +23,7 @@ import { CartumProjectsSection } from '@/components/ui/organisms/settings/Cartum
 import { EnvVarsSection } from '@/components/ui/organisms/settings/EnvVarsSection'
 import { DefaultSection } from '@/components/ui/organisms/settings/DefaultSection'
 import { HelpSection } from '@/components/ui/organisms/settings/HelpSection'
+import { SuperDbSection } from '@/components/ui/organisms/settings/SuperDbSection'
 import type { Dictionary } from '@/locales/en'
 import type { SectionKey, SectionAccess } from '@/types/roles'
 
@@ -36,7 +37,7 @@ export type SettingsPanelProps = {
   asSheet?: boolean
 }
 
-const SUPER_ONLY_KEYS: SectionKey[] = ['defaults', 'cartumProjects', 'users', 'variables']
+const SUPER_ONLY_KEYS: SectionKey[] = ['defaults', 'cartumProjects', 'users', 'variables', 'superDb']
 
 const ALL_SECTIONS: Array<{ key: SectionKey }> = [
   { key: 'project'         },
@@ -57,6 +58,7 @@ const ALL_SECTIONS: Array<{ key: SectionKey }> = [
   { key: 'users'           },
   { key: 'variables'       },
   { key: 'defaults'        },
+  { key: 'superDb'         },
 ]
 
 export function SettingsPanel({
@@ -99,8 +101,8 @@ export function SettingsPanel({
   }, [open, migrationActive]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const ADMIN_SECTIONS: SectionKey[] = ['email', 'members', 'api', 'roles', 'webMigration']
-  const PUBLIC_SECTIONS: SectionKey[] = ['subscription', 'account', 'appearance']
-  const SUPER_ONLY: SectionKey[]      = ['defaults', 'cartumProjects', 'users', 'variables']
+  const PUBLIC_SECTIONS: SectionKey[] = ['subscription', 'account', 'appearance', 'help']
+  const SUPER_ONLY: SectionKey[]      = ['defaults', 'cartumProjects', 'users', 'variables', 'superDb']
 
   // Helper: resolve canView and canActions for a section.
   // super_admin and project admin always get full access — DB restrictions only apply to non-admin roles.
@@ -193,6 +195,9 @@ export function SettingsPanel({
       )}
       {activeSection === 'variables' && isSuperAdmin && (
         <EnvVarsSection d={d.variables} loadingText={d.loading} />
+      )}
+      {activeSection === 'superDb' && isSuperAdmin && (
+        <SuperDbSection d={d.superDb} canActions={canActions('superDb')} />
       )}
       {activeSection === 'help' && (
         <HelpSection d={d.help} loadingText={d.loading} />
