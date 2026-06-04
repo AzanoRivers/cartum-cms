@@ -11,6 +11,7 @@ import {
 import { MemberList, type MemberRow } from '@/components/ui/molecules/MemberList'
 import { PendingInvitationList, type PendingInviteRow } from '@/components/ui/molecules/PendingInvitationList'
 import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
+import { DocLink } from '@/components/ui/atoms/DocLink'
 import { useToast } from '@/lib/hooks/useToast'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import type { Dictionary } from '@/locales/en'
@@ -88,9 +89,12 @@ export function MembersSection({ userId, isSuperAdmin, isAdmin, d, loadingText, 
 
   return (
     <VHSTransition duration="fast" trigger className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="font-mono text-sm font-semibold text-text">{d.title}</h2>
-        <p className="font-mono text-[11px] text-muted/70">{d.subtitle}</p>
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <h2 className="font-mono text-sm font-semibold text-text">{d.title}</h2>
+          <p className="font-mono text-[11px] text-muted/70">{d.subtitle}</p>
+        </div>
+        <DocLink href="/docs#rolesGuide" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
       </div>
 
       {/* ── Invite form ──────────────────────────────────────────────────────── */}

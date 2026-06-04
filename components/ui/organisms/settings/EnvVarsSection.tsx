@@ -48,6 +48,7 @@ type FieldConfig = {
   label:     string
   sensitive?: boolean
   hint?:     string
+  hintLink?: { label: string; href: string }
 }
 
 // ── Single var row ─────────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ function VarRow({
   label,
   sensitive,
   hint,
+  hintLink,
   value,
   isOverridden,
   onSaved,
@@ -139,7 +141,17 @@ function VarRow({
           </button>
         )}
       </div>
-      {hint && <p className="font-mono text-[10px] text-muted/60">{hint}</p>}
+      {(hint || hintLink) && (
+        <p className="font-mono text-[10px] text-muted/60">
+          {hint}
+          {hint && hintLink && ' '}
+          {hintLink && (
+            <a href={hintLink.href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              {hintLink.label}
+            </a>
+          )}
+        </p>
+      )}
     </div>
   )
 }
@@ -265,7 +277,7 @@ export function EnvVarsSection({ d, loadingText }: EnvVarsSectionProps) {
   if (!loaded) return <SectionLoader text={loadingText} />
   if (!data)   return null
 
-  const makeRow = (fieldKey: string, label: string, hint?: string) => (
+  const makeRow = (fieldKey: string, label: string, hint?: string, hintLink?: { label: string; href: string }) => (
     <VarRow
       key={fieldKey}
       d={d}
@@ -273,6 +285,7 @@ export function EnvVarsSection({ d, loadingText }: EnvVarsSectionProps) {
       label={label}
       sensitive={SENSITIVE_FIELDS.has(fieldKey)}
       hint={hint}
+      hintLink={hintLink}
       value={(data[fieldKey as keyof EnvSettings] as { value: string }).value}
       isOverridden={(data[fieldKey as keyof EnvSettings] as { isOverridden: boolean }).isOverridden}
       onSaved={handleSaved}
@@ -413,7 +426,7 @@ export function EnvVarsSection({ d, loadingText }: EnvVarsSectionProps) {
 
       {/* Misc */}
       <Group title={d.groupMisc}>
-        {makeRow('cartumNewPlayer', d.cartumNewPlayer, d.cartumNewPlayerHint)}
+        {makeRow('cartumNewPlayer', d.cartumNewPlayer, d.cartumNewPlayerHint, { label: d.cartumNewPlayerLinkLabel, href: '/cartum-player' })}
       </Group>
     </div>
   )

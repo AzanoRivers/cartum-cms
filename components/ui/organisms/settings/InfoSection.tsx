@@ -47,7 +47,10 @@ export function InfoSection({ d }: InfoSectionProps) {
 
       {/* Stack badges */}
       <div className="rounded-lg border border-border bg-surface-2 p-4 space-y-3">
-        <p className="font-mono text-xs text-muted uppercase tracking-widest">{d.builtWith}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-mono text-xs text-muted uppercase tracking-widest">{d.builtWith}</p>
+          <span className="cartum-neon-rainbow text-xl leading-none select-none relative -top-0.5">♥</span>
+        </div>
         <div className="flex flex-wrap gap-2 pt-1">
           {STACK.map(({ label, version, color, href }) => (
             <a
@@ -66,6 +69,36 @@ export function InfoSection({ d }: InfoSectionProps) {
             </a>
           ))}
         </div>
+      </div>
+
+      {/* Sponsors */}
+      <div className="rounded-lg border border-border bg-surface-2 p-4 space-y-3">
+        <p className="font-mono text-xs text-muted uppercase tracking-widest">{d.sponsorsTitle}</p>
+        <div className="flex flex-wrap gap-2">
+          {d.sponsors.map((s) => (
+            <a
+              key={s.name}
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 font-mono text-xs text-text hover:border-primary/40 hover:text-primary transition-colors"
+            >
+              <span className="cartum-neon-rainbow text-base leading-none select-none">♥</span>
+              {s.name}
+            </a>
+          ))}
+        </div>
+        <p className="font-mono text-[11px] text-muted leading-relaxed">
+          {d.sponsorsCta}{' '}
+          <a
+            href={d.sponsorsXUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            {d.sponsorsXLabel}
+          </a>
+        </p>
       </div>
     </div>
   )

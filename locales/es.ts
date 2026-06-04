@@ -1388,7 +1388,7 @@ export const es: Dictionary = {
     loading:    'Cargando…',
     appearance: {
       title:      'Apariencia',
-      themeLabel: 'Tema de color',
+      themeLabel: 'Cada mesa tiene su personalidad, ¡Elige la tuya!',
       saved:      'Tema guardado.',
       saveError:  'No se pudo guardar el tema.',
       themes: {
@@ -1423,6 +1423,8 @@ export const es: Dictionary = {
       deleteSuccess:          'Proyecto eliminado.',
       deleteError:            'No se pudo eliminar el proyecto.',
       singleProjectWarning:   'No puedes eliminar tu único proyecto.',
+      docsLinkLabel:          'Multi-proyecto: Documentación',
+      docsLinkDesc:           'Aprende cómo coexisten múltiples proyectos en la misma mesa de Cartum y cómo gestionarlos.',
       confirmDialog: {
         title:         'Eliminar proyecto',
         message:       'Esto eliminará permanentemente todos los datos asociados a este proyecto. Esta acción no puede deshacerse.',
@@ -1493,8 +1495,11 @@ export const es: Dictionary = {
       saveEmptyNotice:         'Solo se guardan los campos con valor. Los campos vacíos conservan su valor actual.',
       docsLinkLabel:           'Guías de configuración de almacenamiento',
       docsLinkDesc:            'Guías paso a paso para Cloudflare R2, Vercel Blob y el optimizador de media.',
-    },    email: {
+    },
+    email: {
       title:               'Correo',
+      docsLinkLabel:       'Configuración de correo: Documentación',
+      docsLinkDesc:        'Guía paso a paso para configurar Resend o AWS SES como proveedor de correo.',
       notConfigured:       'El envío de correos no está configurado. Configura un proveedor para activar la recuperación de contraseña e invitaciones.',
       providerLabel:       'Proveedor de correo',
       active:              'Activo',
@@ -1577,7 +1582,9 @@ export const es: Dictionary = {
     },
     members: {
       title:              'Miembros',
-      subtitle:           'Todos los miembros asignados al proyecto activo.',
+      subtitle:           'Invita y gestiona jugadores a tu mesa. Configura roles de acceso.',
+      docsLinkLabel:      'Roles y acceso: Documentación',
+      docsLinkDesc:       'Aprende cómo funcionan los roles, permisos y el control de acceso por sección.',
       inviteLabel:        'Invitar un miembro',
       emailLabel:         'Correo electrónico',
       projectLabel:       'Proyecto',
@@ -1726,9 +1733,12 @@ export const es: Dictionary = {
         viewer:     'Lector',
         restricted: 'Restringido',
       },
+      docsLinkLabel: 'Roles y acceso: Documentación',
+      docsLinkDesc:  'Aprende cómo funcionan los roles, permisos y el control de acceso por sección.',
     },
     account: {
       title:               'Cuenta',
+      subtitle:            'Cambia tu correo o contraseñas actuales.',
       emailSection:        'Correo electrónico',
       currentEmail:        'Correo actual',
       newEmail:            'Nuevo correo electrónico',
@@ -1973,6 +1983,13 @@ export const es: Dictionary = {
       licenseValue:   'MIT',
       docs:           'Documentación',
       docsUrl:        'https://www.azanolabs.com/cartum',
+      sponsorsTitle:  'Sponsors',
+      sponsors: [
+        { name: 'AzanoRivers', url: 'https://azanorivers.com' },
+      ],
+      sponsorsCta:    'Todo gran proyecto necesita algo de ayuda. Conviértete en Sponsor:',
+      sponsorsXUrl:   'https://www.x.com/azanorivers',
+      sponsorsXLabel: '@azanorivers en X',
     },
     db: {
       title:              'Base de datos',
@@ -2107,7 +2124,8 @@ export const es: Dictionary = {
       authUrl:         'AUTH_URL',
       dbProvider:      'DB_PROVIDER',
       databaseUrl:     'DATABASE_URL',
-      cartumNewPlayerHint: 'Pon "true" para activar la página de registro público.',
+      cartumNewPlayerHint:        'Pon "true" para activar la página de registro público.',
+      cartumNewPlayerLinkLabel:   'Ver página de registro →',
       resetAllButton:      'Reiniciar valores por defecto .env',
       resetAllConfirmTitle: '¿Reiniciar todas las variables?',
       resetAllConfirmDesc:  'Esto eliminará todos los overrides guardados. El CMS volverá a usar los valores definidos en el archivo .env.',

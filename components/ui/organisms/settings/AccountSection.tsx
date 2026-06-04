@@ -125,10 +125,11 @@ export function AccountSection({ currentEmail, d, canActions = true }: AccountSe
 
   return (
     <section className="space-y-6">
-      <div>
-        <h2 className="font-mono text-xs text-muted uppercase tracking-widest mb-4">
+      <div className="space-y-3">
+        <h2 className="font-mono text-xs text-muted uppercase tracking-widest">
           {d.title}
         </h2>
+        <p className="font-mono text-xs text-muted leading-relaxed">{d.subtitle}</p>
       </div>
 
       {/* Current email display */}

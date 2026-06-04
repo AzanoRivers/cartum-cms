@@ -12,6 +12,7 @@ import { switchProject } from '@/lib/actions/project.actions'
 import { useToast } from '@/lib/hooks/useToast'
 import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
+import { DocLink } from '@/components/ui/atoms/DocLink'
 import type { Dictionary } from '@/locales/en'
 import type { ProjectSettings } from '@/types/settings'
 
@@ -125,6 +126,7 @@ export function ProjectSection({ d, loadingText, canActions = true }: ProjectSec
     return (
       <div className="space-y-6">
         <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
+        <DocLink href="/docs#multiProject" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
         <p className="font-mono text-sm text-text-muted">{d.noProjects}</p>
       </div>
     )
@@ -135,6 +137,7 @@ export function ProjectSection({ d, loadingText, canActions = true }: ProjectSec
   return (
     <div className="space-y-6">
       <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
+      <DocLink href="/docs#multiProject" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
 
       {/* Project selector — only shown when there are multiple projects */}
       {projects.length > 1 && (

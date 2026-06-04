@@ -1387,7 +1387,7 @@
     loading:    'Loading…',
     appearance: {
       title:      'Appearance',
-      themeLabel: 'Color theme',
+      themeLabel: 'Every table has its personality. Pick yours!',
       saved:      'Theme saved.',
       saveError:  'Could not save theme.',
       themes: {
@@ -1422,6 +1422,8 @@
       deleteSuccess:          'Project deleted.',
       deleteError:            'Could not delete project.',
       singleProjectWarning:   'You cannot delete your only project.',
+      docsLinkLabel:          'Multi-project: Documentation',
+      docsLinkDesc:           'Learn how multiple projects coexist on the same Cartum table and how to manage them.',
       confirmDialog: {
         title:         'Delete project',
         message:       'This will permanently delete all data associated with this project. This action cannot be undone.',
@@ -1492,8 +1494,11 @@
       saveEmptyNotice:         'Only filled fields are saved. Empty fields keep their current value.',
       docsLinkLabel:           'Storage setup guides',
       docsLinkDesc:            'Step-by-step guides for Cloudflare R2, Vercel Blob, and the media optimizer.',
-    },    email: {
+    },
+    email: {
       title:               'Email',
+      docsLinkLabel:       'Email setup: Documentation',
+      docsLinkDesc:        'Step-by-step guide to configure Resend or AWS SES as your email provider.',
       notConfigured:       'Email delivery is not configured. Configure a provider to enable password recovery and invitations.',
       providerLabel:       'Email provider',
       active:              'Active',
@@ -1577,7 +1582,9 @@
     },
     members: {
       title:              'Members',
-      subtitle:           'All members assigned to the active project.',
+      subtitle:           'Invite and manage players at your table. Configure access roles.',
+      docsLinkLabel:      'Roles & access: Documentation',
+      docsLinkDesc:       'Learn how roles, permissions and section-level access control work.',
       inviteLabel:        'Invite a member',
       emailLabel:         'Email',
       projectLabel:       'Project',
@@ -1730,9 +1737,12 @@
         viewer:     'Viewer',
         restricted: 'Restricted',
       },
+      docsLinkLabel: 'Roles & access: Documentation',
+      docsLinkDesc:  'Learn how roles, permissions and section-level access control work.',
     },
     account: {
       title:               'Account',
+      subtitle:            'Update your current email or passwords.',
       emailSection:        'Email address',
       currentEmail:        'Current email',
       newEmail:            'New email address',
@@ -1976,6 +1986,13 @@
       licenseValue:   'MIT',
       docs:           'Documentation',
       docsUrl:        'https://www.azanolabs.com/cartum',
+      sponsorsTitle:  'Sponsors',
+      sponsors: [
+        { name: 'AzanoRivers', url: 'https://azanorivers.com' },
+      ],
+      sponsorsCta:    'Every great project needs a little help. Become a Sponsor:',
+      sponsorsXUrl:   'https://www.x.com/azanorivers',
+      sponsorsXLabel: '@azanorivers on X',
     },
     db: {
       title:              'Database',
@@ -2107,7 +2124,8 @@
       authUrl:         'AUTH_URL',
       dbProvider:      'DB_PROVIDER',
       databaseUrl:     'DATABASE_URL',
-      cartumNewPlayerHint: 'Set to "true" to enable the public registration page.',
+      cartumNewPlayerHint:        'Set to "true" to enable the public registration page.',
+      cartumNewPlayerLinkLabel:   'View registration page →',
       resetAllButton:      'Reset all to .env defaults',
       resetAllConfirmTitle: 'Reset all variables?',
       resetAllConfirmDesc:  'This will remove all stored overrides. The CMS will revert to the values defined in the .env file.',
@@ -2784,6 +2802,7 @@ export type Dictionary = {
       save: string; saving: string; saved: string; error: string
       selectProject: string; noProjects: string
       dangerZone: string; dangerDesc: string; onlyOwnerCanDelete: string; deleteProject: string; deleting: string; deleteSuccess: string; deleteError: string; singleProjectWarning: string
+      docsLinkLabel: string; docsLinkDesc: string
       confirmDialog: { title: string; message: string; inputLabel: string; confirmPhrase: string; confirm: string; cancel: string }
     }
     storage: {
@@ -2811,7 +2830,7 @@ export type Dictionary = {
       docsLinkLabel: string; docsLinkDesc: string
     }
     email: {
-      title: string; notConfigured: string
+      title: string; docsLinkLabel: string; docsLinkDesc: string; notConfigured: string
       providerLabel: string; active: string; inactive: string; configured: string; notConfiguredBadge: string
       resendTab: string; sesTab: string
       resendApiKey: string; resendKeyPlaceholder: string
@@ -2842,7 +2861,7 @@ export type Dictionary = {
       docsLinkLabel: string; docsLinkDesc: string
     }
     members: {
-      title: string; subtitle: string; inviteLabel: string
+      title: string; subtitle: string; docsLinkLabel: string; docsLinkDesc: string; inviteLabel: string
       emailLabel: string; projectLabel: string; roleLabel: string
       emailPlaceholder: string; inviting: string; inviteButton: string; inviteSuccess: string
       builtInRoleLabels: { admin: string; editor: string; viewer: string }
@@ -2896,9 +2915,10 @@ export type Dictionary = {
       cancel: string; userCount: string
       projectScopeWarning: string; projectOverrideBadge: string; globalDefaultBadge: string
       builtInRoleLabels: Record<string, string>
+      docsLinkLabel: string; docsLinkDesc: string
     }
     account: {
-      title: string; emailSection: string; currentEmail: string
+      title: string; subtitle: string; emailSection: string; currentEmail: string
       newEmail: string; newEmailPlaceholder: string
       sendCode: string; sending: string; codeSentTo: string
       codeLabel: string; codePlaceholder: string
@@ -2952,6 +2972,8 @@ export type Dictionary = {
       openSource: string; openSourceUrl: string; developedBy: string
       license: string; licenseValue: string
       docs: string; docsUrl: string
+      sponsorsTitle: string; sponsors: Array<{ name: string; url: string }>
+      sponsorsCta: string; sponsorsXUrl: string; sponsorsXLabel: string
     }
     db: {
       title: string; docsLinkLabel: string; docsLinkDesc: string
@@ -3004,7 +3026,7 @@ export type Dictionary = {
       r2Endpoint: string; r2AccessKeyId: string; r2SecretKey: string; r2BucketName: string; r2PublicUrl: string
       blobToken: string; resendApiKey: string; resendFromEmail: string
       sesAccessKeyId?: string; sesSecretAccessKey?: string
-      scraperApiUrl: string; scraperApiKey: string; cartumNewPlayer: string; cartumNewPlayerHint: string
+      scraperApiUrl: string; scraperApiKey: string; cartumNewPlayer: string; cartumNewPlayerHint: string; cartumNewPlayerLinkLabel: string
       authUrl: string; dbProvider: string; databaseUrl: string
       resetAllButton: string; resetAllConfirmTitle: string; resetAllConfirmDesc: string; resetAllSuccess: string
     }

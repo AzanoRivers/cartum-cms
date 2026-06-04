@@ -141,8 +141,9 @@ export function SuperDbSection({ d, canActions = true }: SuperDbSectionProps) {
   return (
     <section className="space-y-8">
       <div>
-        <h2 className="font-mono text-xs text-muted uppercase tracking-widest mb-4">
+        <h2 className="font-mono text-xs text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
           {d.title}
+          <span className="font-mono text-[8px] text-warning/70 border border-warning/30 rounded px-1.5 py-px leading-none normal-case tracking-normal">super</span>
         </h2>
         <p className="font-mono text-xs text-muted leading-relaxed">
           {d.subtitle}

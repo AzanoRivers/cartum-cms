@@ -12,6 +12,7 @@ import {
   type EmailProvider,
 } from '@/lib/actions/settings.actions'
 import { Mail } from 'lucide-react'
+import { DocLink } from '@/components/ui/atoms/DocLink'
 import { useToast } from '@/lib/hooks/useToast'
 import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
 import type { Dictionary } from '@/locales/en'
@@ -240,9 +241,12 @@ export function EmailSection({ isSuperAdmin, d, loadingText, canActions = true }
 
   return (
     <div className="space-y-5">
-      <div className="space-y-1">
-        <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
-        <p className="font-mono text-[10px] text-muted/60 leading-relaxed">{d.projectScopeNote}</p>
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
+          <p className="font-mono text-[10px] text-muted/60 leading-relaxed">{d.projectScopeNote}</p>
+        </div>
+        <DocLink href="/docs#emailSetup" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
       </div>
 
       {!anyConfigured && (

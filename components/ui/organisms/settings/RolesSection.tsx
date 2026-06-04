@@ -27,6 +27,7 @@ import { DEFAULT_GALLERY_PERMS_EDITOR, DEFAULT_GALLERY_PERMS_VIEWER, DEFAULT_SCH
 import { SectionPermissionList } from '@/components/ui/molecules/SectionPermissionList'
 import { ConfirmDialog } from '@/components/ui/molecules/ConfirmDialog'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
+import { DocLink } from '@/components/ui/atoms/DocLink'
 import { Spinner } from '@/components/ui/atoms/Spinner'
 import { useToast } from '@/lib/hooks/useToast'
 import { t } from '@/lib/i18n/t'
@@ -873,6 +874,8 @@ export function RolesSection({ d, navDict, isSuperAdmin, isAdmin, canActions = t
           </div>
         </>
       )}
+
+      <DocLink href="/docs#rolesGuide" label={d.docsLinkLabel} desc={d.docsLinkDesc} />
     </section>
   )
 }
