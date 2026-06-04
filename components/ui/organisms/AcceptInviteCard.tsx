@@ -267,7 +267,7 @@ export function AcceptInviteCard({ token, invite, sessionEmail, existingUser, di
               <span className="text-primary">❝{invite.projectName}❞</span>
               {' '}{dict.subtitleAs}{' '}
               <span className="inline-block rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[11px] text-primary">
-                {invite.roleName}
+                {(dict.roleLabels as Record<string, string>)?.[invite.roleName] ?? invite.roleName}
               </span>
             </p>
           </>

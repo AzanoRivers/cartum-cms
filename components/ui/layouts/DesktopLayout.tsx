@@ -10,7 +10,7 @@ import { MobileBreadcrumbBar } from '@/components/ui/molecules/MobileBreadcrumbB
 import { useUIStore } from '@/lib/stores/uiStore'
 import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'
 import type { Dictionary } from '@/locales/en'
-import type { SectionKey } from '@/types/roles'
+import type { SectionKey, SectionAccess } from '@/types/roles'
 import type { ProjectItem } from '@/components/ui/molecules/ProjectSelector'
 
 export type DesktopLayoutProps = {
@@ -23,7 +23,7 @@ export type DesktopLayoutProps = {
   isSuperAdmin: boolean
   isAdmin: boolean
   settingsDict: Dictionary['settings']
-  sectionPermissions: Partial<Record<SectionKey, boolean>>
+  sectionPermissions: Partial<Record<SectionKey, SectionAccess>>
   cartumSuscriptor: boolean
   cartumSuscriptorTime: number
 }

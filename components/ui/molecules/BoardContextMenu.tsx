@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Copy, Pencil, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, ArrowRight, Copy, Maximize2, Pencil, Trash2 } from 'lucide-react'
 
 export type BoardContextMenuState = {
   x:      number
@@ -14,6 +15,9 @@ export type BoardContextMenuDict = {
   rename:     string
   duplicate:  string
   deleteNode: string
+  back?:      string
+  forward?:   string
+  fitAll?:    string
 }
 
 export type BoardContextMenuProps = {
@@ -21,14 +25,17 @@ export type BoardContextMenuProps = {
   onRename:    (nodeId: string) => void
   onDuplicate: (nodeId: string) => void
   onDelete:    (nodeId: string) => void
+  onFitAll:    () => void
   onClose:     () => void
+  canEdit?:    boolean
+  canDelete?:  boolean
   d?:          BoardContextMenuDict
 }
 
-export function BoardContextMenu({ menu, onRename, onDuplicate, onDelete, onClose, d }: BoardContextMenuProps) {
-  const ref = useRef<HTMLDivElement>(null)
+export function BoardContextMenu({ menu, onRename, onDuplicate, onDelete, onFitAll, onClose, canEdit = true, canDelete = true, d }: BoardContextMenuProps) {
+  const ref    = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
-  // Dismiss on outside click or Escape
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
@@ -44,9 +51,9 @@ export function BoardContextMenu({ menu, onRename, onDuplicate, onDelete, onClos
     }
   }, [onClose])
 
-  // Keep menu inside viewport
+  const hasActions = canEdit || canDelete
   const MENU_W = 176
-  const MENU_H = 128
+  const MENU_H = hasActions ? 200 : 116
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1280
   const vh = typeof window !== 'undefined' ? window.innerHeight : 800
   const left = Math.min(menu.x, vw - MENU_W - 8)
@@ -62,30 +69,65 @@ export function BoardContextMenu({ menu, onRename, onDuplicate, onDelete, onClos
       onContextMenu={(e) => e.preventDefault()}
     >
       <div className="p-1">
+        {canEdit && (
+          <button
+            role="menuitem"
+            onClick={() => { onRename(menu.nodeId); onClose() }}
+            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-mono text-text hover:bg-surface-2 transition-colors cursor-pointer"
+          >
+            <Pencil size={14} className="text-muted" />
+            {d?.rename ?? 'Rename'}
+          </button>
+        )}
+        {canEdit && (
+          <button
+            role="menuitem"
+            onClick={() => { onDuplicate(menu.nodeId); onClose() }}
+            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-mono text-text hover:bg-surface-2 transition-colors cursor-pointer"
+          >
+            <Copy size={14} className="text-muted" />
+            {d?.duplicate ?? 'Duplicate'}
+          </button>
+        )}
+        {canDelete && (
+          <>
+            {canEdit && <div className="my-1 border-t border-border/60" />}
+            <button
+              role="menuitem"
+              onClick={() => { onDelete(menu.nodeId); onClose() }}
+              className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-mono text-danger hover:bg-danger/10 transition-colors cursor-pointer"
+            >
+              <Trash2 size={14} />
+              {d?.deleteNode ?? 'Delete node'}
+            </button>
+          </>
+        )}
+
+        {/* Navigation — always visible */}
+        {hasActions && <div className="my-1 border-t border-border/60" />}
         <button
           role="menuitem"
-          onClick={() => { onRename(menu.nodeId); onClose() }}
+          onClick={() => { router.back(); onClose() }}
           className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-mono text-text hover:bg-surface-2 transition-colors cursor-pointer"
         >
-          <Pencil size={14} className="text-muted" />
-          {d?.rename ?? 'Rename'}
+          <ArrowLeft size={14} className="text-muted" />
+          {d?.back ?? 'Go back'}
         </button>
         <button
           role="menuitem"
-          onClick={() => { onDuplicate(menu.nodeId); onClose() }}
+          onClick={() => { router.forward(); onClose() }}
           className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-mono text-text hover:bg-surface-2 transition-colors cursor-pointer"
         >
-          <Copy size={14} className="text-muted" />
-          {d?.duplicate ?? 'Duplicate'}
+          <ArrowRight size={14} className="text-muted" />
+          {d?.forward ?? 'Go forward'}
         </button>
-        <div className="my-1 border-t border-border/60" />
         <button
           role="menuitem"
-          onClick={() => { onDelete(menu.nodeId); onClose() }}
-          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-mono text-danger hover:bg-danger/10 transition-colors cursor-pointer"
+          onClick={() => { onFitAll(); onClose() }}
+          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-mono text-text hover:bg-surface-2 transition-colors cursor-pointer"
         >
-          <Trash2 size={14} />
-          {d?.deleteNode ?? 'Delete node'}
+          <Maximize2 size={14} className="text-muted" />
+          {d?.fitAll ?? 'Center nodes'}
         </button>
       </div>
     </div>

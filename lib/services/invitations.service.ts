@@ -55,6 +55,7 @@ export const invitationsService = {
       expiryDays:  INVITE_EXPIRY_DAYS,
       locale:      (proj?.locale ?? 'en') as SupportedLocale,
       baseUrl,
+      projectId,
     })
   },
 

@@ -47,9 +47,58 @@ export interface CreateRoleInput {
 export type SectionKey =
   | 'project' | 'subscription' | 'appearance' | 'account' | 'email' | 'storage'
   | 'users' | 'roles' | 'api' | 'db' | 'webMigration' | 'info' | 'members'
-  | 'cartumProjects' | 'variables'
+  | 'cartumProjects' | 'variables' | 'defaults' | 'help'
 
 export interface SectionPermission {
-  section:   SectionKey
-  canAccess: boolean
+  section:    SectionKey
+  canAccess:  boolean   // canView — can see this section in the nav
+  canActions: boolean   // can perform actions within the section (edit/save/delete)
+}
+
+/** Resolved section access for a user in a project. */
+export interface SectionAccess {
+  canView:    boolean
+  canActions: boolean
+}
+
+export interface GalleryMediaPermissions {
+  canView:   boolean
+  canUpload: boolean
+  canDelete: boolean
+}
+
+export interface GalleryPermissions {
+  images: GalleryMediaPermissions
+  videos: GalleryMediaPermissions
+}
+
+export const DEFAULT_GALLERY_PERMS_EDITOR: GalleryPermissions = {
+  images: { canView: true, canUpload: true,  canDelete: true  },
+  videos: { canView: true, canUpload: true,  canDelete: true  },
+}
+
+export const DEFAULT_GALLERY_PERMS_VIEWER: GalleryPermissions = {
+  images: { canView: true, canUpload: false, canDelete: false },
+  videos: { canView: true, canUpload: false, canDelete: false },
+}
+
+// ── Schema / Board permissions ────────────────────────────────────────────────
+// Controls who can modify the node graph structure (not record data).
+// Stored per role per project in app_settings as `role_schema:{roleId}:{projectId}`.
+
+export interface SchemaPermissions {
+  canCreate:  boolean   // create container or field nodes
+  canUpdate:  boolean   // rename, move, update field meta
+  canDelete:  boolean   // delete nodes
+  canConnect: boolean   // create or delete connections
+}
+
+/** Full write — default for admin/editor and custom roles */
+export const DEFAULT_SCHEMA_PERMS_WRITE: SchemaPermissions = {
+  canCreate: true, canUpdate: true, canDelete: true, canConnect: true,
+}
+
+/** Read-only — default for viewer/restricted */
+export const DEFAULT_SCHEMA_PERMS_READONLY: SchemaPermissions = {
+  canCreate: false, canUpdate: false, canDelete: false, canConnect: false,
 }

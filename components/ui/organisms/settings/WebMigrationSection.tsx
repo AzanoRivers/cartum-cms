@@ -31,6 +31,7 @@ export type WebMigrationSectionProps = {
   d:            Dictionary['settings']['webMigration']
   isSuperAdmin: boolean
   loadingText:  string
+  canActions?:  boolean
 }
 
 // ── Accordion helper (same pattern as StorageSection) ─────────────────────────
@@ -235,7 +236,7 @@ function ChalkProgressBar({ pct }: { pct: number }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrationSectionProps) {
+export function WebMigrationSection({ d, isSuperAdmin, loadingText, canActions = true }: WebMigrationSectionProps) {
   // ── Accordion state ────────────────────────────────────────────────────────
   const [scraperOpen, setScraperOpen] = useState(true)
   const [configOpen,  setConfigOpen]  = useState(false)
@@ -313,6 +314,7 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   function handleSave() {
+    if (!canActions) return
     startSave(async () => {
       const res = await updateWebMigrationSettings({
         scraperApiUrl: apiUrl || undefined,
@@ -344,7 +346,7 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
   }
 
   function handleStart() {
-    if (!targetUrl) return
+    if (!canActions || !targetUrl) return
     const normalizedUrl = /^https?:\/\//i.test(targetUrl) ? targetUrl : `https://${targetUrl}`
     startMigration(normalizedUrl, { max_pages: maxPages, download_images: downloadImages })
   }
@@ -395,7 +397,8 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
                 value={targetUrl}
                 placeholder={d.urlPlaceholder}
                 onChange={(e) => setTargetUrl(e.target.value)}
-                className={inputCls}
+                disabled={!canActions}
+                className={inputCls + ' disabled:opacity-50 disabled:cursor-not-allowed'}
               />
             </Field>
 
@@ -407,7 +410,8 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
                 max={200}
                 value={maxPages}
                 onChange={(e) => setMaxPages(Number(e.target.value))}
-                className="w-20 rounded-md border border-border bg-bg px-2 py-1.5 font-mono text-sm text-text outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
+                disabled={!canActions}
+                className="w-20 rounded-md border border-border bg-bg px-2 py-1.5 font-mono text-sm text-text outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -418,7 +422,7 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
             <div className="flex justify-end">
               <button
                 onClick={handleStart}
-                disabled={isPending || !targetUrl}
+                disabled={isPending || !targetUrl || !canActions}
                 className="rounded-md bg-primary px-5 py-2 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
                 {isPending ? d.starting : d.startMigration}
@@ -467,7 +471,7 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
                 </div>
                 <button
                   onClick={() => setShowCancelDialog(true)}
-                  disabled={isPending}
+                  disabled={isPending || !canActions}
                   className="rounded-md border border-border px-3 py-1.5 font-mono text-xs text-danger hover:bg-danger/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {d.cancel}
@@ -540,20 +544,21 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
                 </div>
 
                 {/* Download images option */}
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className={`flex items-center gap-2 ${!canActions ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                   <input
                     type="checkbox"
                     checked={downloadImages}
                     onChange={(e) => setDownloadImages(e.target.checked)}
-                    className="h-4 w-4 rounded border-border accent-primary"
+                    disabled={!canActions}
+                    className="h-4 w-4 rounded border-border accent-primary disabled:cursor-not-allowed"
                   />
                   <span className="font-mono text-xs text-muted">{d.downloadImages}</span>
                 </label>
 
                 <div className="flex justify-end">
                   <button
-                    onClick={() => importResult('business_and_pages', downloadImages)}
-                    disabled={isPending}
+                    onClick={() => { if (canActions) importResult('business_and_pages', downloadImages) }}
+                    disabled={isPending || !canActions}
                     className="rounded-md bg-primary px-5 py-2 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                   >
                     {isPending ? d.importing : d.importButton}
@@ -684,8 +689,9 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
                     {d.cancelDialog.dismiss}
                   </button>
                   <button
-                    onClick={() => { setShowCancelDialog(false); cancelMigration() }}
-                    className="rounded-md bg-danger/90 px-4 py-1.5 font-mono text-xs text-white hover:bg-danger transition-colors cursor-pointer"
+                    onClick={() => { if (!canActions) return; setShowCancelDialog(false); cancelMigration() }}
+                    disabled={!canActions}
+                    className="rounded-md bg-danger/90 px-4 py-1.5 font-mono text-xs text-white hover:bg-danger transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {d.cancelDialog.confirm}
                   </button>
@@ -719,7 +725,8 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
               value={apiUrl}
               placeholder="https://scraper.azanolabs.com"
               onChange={(e) => setApiUrl(e.target.value)}
-              className={inputCls}
+              disabled={!canActions}
+              className={inputCls + ' disabled:opacity-50 disabled:cursor-not-allowed'}
             />
           </Field>
 
@@ -732,7 +739,8 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
                   value={apiKey}
                   placeholder="••••••••••••••••"
                   onChange={(e) => setApiKey(e.target.value)}
-                  className={`${inputCls} pr-9`}
+                  disabled={!canActions}
+                  className={`${inputCls} pr-9 disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
                 <button
                   type="button"
@@ -769,7 +777,8 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
                 placeholder={d.apiKeyReplacePlaceholder}
                 onChange={(e) => setApiKey(e.target.value)}
                 autoComplete="off"
-                className={inputCls}
+                disabled={!canActions}
+                className={inputCls + ' disabled:opacity-50 disabled:cursor-not-allowed'}
               />
             </div>
           )}
@@ -821,7 +830,7 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText }: WebMigrati
               </button>
               <button
                 onClick={handleSave}
-                disabled={isSaving}
+                disabled={isSaving || !canActions}
                 className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
                 {isSaving ? d.saving : d.save}

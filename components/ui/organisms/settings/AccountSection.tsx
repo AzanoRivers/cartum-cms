@@ -9,11 +9,12 @@ import type { Dictionary } from '@/locales/en'
 export type AccountSectionProps = {
   currentEmail: string
   d: Dictionary['settings']['account']
+  canActions?: boolean
 }
 
 type Step = 'form' | 'verify' | 'success'
 
-export function AccountSection({ currentEmail, d }: AccountSectionProps) {
+export function AccountSection({ currentEmail, d, canActions = true }: AccountSectionProps) {
   const [step, setStep]               = useState<Step>('form')
   const [pendingEmail, setPendingEmail] = useState('')
   const [displayEmail, setDisplayEmail] = useState(currentEmail)
@@ -65,6 +66,7 @@ export function AccountSection({ currentEmail, d }: AccountSectionProps) {
   // ── Step 1: request code ────────────────────────────────────────────────────
   function handleSendCode(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (!canActions) return
     const email = new FormData(e.currentTarget).get('email') as string
     setFieldError('')
 
@@ -87,6 +89,7 @@ export function AccountSection({ currentEmail, d }: AccountSectionProps) {
   // ── Step 2: confirm code ────────────────────────────────────────────────────
   function handleConfirm(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (!canActions) return
     const code = digits.join('')
     setCodeError('')
 
@@ -156,7 +159,7 @@ export function AccountSection({ currentEmail, d }: AccountSectionProps) {
               type="email"
               autoComplete="email"
               placeholder={d.newEmailPlaceholder}
-              disabled={isPending}
+              disabled={isPending || !canActions}
               className="w-full h-9 rounded-md border border-border bg-bg px-3 font-mono text-sm text-text placeholder:text-muted/50 focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/40 transition-colors disabled:opacity-50"
             />
             {fieldError && (
@@ -166,7 +169,7 @@ export function AccountSection({ currentEmail, d }: AccountSectionProps) {
 
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || !canActions}
             className="h-8 rounded-md bg-primary px-4 font-mono text-xs font-bold text-white hover:bg-primary/80 disabled:opacity-50 transition-colors cursor-pointer"
           >
             {isPending ? d.sending : d.sendCode}
@@ -201,7 +204,7 @@ export function AccountSection({ currentEmail, d }: AccountSectionProps) {
                     maxLength={2}
                     value={digit}
                     placeholder={d.codePlaceholder}
-                    disabled={isPending}
+                    disabled={isPending || !canActions}
                     onChange={(e) => handleDigitInput(i, e.target.value)}
                     onKeyDown={(e) => handleDigitKeyDown(i, e)}
                     aria-label={`Digit ${i + 1}`}
@@ -218,7 +221,7 @@ export function AccountSection({ currentEmail, d }: AccountSectionProps) {
             <div className="flex items-center gap-3">
               <button
                 type="submit"
-                disabled={isPending || digits.join('').length !== 4}
+                disabled={isPending || digits.join('').length !== 4 || !canActions}
                 className="h-8 rounded-md bg-primary px-4 font-mono text-xs font-bold text-white hover:bg-primary/80 disabled:opacity-50 transition-colors cursor-pointer"
               >
                 {isPending ? d.confirming : d.confirmChange}
@@ -226,7 +229,7 @@ export function AccountSection({ currentEmail, d }: AccountSectionProps) {
               <button
                 type="button"
                 onClick={handleResend}
-                disabled={isPending}
+                disabled={isPending || !canActions}
                 className="h-8 rounded-md border border-border px-3 font-mono text-xs text-muted hover:text-text hover:border-border/80 disabled:opacity-50 transition-colors cursor-pointer"
               >
                 {d.resend}
@@ -234,7 +237,7 @@ export function AccountSection({ currentEmail, d }: AccountSectionProps) {
               <button
                 type="button"
                 onClick={handleReset}
-                disabled={isPending}
+                disabled={isPending || !canActions}
                 className="h-8 px-2 font-mono text-xs text-muted/60 hover:text-muted disabled:opacity-50 transition-colors cursor-pointer ml-auto"
               >
                 ✕
@@ -256,14 +259,14 @@ export function AccountSection({ currentEmail, d }: AccountSectionProps) {
       <div className="h-px bg-border" />
 
       {/* ── Password section ───────────────────────────────────────────────── */}
-      <PasswordSection d={d.password} />
+      <PasswordSection d={d.password} canActions={canActions} />
     </section>
   )
 }
 
 // ── Password sub-section ──────────────────────────────────────────────────────
 
-function PasswordSection({ d }: { d: Dictionary['settings']['account']['password'] }) {
+function PasswordSection({ d, canActions = true }: { d: Dictionary['settings']['account']['password']; canActions?: boolean }) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword]         = useState('')
   const [pwError, setPwError]                 = useState('')
@@ -299,6 +302,7 @@ function PasswordSection({ d }: { d: Dictionary['settings']['account']['password
 
   function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (!canActions) return
     setPwError('')
     setPwSuccess(false)
 
@@ -344,14 +348,15 @@ function PasswordSection({ d }: { d: Dictionary['settings']['account']['password
               autoComplete="current-password"
               value={currentPassword}
               onChange={(e) => { setCurrentPassword(e.target.value); setPwError('') }}
-              disabled={isPending}
+              disabled={isPending || !canActions}
               className="w-full h-9 rounded-md border border-border bg-bg px-3 pr-9 font-mono text-sm text-text placeholder:text-muted/50 focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/40 transition-colors disabled:opacity-50"
             />
             <button
               type="button"
               tabIndex={-1}
               onClick={() => setShowCurrent((v) => !v)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors cursor-pointer"
+              disabled={!canActions}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               aria-label={showCurrent ? 'Hide password' : 'Show password'}
             >
               {showCurrent ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -376,14 +381,15 @@ function PasswordSection({ d }: { d: Dictionary['settings']['account']['password
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                disabled={isPending}
+                disabled={isPending || !canActions}
                 className="w-full h-9 rounded-md border border-border bg-bg px-3 pr-9 font-mono text-sm text-text placeholder:text-muted/50 focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/40 transition-colors disabled:opacity-50"
               />
               <button
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowNew((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors cursor-pointer"
+                disabled={!canActions}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 aria-label={showNew ? 'Hide password' : 'Show password'}
               >
                 {showNew ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -392,7 +398,7 @@ function PasswordSection({ d }: { d: Dictionary['settings']['account']['password
             <button
               type="button"
               onClick={handleCopyNew}
-              disabled={isPending || !newPassword}
+              disabled={isPending || !newPassword || !canActions}
               title={d.copy}
               aria-label={d.copy}
               className="h-9 w-9 rounded-md border border-border flex items-center justify-center text-muted hover:text-text hover:border-border/80 disabled:opacity-40 transition-colors cursor-pointer shrink-0"
@@ -402,7 +408,7 @@ function PasswordSection({ d }: { d: Dictionary['settings']['account']['password
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={isPending}
+              disabled={isPending || !canActions}
               className="h-9 rounded-md border border-border px-3 font-mono text-xs text-muted hover:text-text hover:border-border/80 disabled:opacity-50 transition-colors cursor-pointer shrink-0"
             >
               {generateLabel}
@@ -412,7 +418,7 @@ function PasswordSection({ d }: { d: Dictionary['settings']['account']['password
 
         <button
           type="submit"
-          disabled={isPending || !currentPassword || newPassword.length < 12}
+          disabled={isPending || !currentPassword || newPassword.length < 12 || !canActions}
           className="h-8 rounded-md bg-primary px-4 font-mono text-xs font-bold text-white hover:bg-primary/80 disabled:opacity-50 transition-colors cursor-pointer"
         >
           {isPending ? d.changing : d.change}

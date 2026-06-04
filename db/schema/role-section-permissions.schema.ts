@@ -18,9 +18,10 @@ export const SECTION_KEYS = [
 export const roleSectionPermissions = pgTable(
   'role_section_permissions',
   {
-    roleId:    uuid('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
-    section:   text('section').notNull(),
-    canAccess: boolean('can_access').notNull().default(false),
+    roleId:     uuid('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
+    section:    text('section').notNull(),
+    canAccess:  boolean('can_access').notNull().default(false),
+    canActions: boolean('can_actions').notNull().default(false),
   },
   (t) => [primaryKey({ columns: [t.roleId, t.section] })],
 )

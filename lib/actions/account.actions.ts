@@ -2,13 +2,24 @@
 
 import { z } from 'zod'
 import { auth } from '@/auth'
+import { cookies } from 'next/headers'
 import { db } from '@/db'
 import { project } from '@/db/schema'
 import { requestEmailChange, confirmEmailChange, verifyPassword, hashPassword } from '@/lib/services/auth.service'
 import { usersRepository } from '@/db/repositories/users.repository'
 import { sendEmailOtp } from '@/lib/email/mailer'
+import { requireSectionActions } from '@/lib/rbac/guard'
+import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 import type { ActionResult } from '@/types/actions'
 import type { SupportedLocale } from '@/types/project'
+
+async function requireAccountActions() {
+  const session     = await auth()
+  if (!session?.user) return
+  const cookieStore = await cookies()
+  const projectId   = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
+  if (projectId) await requireSectionActions(projectId, 'account')
+}
 
 const EmailSchema = z.object({
   email: z.string().email(),
@@ -23,6 +34,7 @@ export async function requestEmailChangeAction(
 ): Promise<ActionResult<{ pendingEmail: string }>> {
   const session = await auth()
   if (!session?.user?.id) return { success: false, error: 'Unauthenticated' }
+  await requireAccountActions()
 
   const parsed = EmailSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'email_invalid' }
@@ -49,6 +61,7 @@ export async function confirmEmailChangeAction(
 ): Promise<ActionResult<{ newEmail: string }>> {
   const session = await auth()
   if (!session?.user?.id) return { success: false, error: 'Unauthenticated' }
+  await requireAccountActions()
 
   const parsed = CodeSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'invalid_code' }
@@ -69,6 +82,7 @@ export async function changePasswordAction(
 ): Promise<ActionResult<null>> {
   const session = await auth()
   if (!session?.user?.id) return { success: false, error: 'Unauthenticated' }
+  await requireAccountActions()
 
   const parsed = ChangePasswordSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'validation_error' }

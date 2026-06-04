@@ -13,7 +13,7 @@ import { hashPassword } from '@/lib/services/auth.service'
 import { getR2Client } from '@/lib/media/r2-client'
 import { blobUpload, blobDelete, isBlobConfigured } from '@/lib/media/blob-client'
 import { PutObjectCommand, DeleteObjectCommand, PutBucketCorsCommand } from '@aws-sdk/client-s3'
-import { Resend } from 'resend'
+
 import { sendWelcomeEmail } from '@/lib/email/mailer'
 import type { SupportedLocale } from '@/types/project'
 import type { ActionResult } from '@/types/actions'
@@ -43,9 +43,14 @@ async function requireSuperAdmin() {
 async function requireAdmin() {
   const session = await auth()
   if (!session) throw new Error('UNAUTHORIZED')
-  const ok = session.user.isSuperAdmin || (session.user.roles ?? []).includes(ROLE_ADMIN)
-  if (!ok) throw new Error('FORBIDDEN')
-  return session
+  if (session.user.isSuperAdmin || (session.user.roles ?? []).includes(ROLE_ADMIN)) return session
+  // Also allow project admins
+  const projectId = await requireProjectId().catch(() => null)
+  if (projectId) {
+    const isProjectAdmin = await projectMembershipsRepository.isMemberWithRole(session.user.id, projectId, 'admin')
+    if (isProjectAdmin) return session
+  }
+  throw new Error('FORBIDDEN')
 }
 
 // ── Appearance ─────────────────────────────────────────────────────────────────
@@ -60,6 +65,10 @@ export async function updateAppearanceSettings(
     if (!validIds.includes(input.theme)) throw new Error('Invalid theme')
     const cookieStore  = await cookies()
     const projectId    = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
+    if (projectId) {
+      const { requireSectionActions } = await import('@/lib/rbac/guard')
+      await requireSectionActions(projectId, 'appearance')
+    }
     const settingKey   = projectId ? `theme:${projectId}` : 'theme'
     await setSetting(settingKey, input.theme, session.user.id)
   } catch (err) {
@@ -145,7 +154,18 @@ export async function listUserProjects(): Promise<
         .orderBy(asc(project.createdAt))
     }
 
-    return { success: true, data: { projects: rows, currentProjectId: session.user.currentProjectId ?? null } }
+    // Resolve active project: validate cookie first, fall back to session JWT value
+    const cookieStore      = await cookies()
+    const cookieProjectId  = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? null
+    const sessionProjectId = session.user.currentProjectId ?? null
+    let currentProjectId: string | null = sessionProjectId
+    if (cookieProjectId) {
+      const isMember = session.user.isSuperAdmin
+        || await projectMembershipsRepository.isMember(userId, cookieProjectId)
+      if (isMember) currentProjectId = cookieProjectId
+    }
+
+    return { success: true, data: { projects: rows, currentProjectId } }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
@@ -157,11 +177,10 @@ export async function getProjectSettingsById(projectId: string): Promise<ActionR
     if (!session) throw new Error('UNAUTHORIZED')
     const userId = session.user.id
 
-    // Must be owner, superAdmin, or project admin member
-    const canAccess = session.user.isSuperAdmin
-      || (session.user.roles ?? []).includes(ROLE_ADMIN)
-      || await projectMembershipsRepository.isMemberWithRole(userId, projectId, 'admin')
-    if (!canAccess) return { success: false, error: 'Forbidden.' }
+    // Any project member can READ project settings (viewer included)
+    const isMember = session.user.isSuperAdmin
+      || await projectMembershipsRepository.isMember(userId, projectId)
+    if (!isMember) return { success: false, error: 'Forbidden.' }
 
     const [row] = await db
       .select({ name: project.name, description: project.description, defaultLocale: project.defaultLocale, ownerId: project.ownerId })
@@ -189,14 +208,8 @@ export async function updateProjectSettingsById(
   input: UpdateProjectInput,
 ): Promise<ActionResult<void>> {
   try {
-    const session = await auth()
-    if (!session) throw new Error('UNAUTHORIZED')
-    const userId = session.user.id
-
-    const canAccess = session.user.isSuperAdmin
-      || (session.user.roles ?? []).includes(ROLE_ADMIN)
-      || await projectMembershipsRepository.isMemberWithRole(userId, projectId, 'admin')
-    if (!canAccess) return { success: false, error: 'Forbidden.' }
+    const { requireSectionActions } = await import('@/lib/rbac/guard')
+    await requireSectionActions(projectId, 'project')
 
     await db
       .update(project)
@@ -211,23 +224,32 @@ export async function updateProjectSettingsById(
 
 export async function deleteUserProject(projectId: string): Promise<ActionResult<void>> {
   try {
-    const session = await requireSuperAdmin()
-    const userId  = session.user.id
+    const session = await auth()
+    if (!session) throw new Error('UNAUTHORIZED')
+    const userId = session.user.id
 
-    // 1. List all projects owned by this user
-    const ownedProjects = await db
-      .select({ id: project.id })
+    // Verify ownership — superAdmin can delete any project; others only their own
+    const [proj] = await db
+      .select({ ownerId: project.ownerId })
       .from(project)
-      .where(eq(project.ownerId, userId))
+      .where(eq(project.id, projectId))
+      .limit(1)
 
-    // Guard: cannot delete if it's the only project
-    if (ownedProjects.length <= 1) {
+    if (!proj) return { success: false, error: 'Project not found.' }
+
+    const isOwner = session.user.isSuperAdmin || proj.ownerId === userId
+    if (!isOwner) return { success: false, error: 'FORBIDDEN' }
+
+    // Get all user projects BEFORE deletion to find the next one to switch to
+    const userProjects = await projectMembershipsRepository.getUserProjects(userId)
+
+    // Guard: cannot delete if it's the user's only project
+    if (userProjects.length <= 1) {
       return { success: false, error: 'CANNOT_DELETE_LAST_PROJECT' }
     }
 
-    // Verify user owns this specific project
-    const isOwned = ownedProjects.some((p) => p.id === projectId)
-    if (!isOwned) return { success: false, error: 'Project not found.' }
+    // Find replacement project before deleting
+    const nextProjectId = userProjects.find((m) => m.projectId !== projectId)?.projectId ?? null
 
     // 2. Collect media files before cascade deletes them
     const mediaRows = await db
@@ -256,6 +278,12 @@ export async function deleteUserProject(projectId: string): Promise<ActionResult
         }
       }),
     )
+
+    // 6. Switch session to the replacement project (identified before deletion)
+    if (nextProjectId) {
+      const { updateSessionProject } = await import('@/lib/auth/session-utils')
+      await updateSessionProject(nextProjectId)
+    }
 
     revalidatePath('/cms', 'layout')
     return { success: true, data: undefined }
@@ -387,7 +415,26 @@ export async function updateStorageProvider(
   provider: 'r2' | 'blob',
 ): Promise<ActionResult<void>> {
   try {
-    const { session, projectId } = await requireStorageAccess()
+    const { session, projectId, isSuperAdmin } = await requireStorageAccess()
+
+    // Validate target provider has credentials — server-side guard (client validation can be bypassed)
+    if (provider === 'r2') {
+      const [ep, ak, sk, bn] = await Promise.all([
+        resolveStorageSetting('r2_endpoint',      process.env.R2_ENDPOINT,          projectId),
+        resolveStorageSetting('r2_access_key_id', process.env.R2_ACCESS_KEY_ID,     projectId),
+        resolveStorageSetting('r2_secret_key',    process.env.R2_SECRET_ACCESS_KEY, projectId),
+        resolveStorageSetting('r2_bucket_name',   process.env.R2_BUCKET_NAME,       projectId),
+      ])
+      if (!ep || !ak || !sk || !bn) {
+        return { success: false, error: 'R2 credentials are not configured. Set endpoint, access key, secret key, and bucket name first.' }
+      }
+    } else {
+      const token = await resolveStorageSetting('blob_token', process.env.BLOB_READ_WRITE_TOKEN, projectId)
+      if (!token) {
+        return { success: false, error: 'Blob token is not configured. Set BLOB_READ_WRITE_TOKEN first.' }
+      }
+    }
+
     await setSetting(`storage_provider:${projectId}`, provider, session.user.id)
     return { success: true, data: undefined }
   } catch (err) {
@@ -465,35 +512,63 @@ async function resolveEmailSetting(key: string, envFallback: string | undefined,
   )
 }
 
-/** Guard: superAdmin or project admin. Returns session + isSuperAdmin. */
+/** Guard: superAdmin, project admin, or any role with email canActions permission. */
 async function requireEmailAccess() {
   const session   = await auth()
   if (!session) throw new Error('UNAUTHORIZED')
   const projectId = await requireProjectId()
-  const canAccess = session.user.isSuperAdmin
+
+  const isAdmin = session.user.isSuperAdmin
     || (session.user.roles ?? []).includes(ROLE_ADMIN)
     || await projectMembershipsRepository.isMemberWithRole(session.user.id, projectId, 'admin')
-  if (!canAccess) throw new Error('FORBIDDEN')
+
+  if (!isAdmin) {
+    // Non-admin roles require explicit email canActions permission
+    const { requireSectionActions } = await import('@/lib/rbac/guard')
+    await requireSectionActions(projectId, 'email')
+  }
+
   return { session, projectId, isSuperAdmin: session.user.isSuperAdmin }
 }
 
+export type EmailProvider = 'resend' | 'ses'
+
 export async function getEmailSettings(): Promise<ActionResult<{
-  resendApiKey:    string   // full key for superAdmin, '' for admin
-  resendFromEmail: string
-  apiKeyIsSet:     boolean  // whether a key exists (shown to admin without revealing value)
+  resendApiKey:      string
+  resendFromEmail:   string
+  apiKeyIsSet:       boolean
+  sesAccessKeyId:    string
+  sesSecretKey:      string
+  sesFromEmail:      string
+  sesAccessKeyIsSet: boolean
+  sesSecretKeyIsSet: boolean
+  sesFromEmailIsSet: boolean
+  activeProvider:    EmailProvider
 }>> {
   try {
     const { projectId, isSuperAdmin } = await requireEmailAccess()
-    const [key, from] = await Promise.all([
-      resolveEmailSetting('resend_api_key',   process.env.RESEND_API_KEY,   projectId),
-      resolveEmailSetting('resend_from_email', process.env.RESEND_FROM_EMAIL, projectId),
+    const [rKey, rFrom, sesAk, sesSk, sesFr, provider, defaultProvider] = await Promise.all([
+      resolveEmailSetting('resend_api_key',       process.env.RESEND_API_KEY,             projectId),
+      resolveEmailSetting('resend_from_email',     process.env.RESEND_FROM_EMAIL,           projectId),
+      resolveEmailSetting('ses_access_key_id',     process.env.AWS_SES_ACCESS_KEY_ID,       projectId),
+      resolveEmailSetting('ses_secret_access_key', process.env.AWS_SES_SECRET_ACCESS_KEY,   projectId),
+      resolveEmailSetting('ses_from_email',        process.env.AWS_SES_FROM_EMAIL,          projectId),
+      getSetting(`email_provider:${projectId}`),
+      getSetting('default_email_provider'),
     ])
     return {
       success: true,
       data: {
-        resendApiKey:    isSuperAdmin ? (key ?? '') : '',
-        resendFromEmail: from ?? '',
-        apiKeyIsSet:     Boolean(key),
+        resendApiKey:      isSuperAdmin ? (rKey  ?? '') : '',
+        resendFromEmail:   rFrom ?? '',
+        apiKeyIsSet:       Boolean(rKey),
+        sesAccessKeyId:    isSuperAdmin ? (sesAk ?? '') : '',
+        sesSecretKey:      isSuperAdmin ? (sesSk ?? '') : '',
+        sesFromEmail:      isSuperAdmin ? (sesFr ?? '') : '',
+        sesAccessKeyIsSet: Boolean(sesAk),
+        sesSecretKeyIsSet: Boolean(sesSk),
+        sesFromEmailIsSet: Boolean(sesFr),
+        activeProvider:    (provider as EmailProvider) ?? (defaultProvider as EmailProvider) ?? 'resend',
       },
     }
   } catch (err) {
@@ -514,24 +589,209 @@ export async function updateEmailSettings(apiKey: string, fromEmail: string): Pr
   }
 }
 
-export async function testEmailConnection(): Promise<ActionResult<{ sent: boolean }>> {
+export async function updateSesSettings(
+  accessKeyId: string,
+  secretKey:   string,
+  fromEmail:   string,
+): Promise<ActionResult<void>> {
   try {
     const { session, projectId } = await requireEmailAccess()
-    const [apiKey, fromEmail] = await Promise.all([
-      resolveEmailSetting('resend_api_key',   process.env.RESEND_API_KEY,   projectId),
-      resolveEmailSetting('resend_from_email', process.env.RESEND_FROM_EMAIL, projectId),
+    await Promise.all([
+      accessKeyId ? setSetting(`ses_access_key_id:${projectId}`,     accessKeyId, session.user.id) : Promise.resolve(),
+      secretKey   ? setSetting(`ses_secret_access_key:${projectId}`, secretKey,   session.user.id) : Promise.resolve(),
+      fromEmail   ? setSetting(`ses_from_email:${projectId}`,        fromEmail,   session.user.id) : Promise.resolve(),
     ])
-    if (!apiKey)    return { success: false, error: 'No Resend API key configured.' }
-    if (!fromEmail) return { success: false, error: 'No From email address configured.' }
-    const resend = new Resend(apiKey)
-    const result = await resend.emails.send({
-      from:    fromEmail,
-      to:      session.user.email!,
-      subject: 'Cartum · Email test',
-      html:    '<p>Your email notification is working correctly.</p>',
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+// ── Default CMS-wide email provider (global, not project-scoped) ──────────────
+
+// ── Global default storage provider ───────────────────────────────────────────
+
+export type StorageProviderType = 'r2' | 'blob'
+
+export async function getDefaultStorageSettings(): Promise<ActionResult<{
+  defaultProvider:  StorageProviderType
+  r2Configured:     boolean
+  blobConfigured:   boolean
+}>> {
+  try {
+    const session = await auth()
+    if (!session?.user?.isSuperAdmin) throw new Error('UNAUTHORIZED')
+    const [provider, r2ep, blobTk] = await Promise.all([
+      getSetting('default_storage_provider'),
+      getSetting('r2_endpoint',   process.env.R2_ENDPOINT),
+      getSetting('blob_token',    process.env.BLOB_READ_WRITE_TOKEN),
+    ])
+    return {
+      success: true,
+      data: {
+        defaultProvider: (provider as StorageProviderType) ?? 'r2',
+        r2Configured:    Boolean(r2ep),
+        blobConfigured:  Boolean(blobTk),
+      },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function updateDefaultStorageProvider(provider: StorageProviderType): Promise<ActionResult<void>> {
+  try {
+    const session = await auth()
+    if (!session?.user?.isSuperAdmin) throw new Error('UNAUTHORIZED')
+    // Validate provider is configured globally
+    if (provider === 'r2') {
+      const ep = await getSetting('r2_endpoint', process.env.R2_ENDPOINT)
+      if (!ep) return { success: false, error: 'R2 is not configured globally.' }
+    } else {
+      const tk = await getSetting('blob_token', process.env.BLOB_READ_WRITE_TOKEN)
+      if (!tk) return { success: false, error: 'Blob token is not configured globally.' }
+    }
+    await setSetting('default_storage_provider', provider, session.user.id)
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function getDefaultEmailSettings(): Promise<ActionResult<{
+  defaultProvider:     EmailProvider
+  resendFromEmail:     string
+  resendFromEmailIsSet: boolean
+  sesFromEmail:        string
+  sesFromEmailIsSet:   boolean
+}>> {
+  try {
+    const session = await auth()
+    if (!session?.user?.isSuperAdmin) throw new Error('UNAUTHORIZED')
+    const [provider, resendFr, sesFr] = await Promise.all([
+      getSetting('default_email_provider'),
+      getSetting('resend_from_email', process.env.RESEND_FROM_EMAIL),
+      getSetting('ses_from_email',    process.env.AWS_SES_FROM_EMAIL),
+    ])
+    return {
+      success: true,
+      data: {
+        defaultProvider:      (provider as EmailProvider) ?? 'resend',
+        resendFromEmail:      resendFr ?? '',
+        resendFromEmailIsSet: Boolean(resendFr),
+        sesFromEmail:         sesFr ?? '',
+        sesFromEmailIsSet:    Boolean(sesFr),
+      },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function updateGlobalResendFromEmail(fromEmail: string): Promise<ActionResult<void>> {
+  try {
+    const session = await auth()
+    if (!session?.user?.isSuperAdmin) throw new Error('UNAUTHORIZED')
+    if (fromEmail) await setSetting('resend_from_email', fromEmail, session.user.id)
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function updateGlobalSesFromEmail(fromEmail: string): Promise<ActionResult<void>> {
+  try {
+    const session = await auth()
+    if (!session?.user?.isSuperAdmin) throw new Error('UNAUTHORIZED')
+    if (fromEmail) await setSetting('ses_from_email', fromEmail, session.user.id)
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function updateDefaultEmailProvider(provider: EmailProvider): Promise<ActionResult<void>> {
+  try {
+    const session = await auth()
+    if (!session?.user?.isSuperAdmin) throw new Error('UNAUTHORIZED')
+    await setSetting('default_email_provider', provider, session.user.id)
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function updateEmailProvider(provider: EmailProvider): Promise<ActionResult<void>> {
+  try {
+    const { session, projectId, isSuperAdmin } = await requireEmailAccess()
+    // Server-side: validate target provider has credentials before switching
+    // Super_admin: allowed if credentials exist (env or app_settings)
+    // Admin: must have project-specific credentials saved
+    const { checkProviderStatus } = await import('@/lib/email/mailer')
+    const status = await checkProviderStatus(provider, projectId)
+    if (!status.configured) {
+      return { success: false, error: status.error ?? `${provider} not configured.` }
+    }
+    await setSetting(`email_provider:${projectId}`, provider, session.user.id)
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function testEmailConnection(toEmail?: string): Promise<ActionResult<{ sent: boolean }>> {
+  try {
+    const { session, projectId } = await requireEmailAccess()
+    const { sendEmail } = await import('@/lib/email/mailer')
+    const result = await sendEmail({
+      to:        toEmail ?? session.user.email!,
+      subject:   'Cartum · Email test',
+      html:      '<p>Your email delivery is working correctly.</p>',
+      projectId,
     })
-    if (result.error) return { success: false, error: result.error.message }
+    if (!result.sent) return { success: false, error: result.error ?? 'Send failed.' }
     return { success: true, data: { sent: true } }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function testDefaultEmailConnection(
+  provider: EmailProvider,
+  toEmail:  string,
+): Promise<ActionResult<{ sent: boolean }>> {
+  try {
+    const session = await auth()
+    if (!session?.user?.isSuperAdmin) throw new Error('UNAUTHORIZED')
+    const { sendEmailViaProvider, checkProviderStatus } = await import('@/lib/email/mailer')
+
+    // Validate provider is configured before sending
+    const status = await checkProviderStatus(provider)
+    if (!status.configured) return { success: false, error: status.error ?? 'Provider not configured.' }
+
+    // Force the specific provider being tested (global keys, no project)
+    const testResult = await sendEmailViaProvider({
+      to:      toEmail,
+      subject: `Cartum · ${provider === 'ses' ? 'AWS SES' : 'Resend'} Email test`,
+      html:    `<p>Your <strong>${provider === 'ses' ? 'AWS SES' : 'Resend'}</strong> email delivery is working correctly.</p>`,
+    }, provider)
+    if (!testResult.sent) return { success: false, error: testResult.error ?? 'Send failed.' }
+    return { success: true, data: { sent: true } }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+export async function checkProviderConfiguration(provider: EmailProvider): Promise<ActionResult<{
+  configured: boolean
+  error?:     string
+}>> {
+  try {
+    const session = await auth()
+    if (!session?.user?.isSuperAdmin) throw new Error('UNAUTHORIZED')
+    const { checkProviderStatus } = await import('@/lib/email/mailer')
+    const status = await checkProviderStatus(provider)
+    return { success: true, data: status }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
@@ -641,6 +901,7 @@ export async function inviteUser(
       cmsUrl:      process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
       locale,
       projectName,
+      projectId,
     })
 
     return { success: true, data: sent ? {} : { tempPassword: rawPassword } }
@@ -862,17 +1123,29 @@ export interface NodePermissionRow {
 export async function listRolesWithCount(): Promise<ActionResult<RoleWithCount[]>> {
   try {
     await requireAdmin()
+    const projectId = await requireProjectId().catch(() => null)
+
+    // Built-in roles always visible; custom roles only if registered for this project
+    const { getProjectCustomRoleIds } = await import('@/lib/actions/roles.actions')
+    const customIds = projectId ? new Set(await getProjectCustomRoleIds(projectId)) : new Set<string>()
+
     const allRoles = await db.select().from(roles)
-    const allUsersRoles = await db.select().from(usersRoles)
+    const memberships = projectId
+      ? await db.select().from(projectMemberships).where(eq(projectMemberships.projectId, projectId))
+      : []
 
     const countMap = new Map<string, number>()
-    for (const ur of allUsersRoles) {
-      countMap.set(ur.roleId, (countMap.get(ur.roleId) ?? 0) + 1)
+    for (const m of memberships) {
+      countMap.set(m.roleId, (countMap.get(m.roleId) ?? 0) + 1)
     }
+
+    const filtered = allRoles.filter((r) =>
+      (BUILT_IN_ROLE_NAMES as readonly string[]).includes(r.name) || customIds.has(r.id)
+    )
 
     return {
       success: true,
-      data: allRoles.map((r) => ({
+      data: filtered.map((r) => ({
         id:          r.id,
         name:        r.name,
         description: r.description ?? null,
@@ -1120,17 +1393,19 @@ export async function updateWebMigrationSettings(
 type EnvVar = { value: string; isOverridden: boolean }
 
 export interface EnvSettings {
-  r2Endpoint:      EnvVar
-  r2AccessKeyId:   EnvVar
-  r2SecretKey:     EnvVar
-  r2BucketName:    EnvVar
-  r2PublicUrl:     EnvVar
-  blobToken:       EnvVar
-  resendApiKey:    EnvVar
-  resendFromEmail: EnvVar
-  scraperApiUrl:   EnvVar
-  scraperApiKey:   EnvVar
-  cartumNewPlayer: EnvVar
+  r2Endpoint:         EnvVar
+  r2AccessKeyId:      EnvVar
+  r2SecretKey:        EnvVar
+  r2BucketName:       EnvVar
+  r2PublicUrl:        EnvVar
+  blobToken:          EnvVar
+  resendApiKey:       EnvVar
+  resendFromEmail:    EnvVar
+  sesAccessKeyId:     EnvVar
+  sesSecretAccessKey: EnvVar
+  scraperApiUrl:      EnvVar
+  scraperApiKey:      EnvVar
+  cartumNewPlayer:    EnvVar
   // Read-only from env — shown masked, not editable
   authUrl:         string
   dbProvider:      string
@@ -1159,33 +1434,37 @@ async function readEnvVar(key: string, envVal: string | undefined): Promise<EnvV
 export async function getEnvSettings(): Promise<ActionResult<EnvSettings>> {
   try {
     await requireSuperAdmin()
-    const [r2Ep, r2Ak, r2Sk, r2Bn, r2Pu, blob, rKey, rFrom, scUrl, scKey, player] = await Promise.all([
-      readEnvVar('r2_endpoint',      process.env.R2_ENDPOINT),
-      readEnvVar('r2_access_key_id', process.env.R2_ACCESS_KEY_ID),
-      readEnvVar('r2_secret_key',    process.env.R2_SECRET_ACCESS_KEY),
-      readEnvVar('r2_bucket_name',   process.env.R2_BUCKET_NAME),
-      readEnvVar('r2_public_url',    process.env.R2_PUBLIC_URL),
-      readEnvVar('blob_token',       process.env.BLOB_READ_WRITE_TOKEN),
-      readEnvVar('resend_api_key',   process.env.RESEND_API_KEY),
-      readEnvVar('resend_from_email',process.env.RESEND_FROM_EMAIL),
-      readEnvVar('scraper_api_url',  process.env.SCRAPER_API_URL),
-      readEnvVar('scraper_api_key',  process.env.SCRAPER_API_KEY),
-      readEnvVar('cartum_new_player',process.env.CARTUM_NEW_PLAYER),
+    const [r2Ep, r2Ak, r2Sk, r2Bn, r2Pu, blob, rKey, rFrom, sesAk, sesSk, scUrl, scKey, player] = await Promise.all([
+      readEnvVar('r2_endpoint',          process.env.R2_ENDPOINT),
+      readEnvVar('r2_access_key_id',     process.env.R2_ACCESS_KEY_ID),
+      readEnvVar('r2_secret_key',        process.env.R2_SECRET_ACCESS_KEY),
+      readEnvVar('r2_bucket_name',       process.env.R2_BUCKET_NAME),
+      readEnvVar('r2_public_url',        process.env.R2_PUBLIC_URL),
+      readEnvVar('blob_token',           process.env.BLOB_READ_WRITE_TOKEN),
+      readEnvVar('resend_api_key',       process.env.RESEND_API_KEY),
+      readEnvVar('resend_from_email',    process.env.RESEND_FROM_EMAIL),
+      readEnvVar('ses_access_key_id',    process.env.AWS_SES_ACCESS_KEY_ID),
+      readEnvVar('ses_secret_access_key',process.env.AWS_SES_SECRET_ACCESS_KEY),
+      readEnvVar('scraper_api_url',      process.env.SCRAPER_API_URL),
+      readEnvVar('scraper_api_key',      process.env.SCRAPER_API_KEY),
+      readEnvVar('cartum_new_player',    process.env.CARTUM_NEW_PLAYER),
     ])
     return {
       success: true,
       data: {
-        r2Endpoint:      r2Ep,
-        r2AccessKeyId:   r2Ak,
-        r2SecretKey:     r2Sk,
-        r2BucketName:    r2Bn,
-        r2PublicUrl:     r2Pu,
-        blobToken:       blob,
-        resendApiKey:    rKey,
-        resendFromEmail: rFrom,
-        scraperApiUrl:   scUrl,
-        scraperApiKey:   scKey,
-        cartumNewPlayer: player,
+        r2Endpoint:         r2Ep,
+        r2AccessKeyId:      r2Ak,
+        r2SecretKey:        r2Sk,
+        r2BucketName:       r2Bn,
+        r2PublicUrl:        r2Pu,
+        blobToken:          blob,
+        resendApiKey:       rKey,
+        resendFromEmail:    rFrom,
+        sesAccessKeyId:     sesAk,
+        sesSecretAccessKey: sesSk,
+        scraperApiUrl:      scUrl,
+        scraperApiKey:      scKey,
+        cartumNewPlayer:    player,
         authUrl:         process.env.AUTH_URL ?? '',
         dbProvider:      process.env.DB_PROVIDER ?? '',
         databaseUrl:     maskDbUrl(process.env.DATABASE_URL),
@@ -1202,8 +1481,9 @@ export async function updateEnvVar(key: string, value: string): Promise<ActionRe
     // Safety: only allowed keys can be written this way
     const ALLOWED = new Set([
       'r2_endpoint','r2_access_key_id','r2_secret_key','r2_bucket_name','r2_public_url',
-      'blob_token','resend_api_key','resend_from_email','scraper_api_url','scraper_api_key',
-      'cartum_new_player',
+      'blob_token','resend_api_key','resend_from_email',
+      'ses_access_key_id','ses_secret_access_key','ses_from_email',
+      'scraper_api_url','scraper_api_key','cartum_new_player',
     ])
     if (!ALLOWED.has(key)) return { success: false, error: 'Invalid key.' }
     await setSetting(key, value || undefined, session.user.id)
@@ -1218,8 +1498,9 @@ export async function clearAllEnvVars(): Promise<ActionResult<void>> {
     const session = await requireSuperAdmin()
     const KEYS = [
       'r2_endpoint','r2_access_key_id','r2_secret_key','r2_bucket_name','r2_public_url',
-      'blob_token','resend_api_key','resend_from_email','scraper_api_url','scraper_api_key',
-      'cartum_new_player',
+      'blob_token','resend_api_key','resend_from_email',
+      'ses_access_key_id','ses_secret_access_key','ses_from_email',
+      'scraper_api_url','scraper_api_key','cartum_new_player',
     ]
     await Promise.all(KEYS.map((k) => setSetting(k, undefined, session.user.id)))
     return { success: true, data: undefined }
@@ -1233,8 +1514,9 @@ export async function clearEnvVar(key: string): Promise<ActionResult<void>> {
     const session = await requireSuperAdmin()
     const ALLOWED = new Set([
       'r2_endpoint','r2_access_key_id','r2_secret_key','r2_bucket_name','r2_public_url',
-      'blob_token','resend_api_key','resend_from_email','scraper_api_url','scraper_api_key',
-      'cartum_new_player',
+      'blob_token','resend_api_key','resend_from_email',
+      'ses_access_key_id','ses_secret_access_key','ses_from_email',
+      'scraper_api_url','scraper_api_key','cartum_new_player',
     ])
     if (!ALLOWED.has(key)) return { success: false, error: 'Invalid key.' }
     await setSetting(key, undefined, session.user.id)

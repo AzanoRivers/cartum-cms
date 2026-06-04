@@ -39,7 +39,7 @@ export default async function NestedBoardPage({ params }: Props) {
   const [permsResult, nodes, breadcrumb, connections] = await Promise.all([
     session.user.isSuperAdmin
       ? Promise.resolve(null)
-      : rolesService.resolvePermissions(session.user.id, currentId),
+      : rolesService.resolvePermissions(session.user.id, currentId, projectId),
     nodeService.getBoard(currentId, projectId),
     nodeService.getBreadcrumb(currentId),
     connectionsService.getForBoard(currentId, projectId),

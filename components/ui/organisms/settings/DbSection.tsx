@@ -13,9 +13,10 @@ export type DbSectionProps = {
   d:            Dictionary['settings']['db']
   isSuperAdmin: boolean
   isAdmin:      boolean
+  canActions?:  boolean
 }
 
-export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
+export function DbSection({ d, isSuperAdmin, isAdmin, canActions = true }: DbSectionProps) {
   const setGlobalLoading = useUIStore((s) => s.setGlobalLoading)
 
   const [isExporting,       startExport]       = useTransition()
@@ -30,6 +31,7 @@ export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
 
   // ── Export ──────────────────────────────────────────────────────────────────
   function handleExport() {
+    if (!canActions) return
     startExport(async () => {
       const res = await exportDatabaseAction()
       if (!res.success) {
@@ -47,6 +49,7 @@ export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
   }
 
   function handleExportWithMedia() {
+    if (!canActions) return
     startExportMedia(async () => {
       // 1. Fetch backup JSON via Server Action (only DB query hits Vercel)
       const res = await exportDatabaseAction()
@@ -91,6 +94,7 @@ export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
 
   // ── Import ──────────────────────────────────────────────────────────────────
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!canActions) return
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
@@ -116,6 +120,7 @@ export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
 
   // ── Reset ───────────────────────────────────────────────────────────────────
   function handleResetConfirm() {
+    if (!canActions) return
     setShowResetDialog(false)
     setGlobalLoading(true)
     startReset(async () => {
@@ -152,6 +157,7 @@ export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
 
   // ── Purge images ────────────────────────────────────────────────────────────
   function handlePurgeImagesConfirm() {
+    if (!canActions) return
     setShowPurgeImagesDialog(false)
     startPurgeImages(async () => {
       const res = await purgeAllImagesAction()
@@ -201,8 +207,8 @@ export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
           <button
             type="button"
             onClick={handleExport}
-            disabled={isExporting || isExportingMedia}
-            className="inline-flex items-center gap-2 min-h-8 rounded-md bg-primary/10 border border-primary/30 px-4 py-1.5 font-mono text-xs text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors cursor-pointer"
+            disabled={isExporting || isExportingMedia || !canActions}
+            className="inline-flex items-center gap-2 min-h-8 rounded-md bg-primary/10 border border-primary/30 px-4 py-1.5 font-mono text-xs text-primary hover:bg-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             {isExporting ? (
               <Spinner size="sm" color="primary" />
@@ -215,8 +221,8 @@ export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
           <button
             type="button"
             onClick={handleExportWithMedia}
-            disabled={isExporting || isExportingMedia}
-            className="inline-flex items-center gap-2 min-h-8 rounded-md bg-accent/10 border border-accent/30 px-4 py-1.5 font-mono text-xs text-accent hover:bg-accent/20 disabled:opacity-50 transition-colors cursor-pointer"
+            disabled={isExporting || isExportingMedia || !canActions}
+            className="inline-flex items-center gap-2 min-h-8 rounded-md bg-accent/10 border border-accent/30 px-4 py-1.5 font-mono text-xs text-accent hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
             title={d.exportWithMediaNote}
           >
             {isExportingMedia ? (
@@ -258,12 +264,13 @@ export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
           className="sr-only"
           onChange={handleFileChange}
           aria-label={d.importButton}
+          disabled={isImporting || !canActions}
         />
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={isImporting}
-          className="inline-flex items-center gap-2 min-h-8 rounded-md border border-border px-4 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 disabled:opacity-50 transition-colors cursor-pointer"
+          disabled={isImporting || !canActions}
+          className="inline-flex items-center gap-2 min-h-8 rounded-md border border-border px-4 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           {isImporting ? (
             <Spinner size="sm" color="muted" />
@@ -291,8 +298,8 @@ export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
           <button
             type="button"
             onClick={() => setShowPurgeImagesDialog(true)}
-            disabled={isPurgingImages}
-            className="inline-flex items-center gap-2 min-h-8 rounded-md bg-warning/10 border border-warning/30 px-4 py-1.5 font-mono text-xs text-warning hover:bg-warning/20 disabled:opacity-50 transition-colors cursor-pointer"
+            disabled={isPurgingImages || !canActions}
+            className="inline-flex items-center gap-2 min-h-8 rounded-md bg-warning/10 border border-warning/30 px-4 py-1.5 font-mono text-xs text-warning hover:bg-warning/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             {isPurgingImages ? (
               <Spinner size="sm" color="muted" />
@@ -321,8 +328,8 @@ export function DbSection({ d, isSuperAdmin, isAdmin }: DbSectionProps) {
         <button
           type="button"
           onClick={() => setShowResetDialog(true)}
-          disabled={isResetting}
-          className="inline-flex items-center gap-2 min-h-8 rounded-md bg-danger/10 border border-danger/30 px-4 py-1.5 font-mono text-xs text-danger hover:bg-danger/20 disabled:opacity-50 transition-colors cursor-pointer"
+          disabled={isResetting || !canActions}
+          className="inline-flex items-center gap-2 min-h-8 rounded-md bg-danger/10 border border-danger/30 px-4 py-1.5 font-mono text-xs text-danger hover:bg-danger/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           <Trash2 size={12} strokeWidth={2} />
           {d.dangerButton}

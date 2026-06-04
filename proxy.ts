@@ -2,7 +2,7 @@ import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { ROLE_RESTRICTED } from '@/types/roles'
-import { SWITCH_COOKIE } from '@/lib/auth/constants'
+import { SWITCH_COOKIE, ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -53,7 +53,11 @@ export async function proxy(req: NextRequest) {
   if (setupComplete && isCMSRoute) {
     const session = await auth()
     if (!session) {
-      return NextResponse.redirect(new URL('/login', req.url))
+      // Session expired or invalid — clear project cookies before redirecting
+      const res = NextResponse.redirect(new URL('/login', req.url))
+      res.cookies.delete(ACTIVE_PROJECT_COOKIE)
+      res.cookies.delete(SWITCH_COOKIE)
+      return res
     }
     // Safety net: block sessions where the user only has the 'restricted' role
     // (primary block is in auth.ts authorize(); this catches role changes after login)
@@ -67,7 +71,10 @@ export async function proxy(req: NextRequest) {
       const url = req.nextUrl.clone()
       url.pathname = '/login'
       url.searchParams.set('error', 'disabled')
-      return NextResponse.redirect(url)
+      const res = NextResponse.redirect(url)
+      res.cookies.delete(ACTIVE_PROJECT_COOKIE)
+      res.cookies.delete(SWITCH_COOKIE)
+      return res
     }
   }
 

@@ -94,14 +94,19 @@ function buildZipFilename(count: number): string {
   return `${prefix}_media_${count}.zip`
 }
 
+import type { GalleryPermissions } from '@/types/roles'
+
 export type MediaGalleryPageProps = {
   d:                CmsDictionary
   activeProvider?:  'r2' | 'blob'
   vpsConfigured?:   boolean
   storageSummary?:  MediaStorageSummary
+  canUpload?:       boolean
+  canDelete?:       boolean
+  galleryPerms?:    GalleryPermissions
 }
 
-export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = false, storageSummary: initialSummary }: MediaGalleryPageProps) {
+export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = false, storageSummary: initialSummary, canUpload = true, canDelete = true, galleryPerms }: MediaGalleryPageProps) {
   const g = d.content.mediaGallery
   const [storageSummary, setStorageSummary] = useState(initialSummary)
 
@@ -280,14 +285,16 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowUpload((v) => !v)}
-          className="group flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-mono text-xs font-semibold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-px active:translate-y-0 active:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 md:px-5 md:py-2.5 md:text-sm"
-        >
-          <Upload size={14} className="shrink-0 md:w-4 md:h-4" />
-          {g.uploadBtn}
-        </button>
+        {canUpload && (
+          <button
+            type="button"
+            onClick={() => setShowUpload((v) => !v)}
+            className="group flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-mono text-xs font-semibold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-px active:translate-y-0 active:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 md:px-5 md:py-2.5 md:text-sm"
+          >
+            <Upload size={14} className="shrink-0 md:w-4 md:h-4" />
+            {g.uploadBtn}
+          </button>
+        )}
       </div>
 
       {/* Upload modal */}
@@ -461,17 +468,27 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
         labels={bulkDeleteLabels}
       />
 
+      {/* No-upload banner — shown above the gallery for viewers */}
+      {!canUpload && (
+        <div className="flex items-center gap-3 rounded-lg border border-warning/40 bg-warning/8 px-4 py-3">
+          <div className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full border border-warning/40 bg-warning/15">
+            <Upload size={14} className="text-warning" strokeWidth={2} />
+          </div>
+          <p className="font-mono text-xs text-warning/90">{g.noUploadAccess}</p>
+        </div>
+      )}
+
       {/* Grid + bottom pagination wrapped in VHSTransition, re-fires on tab change */}
       <VHSTransition trigger={filter} duration="normal">
-        {/* Grid drop zone wrapper with drag overlay */}
+        {/* Grid drop zone wrapper with drag overlay — disabled for viewers */}
         <div
           className="relative"
-          onDragEnter={handleGridDragEnter}
-          onDragOver={handleGridDragOver}
-          onDragLeave={handleGridDragLeave}
-          onDrop={handleGridDrop}
+          onDragEnter={canUpload ? handleGridDragEnter : undefined}
+          onDragOver={canUpload ? handleGridDragOver : undefined}
+          onDragLeave={canUpload ? handleGridDragLeave : undefined}
+          onDrop={canUpload ? handleGridDrop : undefined}
         >
-          {gridDragging && (
+          {canUpload && gridDragging && (
             <div className="pointer-events-none absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-primary bg-surface/80 backdrop-blur-sm">
               <div className="flex flex-col items-center gap-3">
                 <div className="rounded-full bg-primary/15 p-4 ring-1 ring-primary/30">
@@ -485,13 +502,13 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
           assets={assets}
           loading={loading}
           onSelect={(asset) => { if (!selectionMode) setPreviewAsset(asset) }}
-          onDelete={handleDelete}
+          onDelete={canDelete ? handleDelete : undefined}
           emptyLabel={emptyLabel}
           confirmDeleteLabel={g.confirmDelete}
           selectedIds={selectedIds}
           selectionMode={selectionMode}
           onToggleSelect={toggleSelect}
-          uploadProps={{
+          uploadProps={canUpload ? {
             queue,
             dragging,
             onFiles:        (files) => addFilesToQueue(files, g.videoSizeError),
@@ -530,8 +547,9 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
             videoUploadWarning:  g.videoUploadWarning,
             imageUploadWarning:  g.imageUploadWarning,
             finalizingSoonLabel: g.finalizingSoonLabel,
-          }}
+          } : undefined}
           />
+
         </div>
 
         {/* Pagination — bottom */}

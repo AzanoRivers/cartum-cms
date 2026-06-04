@@ -1,4 +1,4 @@
-import type { Dictionary } from '@/locales/en'
+﻿import type { Dictionary } from '@/locales/en'
 
 export type VerifyEmailStrings = Dictionary['email']['verifyEmail'] & { poweredBy: string }
 
@@ -18,8 +18,8 @@ export function verifyEmailHtml({ code, baseUrl, strings }: VerifyEmailTemplateI
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${strings.heading}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0a0a0f;padding:48px 16px;">
+<body style="margin:0;padding:0;background-color:#1f2d42;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#1f2d42;padding:48px 16px;">
     <tr>
       <td align="center">
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;">
@@ -32,14 +32,14 @@ export function verifyEmailHtml({ code, baseUrl, strings }: VerifyEmailTemplateI
                   <td valign="middle" style="padding-right:10px;">
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
-                        <td align="center" style="width:36px;height:36px;background-color:#6366f130;border-radius:50%;line-height:0;">
+                        <td align="center" style="width:36px;height:36px;background-color:#818cf830;border-radius:50%;line-height:0;">
                           <img src="${baseUrl}/images/brand/icon.png" width="28" height="28" alt="Cartum" style="display:block;margin:4px auto;" />
                         </td>
                       </tr>
                     </table>
                   </td>
                   <td valign="middle">
-                    <span style="font-family:'Courier New',Courier,monospace;font-size:14px;font-weight:700;color:#e2e8f0;letter-spacing:0.3em;text-transform:uppercase;">CARTUM</span>
+                    <span style="font-family:'Courier New',Courier,monospace;font-size:14px;font-weight:700;color:#dce8f5;letter-spacing:0.3em;text-transform:uppercase;">CARTUM</span>
                   </td>
                 </tr>
               </table>
@@ -48,7 +48,7 @@ export function verifyEmailHtml({ code, baseUrl, strings }: VerifyEmailTemplateI
 
           <!-- Card -->
           <tr>
-            <td style="background-color:#111118;border:1px solid #2a2a38;border-radius:12px;padding:40px 36px;">
+            <td style="background-color:#273652;border:1px solid #3d5270;border-radius:12px;padding:40px 36px;">
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
 
                 <!-- Card icon -->
@@ -56,7 +56,7 @@ export function verifyEmailHtml({ code, baseUrl, strings }: VerifyEmailTemplateI
                   <td align="center" style="padding-bottom:24px;">
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
-                        <td align="center" style="width:56px;height:56px;background-color:#6366f115;border:1px solid #6366f130;border-radius:14px;line-height:0;">
+                        <td align="center" style="width:56px;height:56px;background-color:#818cf815;border:1px solid #818cf830;border-radius:14px;line-height:0;">
                           <img src="${baseUrl}/images/brand/icon.png" width="36" height="36" alt="Cartum" style="display:block;margin:10px auto;" />
                         </td>
                       </tr>
@@ -67,7 +67,7 @@ export function verifyEmailHtml({ code, baseUrl, strings }: VerifyEmailTemplateI
                 <!-- Heading -->
                 <tr>
                   <td style="padding-bottom:8px;">
-                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#e2e8f0;letter-spacing:-0.02em;line-height:1.3;">
+                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#dce8f5;letter-spacing:-0.02em;line-height:1.3;">
                       ${strings.heading}
                     </h1>
                   </td>
@@ -76,7 +76,7 @@ export function verifyEmailHtml({ code, baseUrl, strings }: VerifyEmailTemplateI
                 <!-- Intro -->
                 <tr>
                   <td style="padding-bottom:32px;">
-                    <p style="margin:0;font-size:14px;color:#64748b;line-height:1.7;">
+                    <p style="margin:0;font-size:14px;color:#6d8fa8;line-height:1.7;">
                       ${strings.intro}
                     </p>
                   </td>
@@ -89,7 +89,7 @@ export function verifyEmailHtml({ code, baseUrl, strings }: VerifyEmailTemplateI
                       <tr>
                         ${digits.map((d) => `
                         <td style="padding:0 6px;">
-                          <div style="width:52px;height:64px;background-color:#0a0a0f;border:1px solid #6366f1;border-radius:10px;text-align:center;line-height:64px;font-family:'Courier New',Courier,monospace;font-size:28px;font-weight:700;color:#6366f1;letter-spacing:0;">
+                          <div style="width:52px;height:64px;background-color:#1f2d42;border:1px solid #818cf8;border-radius:10px;text-align:center;line-height:64px;font-family:'Courier New',Courier,monospace;font-size:28px;font-weight:700;color:#818cf8;letter-spacing:0;">
                             ${d}
                           </div>
                         </td>`).join('')}
@@ -102,7 +102,7 @@ export function verifyEmailHtml({ code, baseUrl, strings }: VerifyEmailTemplateI
                 <tr>
                   <td style="padding-bottom:24px;">
                     <table width="100%" cellpadding="0" cellspacing="0" border="0"
-                           style="background-color:#6366f110;border:1px solid #6366f130;border-radius:8px;">
+                           style="background-color:#818cf810;border:1px solid #818cf830;border-radius:8px;">
                       <tr>
                         <td style="padding:12px 16px;">
                           <p style="margin:0;font-size:13px;color:#a5b4fc;line-height:1.6;">
@@ -117,14 +117,14 @@ export function verifyEmailHtml({ code, baseUrl, strings }: VerifyEmailTemplateI
                 <!-- Divider -->
                 <tr>
                   <td style="padding-bottom:20px;">
-                    <div style="height:1px;background-color:#2a2a38;"></div>
+                    <div style="height:1px;background-color:#3d5270;"></div>
                   </td>
                 </tr>
 
                 <!-- Ignore notice -->
                 <tr>
                   <td>
-                    <p style="margin:0;font-size:12px;color:#64748b;line-height:1.6;">
+                    <p style="margin:0;font-size:12px;color:#6d8fa8;line-height:1.6;">
                       ${strings.ignore}
                     </p>
                   </td>
@@ -137,11 +137,11 @@ export function verifyEmailHtml({ code, baseUrl, strings }: VerifyEmailTemplateI
           <!-- Footer -->
           <tr>
             <td align="center" style="padding-top:28px;">
-              <p style="margin:0;font-size:12px;color:#2a2a38;">
+              <p style="margin:0;font-size:12px;color:#3d5270;">
                 ${strings.poweredBy}&nbsp;
-                <a href="https://azanorivers.com" style="color:#22d3ee;text-decoration:none;">AzanoRivers</a>
-                <span style="color:#2a2a38;margin:0 6px;">&#xB7;</span>
-                <a href="https://azanolabs.com" style="color:#6366f1;text-decoration:none;">AzanoLabs</a>
+                <a href="https://azanorivers.com" style="color:#38bdf8;text-decoration:none;">AzanoRivers</a>
+                <span style="color:#3d5270;margin:0 6px;">&#xB7;</span>
+                <a href="https://azanolabs.com" style="color:#818cf8;text-decoration:none;">AzanoLabs</a>
               </p>
             </td>
           </tr>

@@ -1,4 +1,4 @@
-import type { Dictionary } from '@/locales/en'
+﻿import type { Dictionary } from '@/locales/en'
 
 export type ResetPasswordStrings = Dictionary['email']['reset'] & { poweredBy: string }
 
@@ -16,8 +16,8 @@ export function resetPasswordHtml({ resetUrl, baseUrl, strings }: ResetPasswordT
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${strings.subject}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0a0a0f;padding:48px 16px;">
+<body style="margin:0;padding:0;background-color:#1f2d42;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#1f2d42;padding:48px 16px;">
     <tr>
       <td align="center">
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
@@ -31,7 +31,7 @@ export function resetPasswordHtml({ resetUrl, baseUrl, strings }: ResetPasswordT
                   <td valign="middle" style="padding-right:10px;">
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
-                        <td align="center" style="width:36px;height:36px;background-color:#6366f130;border-radius:50%;line-height:0;">
+                        <td align="center" style="width:36px;height:36px;background-color:#818cf830;border-radius:50%;line-height:0;">
                           <img src="${baseUrl}/images/brand/icon.png" width="28" height="28" alt="Cartum" style="display:block;margin:4px auto;" />
                         </td>
                       </tr>
@@ -39,7 +39,7 @@ export function resetPasswordHtml({ resetUrl, baseUrl, strings }: ResetPasswordT
                   </td>
                   <!-- CARTUM wordmark -->
                   <td valign="middle">
-                    <span style="font-family:'Courier New',Courier,monospace;font-size:14px;font-weight:700;color:#e2e8f0;letter-spacing:0.3em;text-transform:uppercase;">CARTUM</span>
+                    <span style="font-family:'Courier New',Courier,monospace;font-size:14px;font-weight:700;color:#dce8f5;letter-spacing:0.3em;text-transform:uppercase;">CARTUM</span>
                   </td>
                 </tr>
               </table>
@@ -48,7 +48,7 @@ export function resetPasswordHtml({ resetUrl, baseUrl, strings }: ResetPasswordT
 
           <!-- Card -->
           <tr>
-            <td style="background-color:#111118;border:1px solid #2a2a38;border-radius:12px;padding:40px 36px;">
+            <td style="background-color:#273652;border:1px solid #3d5270;border-radius:12px;padding:40px 36px;">
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
 
                 <!-- Card icon -->
@@ -56,7 +56,7 @@ export function resetPasswordHtml({ resetUrl, baseUrl, strings }: ResetPasswordT
                   <td align="center" style="padding-bottom:24px;">
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
-                        <td align="center" style="width:56px;height:56px;background-color:#6366f115;border:1px solid #6366f130;border-radius:14px;line-height:0;">
+                        <td align="center" style="width:56px;height:56px;background-color:#818cf815;border:1px solid #818cf830;border-radius:14px;line-height:0;">
                           <img src="${baseUrl}/images/brand/icon.png" width="36" height="36" alt="Cartum" style="display:block;margin:10px auto;" />
                         </td>
                       </tr>
@@ -67,7 +67,7 @@ export function resetPasswordHtml({ resetUrl, baseUrl, strings }: ResetPasswordT
                 <!-- Heading -->
                 <tr>
                   <td style="padding-bottom:12px;">
-                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#e2e8f0;letter-spacing:-0.02em;line-height:1.3;">
+                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#dce8f5;letter-spacing:-0.02em;line-height:1.3;">
                       ${strings.heading}
                     </h1>
                   </td>
@@ -76,7 +76,7 @@ export function resetPasswordHtml({ resetUrl, baseUrl, strings }: ResetPasswordT
                 <!-- Body -->
                 <tr>
                   <td style="padding-bottom:32px;">
-                    <p style="margin:0;font-size:14px;color:#64748b;line-height:1.7;">
+                    <p style="margin:0;font-size:14px;color:#6d8fa8;line-height:1.7;">
                       ${strings.intro}
                     </p>
                   </td>
@@ -86,7 +86,7 @@ export function resetPasswordHtml({ resetUrl, baseUrl, strings }: ResetPasswordT
                 <tr>
                   <td align="center" style="padding-bottom:32px;">
                     <a href="${resetUrl}"
-                       style="display:inline-block;background-color:#6366f1;color:#ffffff;font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:700;letter-spacing:0.08em;text-decoration:none;padding:14px 36px;border-radius:8px;border:1px solid #818cf8;">
+                       style="display:inline-block;background-color:#818cf8;color:#ffffff;font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:700;letter-spacing:0.08em;text-decoration:none;padding:14px 36px;border-radius:8px;border:1px solid #818cf8;">
                       ${strings.cta} &nbsp;&rarr;
                     </a>
                   </td>
@@ -95,21 +95,21 @@ export function resetPasswordHtml({ resetUrl, baseUrl, strings }: ResetPasswordT
                 <!-- Divider -->
                 <tr>
                   <td style="padding-bottom:24px;">
-                    <div style="height:1px;background-color:#2a2a38;"></div>
+                    <div style="height:1px;background-color:#3d5270;"></div>
                   </td>
                 </tr>
 
                 <!-- Fallback URL -->
                 <tr>
                   <td style="padding-bottom:10px;">
-                    <p style="margin:0;font-size:12px;color:#64748b;">
+                    <p style="margin:0;font-size:12px;color:#6d8fa8;">
                       ${strings.urlFallback}
                     </p>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding-bottom:24px;">
-                    <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;color:#22d3ee;word-break:break-all;background-color:#0a0a0f;border:1px solid #2a2a38;border-radius:6px;padding:10px 14px;line-height:1.6;">
+                    <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;color:#38bdf8;word-break:break-all;background-color:#1f2d42;border:1px solid #3d5270;border-radius:6px;padding:10px 14px;line-height:1.6;">
                       ${resetUrl}
                     </p>
                   </td>
@@ -118,7 +118,7 @@ export function resetPasswordHtml({ resetUrl, baseUrl, strings }: ResetPasswordT
                 <!-- Security note -->
                 <tr>
                   <td>
-                    <p style="margin:0;font-size:12px;color:#64748b;line-height:1.6;">
+                    <p style="margin:0;font-size:12px;color:#6d8fa8;line-height:1.6;">
                       ${strings.ignore}
                     </p>
                   </td>
@@ -131,11 +131,11 @@ export function resetPasswordHtml({ resetUrl, baseUrl, strings }: ResetPasswordT
           <!-- Footer -->
           <tr>
             <td align="center" style="padding-top:28px;">
-              <p style="margin:0;font-size:12px;color:#2a2a38;">
+              <p style="margin:0;font-size:12px;color:#3d5270;">
                 ${strings.poweredBy}&nbsp;
-                <a href="https://azanorivers.com" style="color:#22d3ee;text-decoration:none;">AzanoRivers</a>
-                <span style="color:#2a2a38;margin:0 6px;">&#xB7;</span>
-                <a href="https://azanolabs.com" style="color:#6366f1;text-decoration:none;">AzanoLabs</a>
+                <a href="https://azanorivers.com" style="color:#38bdf8;text-decoration:none;">AzanoRivers</a>
+                <span style="color:#3d5270;margin:0 6px;">&#xB7;</span>
+                <a href="https://azanolabs.com" style="color:#818cf8;text-decoration:none;">AzanoLabs</a>
               </p>
             </td>
           </tr>

@@ -59,7 +59,10 @@ export function useKeyboardShortcuts() {
           if (e.key === 'h' || e.key === 'H') { router.push('/cms/board');   return }
           if (e.key === 's' || e.key === 'S') { router.push('/cms/board');   return }
           if (e.key === 'c' || e.key === 'C') { router.push('/cms/content'); return }
-          if (e.key === 'n' || e.key === 'N') { openCreationPanel();      return }
+          if (e.key === 'n' || e.key === 'N') {
+            if (useUIStore.getState().schemaPermissions.canCreate) openCreationPanel()
+            return
+          }
           if (e.key === ',')                  { openSettings('project'); return }
           if (e.key === '?')                  { openHelp();              return }
         }

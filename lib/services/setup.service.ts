@@ -67,7 +67,7 @@ export async function createProjectService(input: CreateProjectInput): Promise<v
 
 const SECTIONS = [
   'project', 'appearance', 'account', 'email', 'storage',
-  'members', 'users', 'roles', 'api', 'db', 'info',
+  'members', 'users', 'roles', 'api', 'db', 'webMigration', 'info',
 ] as const
 
 type SectionKey = typeof SECTIONS[number]
@@ -79,10 +79,18 @@ const DEFAULT_ROLES = [
   { name: ROLE_RESTRICTED, description: 'Suspended access. Cannot log in to the CMS.' },
 ] as const
 
-const SECTION_PERMISSIONS: Record<string, Partial<Record<SectionKey, boolean>>> = {
-  [ROLE_ADMIN]:      { project: true, appearance: true, account: true, email: true, storage: true, members: true, users: true, roles: true, api: true, db: true, info: true },
-  [ROLE_EDITOR]:     { appearance: true, account: true, info: true },
-  [ROLE_VIEWER]:     { appearance: true, account: true, info: true },
+type SectionPerms = { view: boolean; actions: boolean }
+const SECTION_PERMISSIONS: Record<string, Partial<Record<SectionKey, SectionPerms>>> = {
+  [ROLE_ADMIN]: Object.fromEntries(SECTIONS.map((s) => [s, { view: true, actions: true }])) as Partial<Record<SectionKey, SectionPerms>>,
+  [ROLE_EDITOR]: {
+    project: { view: true, actions: true }, appearance: { view: true, actions: true },
+    account: { view: true, actions: true }, webMigration: { view: true, actions: true },
+    info:    { view: true, actions: true },
+  },
+  [ROLE_VIEWER]: {
+    project:    { view: true, actions: false }, appearance: { view: true, actions: false },
+    account:    { view: true, actions: false }, info:        { view: true, actions: false },
+  },
   [ROLE_RESTRICTED]: {},
 }
 
@@ -114,13 +122,15 @@ export async function initializeSchemaService(): Promise<void> {
   for (const role of defaultRoles) {
     const permsForRole = SECTION_PERMISSIONS[role.name] ?? {}
     for (const section of SECTIONS) {
-      const canAccess = permsForRole[section] === true
+      const entry     = permsForRole[section]
+      const canAccess  = entry?.view    ?? false
+      const canActions = entry?.actions ?? false
       await db
         .insert(roleSectionPermissions)
-        .values({ roleId: role.id, section, canAccess })
+        .values({ roleId: role.id, section, canAccess, canActions })
         .onConflictDoUpdate({
           target: [roleSectionPermissions.roleId, roleSectionPermissions.section],
-          set:    { canAccess },
+          set:    { canAccess, canActions },
         })
     }
   }

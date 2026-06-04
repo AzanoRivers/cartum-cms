@@ -12,9 +12,10 @@ import type { Dictionary } from '@/locales/en'
 
 export type AppearanceSectionProps = {
   d: Dictionary['settings']['appearance']
+  canActions?: boolean
 }
 
-export function AppearanceSection({ d }: AppearanceSectionProps) {
+export function AppearanceSection({ d, canActions = false }: AppearanceSectionProps) {
   const { applyTheme, currentTheme } = useTheme()
   const { playIfST, isPlaying: stPlaying } = useStrangerThingsSound()
   const [activeTheme, setActiveTheme] = useState<ThemeId>('dark')
@@ -26,7 +27,7 @@ export function AppearanceSection({ d }: AppearanceSectionProps) {
   }, [currentTheme])
 
   async function handleSelect(themeId: ThemeId) {
-    if (saving || stPlaying || themeId === activeTheme) return
+    if (!canActions || saving || stPlaying || themeId === activeTheme) return
     playIfST(themeId)
     const previous = activeTheme
     setActiveTheme(themeId)
@@ -59,7 +60,7 @@ export function AppearanceSection({ d }: AppearanceSectionProps) {
                 key={theme.id}
                 theme={{ ...theme, label: localised.label, description: localised.description }}
                 isActive={activeTheme === theme.id}
-                disabled={saving || stPlaying}
+                disabled={saving || stPlaying || !canActions}
                 stPlaying={stPlaying}
                 onSelect={handleSelect}
               />

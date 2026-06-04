@@ -21,8 +21,10 @@ import { SubscriptionSection } from '@/components/ui/organisms/settings/Subscrip
 import { MembersSection } from '@/components/ui/organisms/settings/MembersSection'
 import { CartumProjectsSection } from '@/components/ui/organisms/settings/CartumProjectsSection'
 import { EnvVarsSection } from '@/components/ui/organisms/settings/EnvVarsSection'
+import { DefaultSection } from '@/components/ui/organisms/settings/DefaultSection'
+import { HelpSection } from '@/components/ui/organisms/settings/HelpSection'
 import type { Dictionary } from '@/locales/en'
-import type { SectionKey } from '@/types/roles'
+import type { SectionKey, SectionAccess } from '@/types/roles'
 
 export type SettingsPanelProps = {
   userEmail:          string
@@ -30,9 +32,11 @@ export type SettingsPanelProps = {
   isSuperAdmin:       boolean
   isAdmin:            boolean
   settingsDict:       Dictionary['settings']
-  sectionPermissions: Partial<Record<SectionKey, boolean>>
+  sectionPermissions: Partial<Record<SectionKey, SectionAccess>>
   asSheet?: boolean
 }
+
+const SUPER_ONLY_KEYS: SectionKey[] = ['defaults', 'cartumProjects', 'users', 'variables']
 
 const ALL_SECTIONS: Array<{ key: SectionKey }> = [
   { key: 'project'         },
@@ -46,11 +50,13 @@ const ALL_SECTIONS: Array<{ key: SectionKey }> = [
   { key: 'api'             },
   { key: 'db'              },
   { key: 'webMigration'    },
+  { key: 'help'            },
   { key: 'info'            },
   // superAdmin-only zone
   { key: 'cartumProjects'  },
   { key: 'users'           },
   { key: 'variables'       },
+  { key: 'defaults'        },
 ]
 
 export function SettingsPanel({
@@ -94,15 +100,27 @@ export function SettingsPanel({
 
   const ADMIN_SECTIONS: SectionKey[] = ['email', 'members', 'api', 'roles', 'webMigration']
   const PUBLIC_SECTIONS: SectionKey[] = ['subscription', 'account', 'appearance']
-  const SUPER_ONLY: SectionKey[]      = ['cartumProjects', 'users', 'variables']
+  const SUPER_ONLY: SectionKey[]      = ['defaults', 'cartumProjects', 'users', 'variables']
+
+  // Helper: resolve canView and canActions for a section.
+  // super_admin and project admin always get full access — DB restrictions only apply to non-admin roles.
+  const canView = (key: SectionKey): boolean => {
+    if (isSuperAdmin || isAdmin) return true
+    return sectionPermissions[key]?.canView === true
+  }
+  const canActions = (key: SectionKey): boolean => {
+    if (isSuperAdmin || isAdmin) return true
+    const access = sectionPermissions[key]
+    if (access !== undefined) return access.canActions
+    return false
+  }
 
   // Filter visible sections by role
   const visibleSections = ALL_SECTIONS.filter(({ key }) => {
     if (SUPER_ONLY.includes(key)) return isSuperAdmin
-    if (isSuperAdmin) return true
+    if (isSuperAdmin || isAdmin) return !SUPER_ONLY.includes(key)
     if (PUBLIC_SECTIONS.includes(key)) return true
-    if (isAdmin && ADMIN_SECTIONS.includes(key)) return true
-    return sectionPermissions[key] === true
+    return sectionPermissions[key]?.canView === true
   })
 
   if (!open) return null
@@ -113,33 +131,34 @@ export function SettingsPanel({
   const sectionsContent = (
     <>
       {activeSection === 'account' && (
-        <AccountSection currentEmail={userEmail} d={d.account} />
+        <AccountSection currentEmail={userEmail} d={d.account} canActions={canActions('account')} />
       )}
       {activeSection === 'subscription' && (
         <SubscriptionSection d={d.subscription} />
       )}
       {activeSection === 'appearance' && (
-        <AppearanceSection d={d.appearance} />
+        <AppearanceSection d={d.appearance} canActions={canActions('appearance')} />
       )}
-      {activeSection === 'project' && (isSuperAdmin || sectionPermissions.project) && (
-        <ProjectSection d={d.project} loadingText={d.loading} />
+      {activeSection === 'project' && canView('project') && (
+        <ProjectSection d={d.project} loadingText={d.loading} canActions={canActions('project')} />
       )}
-      {activeSection === 'storage' && (isSuperAdmin || isAdmin || sectionPermissions.storage) && (
-        <StorageSection d={d.storage} isSuperAdmin={isSuperAdmin} isAdmin={isAdmin} loadingText={d.loading} />
+      {activeSection === 'storage' && canView('storage') && (
+        <StorageSection d={d.storage} isSuperAdmin={isSuperAdmin} isAdmin={isAdmin} loadingText={d.loading} canActions={canActions('storage')} />
       )}
-      {activeSection === 'email' && (isSuperAdmin || isAdmin || sectionPermissions.email) && (
-        <EmailSection isSuperAdmin={isSuperAdmin} d={d.email} loadingText={d.loading} />
+      {activeSection === 'email' && canView('email') && (
+        <EmailSection isSuperAdmin={isSuperAdmin} d={d.email} loadingText={d.loading} canActions={canActions('email')} />
       )}
-      {activeSection === 'api' && (isSuperAdmin || isAdmin || sectionPermissions.api) && (
-        <ApiTokensSection d={d.api} loadingText={d.loading} />
+      {activeSection === 'api' && canView('api') && (
+        <ApiTokensSection d={d.api} loadingText={d.loading} canActions={canActions('api')} />
       )}
-      {activeSection === 'members' && (isSuperAdmin || isAdmin || sectionPermissions.members) && (
+      {activeSection === 'members' && canView('members') && (
         <MembersSection
           userId={userId}
           isSuperAdmin={isSuperAdmin}
           isAdmin={isAdmin}
           d={d.members}
           loadingText={d.loading}
+          canActions={canActions('members')}
         />
       )}
       {activeSection === 'users' && isSuperAdmin && (
@@ -151,25 +170,32 @@ export function SettingsPanel({
           loadingText={d.loading}
         />
       )}
-      {activeSection === 'roles' && (isSuperAdmin || isAdmin || sectionPermissions.roles) && (
+      {activeSection === 'roles' && canView('roles') && (
         <RolesSection
           d={d.roles}
           navDict={d.nav}
           isSuperAdmin={isSuperAdmin}
           isAdmin={isAdmin}
+          canActions={canActions('roles')}
         />
       )}
-      {activeSection === 'db' && (isSuperAdmin || sectionPermissions.db) && (
-        <DbSection d={d.db} isSuperAdmin={isSuperAdmin} isAdmin={isAdmin} />
+      {activeSection === 'db' && canView('db') && (
+        <DbSection d={d.db} isSuperAdmin={isSuperAdmin} isAdmin={isAdmin} canActions={canActions('db')} />
       )}
-      {activeSection === 'webMigration' && (isSuperAdmin || isAdmin || sectionPermissions.webMigration) && (
-        <WebMigrationSection d={d.webMigration} isSuperAdmin={isSuperAdmin} loadingText={d.loading} />
+      {activeSection === 'webMigration' && canView('webMigration') && (
+        <WebMigrationSection d={d.webMigration} isSuperAdmin={isSuperAdmin} loadingText={d.loading} canActions={canActions('webMigration')} />
+      )}
+      {activeSection === 'defaults' && isSuperAdmin && (
+        <DefaultSection d={d.defaults} loadingText={d.loading} />
       )}
       {activeSection === 'cartumProjects' && isSuperAdmin && (
         <CartumProjectsSection d={d.cartumProjects} loadingText={d.loading} />
       )}
       {activeSection === 'variables' && isSuperAdmin && (
         <EnvVarsSection d={d.variables} loadingText={d.loading} />
+      )}
+      {activeSection === 'help' && (
+        <HelpSection d={d.help} loadingText={d.loading} />
       )}
       {activeSection === 'info' && (
         <InfoSection d={d.info} />
@@ -346,7 +372,7 @@ function DialogContent({
       >
         {/* Expanded content — slides+fades in after width opens */}
         <div
-          className="absolute inset-0 flex flex-col p-3 space-y-0.5 overflow-y-auto"
+          className="absolute inset-0 flex flex-col"
           style={{
             opacity:   navOpen ? 1 : 0,
             transform: navOpen ? 'translateX(0)' : 'translateX(-6px)',
@@ -356,7 +382,8 @@ function DialogContent({
             pointerEvents: navOpen ? 'auto' : 'none',
           }}
         >
-          <div className="flex items-center justify-between px-2 pb-2">
+          {/* Sticky header — stays fixed while nav list scrolls */}
+          <div className="shrink-0 flex items-center justify-between px-3 pt-3 pb-2 border-b border-border/20 bg-surface">
             <p className="font-mono text-xs text-muted uppercase tracking-widest">
               {d.panelTitle}
             </p>
@@ -368,6 +395,9 @@ function DialogContent({
               <PanelLeftClose size={18} />
             </button>
           </div>
+
+          {/* Scrollable nav list */}
+          <div className="flex-1 overflow-y-auto p-3 pt-2 space-y-0.5">
           {visibleSections.map(({ key }, i) => (
             <div key={key} className={i < visibleSections.length - 1 ? 'border-b border-border/20' : ''}>
               {key === 'cartumProjects' && (
@@ -391,11 +421,14 @@ function DialogContent({
               </button>
             </div>
           ))}
-        </div>
+          </div>{/* end scrollable nav list */}
+        </div>{/* end expanded content */}
 
-        {/* Collapsed icon — fades in after width finishes closing */}
-        <div
-          className="absolute inset-0 flex flex-col items-center pt-3 gap-3"
+        {/* Collapsed bar — entire strip is clickable to expand */}
+        <button
+          onClick={() => setNavOpen(true)}
+          aria-label="Expand navigation"
+          className="absolute inset-0 flex flex-col items-center pt-3 gap-3 cursor-pointer hover:bg-surface-2/40 transition-colors"
           style={{
             opacity: navOpen ? 0 : 1,
             transition: navOpen
@@ -404,15 +437,9 @@ function DialogContent({
             pointerEvents: navOpen ? 'none' : 'auto',
           }}
         >
-          <button
-            onClick={() => setNavOpen(true)}
-            className="text-muted hover:text-text transition-colors cursor-pointer"
-            aria-label="Expand navigation"
-          >
-            <PanelLeftOpen size={18} />
-          </button>
+          <PanelLeftOpen size={18} className="text-muted" />
           <span className="h-1.5 w-1.5 rounded-full bg-select" />
-        </div>
+        </button>
       </div>
 
       {/* Right: section content */}

@@ -2,33 +2,38 @@
 
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ArrowRight, Maximize2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Maximize2, Plus } from 'lucide-react'
 
 export type CanvasContextMenuState = {
-  x: number
-  y: number
+  x:         number
+  y:         number
+  canvasPos: { x: number; y: number }  // canvas-space coords for node creation
 }
 
 export type CanvasContextMenuDict = {
-  back:    string
-  forward: string
-  fitAll:  string
+  back:        string
+  forward:     string
+  fitAll:      string
+  createDeck?: string
 }
 
 export type CanvasContextMenuProps = {
-  menu:     CanvasContextMenuState
-  onFitAll: () => void
-  onClose:  () => void
-  d?:       CanvasContextMenuDict
+  menu:           CanvasContextMenuState
+  onFitAll:       () => void
+  onClose:        () => void
+  onCreateHere:   (canvasPos: { x: number; y: number }) => void
+  canCreate?:     boolean
+  d?:             CanvasContextMenuDict
 }
 
 const FALLBACK: CanvasContextMenuDict = {
-  back:    'Go back',
-  forward: 'Go forward',
-  fitAll:  'Center nodes',
+  back:       'Go back',
+  forward:    'Go forward',
+  fitAll:     'Center nodes',
+  createDeck: 'New deck here',
 }
 
-export function CanvasContextMenu({ menu, onFitAll, onClose, d }: CanvasContextMenuProps) {
+export function CanvasContextMenu({ menu, onFitAll, onClose, onCreateHere, canCreate = true, d }: CanvasContextMenuProps) {
   const ref    = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -48,13 +53,13 @@ export function CanvasContextMenu({ menu, onFitAll, onClose, d }: CanvasContextM
   }, [onClose])
 
   const MENU_W = 192
-  const MENU_H = 116
+  const MENU_H = canCreate ? 148 : 116
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1280
   const vh = typeof window !== 'undefined' ? window.innerHeight : 800
   const left = Math.min(menu.x, vw - MENU_W - 8)
   const top  = Math.min(menu.y, vh - MENU_H - 8)
 
-  const label = d ?? FALLBACK
+  const label = { ...FALLBACK, ...d }
 
   return (
     <div
@@ -66,6 +71,19 @@ export function CanvasContextMenu({ menu, onFitAll, onClose, d }: CanvasContextM
       onContextMenu={(e) => e.preventDefault()}
     >
       <div className="p-1">
+        {canCreate && (
+          <>
+            <button
+              role="menuitem"
+              onClick={() => { onCreateHere(menu.canvasPos); onClose() }}
+              className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-mono text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+            >
+              <Plus size={14} className="text-primary" />
+              {label.createDeck}
+            </button>
+            <div className="my-1 border-t border-border/60" />
+          </>
+        )}
         <button
           role="menuitem"
           onClick={() => { router.back(); onClose() }}

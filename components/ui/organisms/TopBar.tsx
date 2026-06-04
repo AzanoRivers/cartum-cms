@@ -47,7 +47,7 @@ export function TopBar({ currentProject, projects, userInitials, isSuperAdmin, c
       return (
         <Tooltip content={tooltipText} side="bottom">
           <span className="flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 font-mono text-[10px] text-warning cursor-default">
-            ⏱ {label}
+            ⏱ <span className="hidden md:inline">{label}</span><span className="md:hidden">{daysLeft}d</span>
           </span>
         </Tooltip>
       )
@@ -64,6 +64,8 @@ export function TopBar({ currentProject, projects, userInitials, isSuperAdmin, c
   async function handleLogout() {
     setMenuOpen(false)
     setGlobalLoading(true)
+    // Clear client-side project state before server logout
+    try { sessionStorage.removeItem('cartum-project-switching') } catch { /* sandboxed */ }
     const { logout } = await import('@/lib/actions/logout.actions')
     await logout()
     router.push('/login')

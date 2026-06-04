@@ -22,6 +22,7 @@ type Props = {
   members:       MemberRow[]
   roles:         RoleOption[]
   currentUserId: string
+  ownerId?:      string | null
   d:             Dictionary['settings']['members']
   onRefresh:     () => void
 }
@@ -33,7 +34,7 @@ const ROLE_COLORS: Record<string, string> = {
   viewer:      'text-muted border-border',
 }
 
-export function MemberList({ members, roles, currentUserId, d, onRefresh }: Props) {
+export function MemberList({ members, roles, currentUserId, ownerId, d, onRefresh }: Props) {
   const [openMenu, setOpenMenu]       = useState<string | null>(null)
   const [confirmUserId, setConfirmUserId] = useState<string | null>(null)
   const [isPending, startTransition]  = useTransition()
@@ -89,6 +90,13 @@ export function MemberList({ members, roles, currentUserId, d, onRefresh }: Prop
                   <span className="ml-1.5 text-muted">{d.youLabel}</span>
                 )}
               </span>
+
+              {/* Owner badge */}
+              {ownerId && m.userId === ownerId && (
+                <span className="shrink-0 rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 font-mono text-[9px] text-warning uppercase tracking-widest">
+                  {d.ownerLabel}
+                </span>
+              )}
 
               {/* Role badge */}
               <span className={`shrink-0 rounded border px-2 py-0.5 font-mono text-[10px] ${badgeClass}`}>

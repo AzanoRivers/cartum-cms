@@ -22,12 +22,11 @@ export async function requireProjectId(): Promise<string> {
 
 /**
  * Verifies the calling user is a member of the given projectId.
- * Super admins bypass the membership check.
+ * No exceptions — projects are isolated capsules, super_admin included.
  */
 export async function assertProjectAccess(projectId: string): Promise<void> {
   const session = await auth()
   if (!session) throw new Error('UNAUTHORIZED')
-  if (session.user.isSuperAdmin) return
   const isMember = await projectMembershipsRepository.isMember(session.user.id, projectId)
   if (!isMember) throw new Error('FORBIDDEN')
 }

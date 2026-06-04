@@ -116,7 +116,7 @@ export async function registerPlayer(
 
   await initializeSchemaService()
 
-  await createProjectService({
+  const { projectId: newProjectId } = await createProjectService({
     name:        projectName,
     description: description ?? '',
     locale:      (locale ?? 'en') as SupportedLocale,
@@ -138,6 +138,7 @@ export async function registerPlayer(
     cmsUrl:      `${cmsUrl}/login`,
     locale:      (locale ?? 'en') as SupportedLocale,
     projectName: projectName,
+    projectId:   newProjectId,
   })
 
   await signIn('credentials', {

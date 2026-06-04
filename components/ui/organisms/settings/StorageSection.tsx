@@ -24,6 +24,7 @@ export type StorageSectionProps = {
   isSuperAdmin: boolean
   isAdmin:      boolean
   loadingText:  string
+  canActions?:  boolean
 }
 
 type StorageStatus = {
@@ -70,7 +71,7 @@ function IsSetBadge({ isSet, d }: { isSet: boolean; d: { fieldSet: string; field
 }
 
 function MaskedField({
-  label, isSet, placeholder, value, onChange, d,
+  label, isSet, placeholder, value, onChange, d, disabled,
 }: {
   label:       string
   isSet:       boolean
@@ -78,6 +79,7 @@ function MaskedField({
   value:       string
   onChange:    (v: string) => void
   d:           { fieldSet: string; fieldNotSet: string; fieldReplaceLabel: string }
+  disabled?:   boolean
 }) {
   return (
     <div className="space-y-1.5">
@@ -90,7 +92,8 @@ function MaskedField({
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         autoComplete="off"
-        className={inputCls}
+        disabled={disabled}
+        className={inputCls + ' disabled:opacity-50 disabled:cursor-not-allowed'}
       />
     </div>
   )
@@ -98,7 +101,7 @@ function MaskedField({
 
 function RevealField({
   label, value, placeholder, onChange,
-  showLabel, hideLabel,
+  showLabel, hideLabel, disabled,
 }: {
   label:       string
   value:       string
@@ -106,6 +109,7 @@ function RevealField({
   onChange:    (v: string) => void
   showLabel:   string
   hideLabel:   string
+  disabled?:   boolean
 }) {
   const [show, setShow] = useState(false)
   return (
@@ -117,7 +121,8 @@ function RevealField({
           value={value}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          className={inputCls + ' pr-16'}
+          disabled={disabled}
+          className={inputCls + ' pr-16 disabled:opacity-50 disabled:cursor-not-allowed'}
         />
         <button
           type="button"
@@ -134,7 +139,7 @@ function RevealField({
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: StorageSectionProps) {
+export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText, canActions = true }: StorageSectionProps) {
   const canManage = isSuperAdmin || isAdmin
 
   const [form, setForm]     = useState<StorageSettings>({
@@ -153,6 +158,7 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
   const [r2TestResult, setR2TestResult]     = useState<string | null>(null)
   const [blobTestResult, setBlobTestResult] = useState<string | null>(null)
 
+  const [pendingProvider, setPendingProvider] = useState<StorageProvider>('r2')
   const [isSaving, startSave]          = useTransition()
   const [isR2Testing, startR2Test]     = useTransition()
   const [isBlobTesting, startBlobTest] = useTransition()
@@ -165,7 +171,10 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
         setForm(settingsRes.data.settings)
         setIsSet(settingsRes.data.isSet)
       }
-      if (statusRes.success) setStatus(statusRes.data)
+      if (statusRes.success) {
+        setStatus(statusRes.data)
+        setPendingProvider(statusRes.data.activeProvider)
+      }
       setLoaded(true)
     })
   }, [])
@@ -176,17 +185,44 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
     setBlobTestResult(null)
   }
 
+  // Validate admin can switch to a provider: target must have credentials configured or entered
+  function canSwitchTo(provider: StorageProvider): boolean {
+    if (isSuperAdmin) return true // superAdmin: any switch when bothConfigured (checked at render)
+    if (provider === 'r2') {
+      const hasExisting = isSet.r2Endpoint && isSet.r2AccessKeyId && isSet.r2SecretAccessKey && isSet.r2BucketName
+      const hasEntered  = !!(form.r2Endpoint && form.r2AccessKeyId && form.r2SecretAccessKey && form.r2BucketName)
+      return hasExisting || hasEntered
+    }
+    // blob
+    return isSet.blobToken || !!form.blobToken
+  }
+
   function handleProviderSwitch(provider: StorageProvider) {
-    setForm((prev) => ({ ...prev, storageProvider: provider }))
-    setStatus((prev) => prev ? { ...prev, activeProvider: provider } : prev)
+    if (!canActions || provider === pendingProvider) return
+    if (!canSwitchTo(provider)) {
+      toast.error(d.providerMissingCredentials ?? 'Configure the required credentials for this provider before switching.')
+      return
+    }
+    setPendingProvider(provider)  // only update UI — not saved yet
+  }
+
+  function handleSaveProvider() {
+    if (!canActions || pendingProvider === activeProvider) return
     startSwitch(async () => {
-      const res = await updateStorageProvider(provider)
-      if (res.success) toast.success(d.providerSaved)
-      else toast.error(d.providerError)
+      const res = await updateStorageProvider(pendingProvider)
+      if (res.success) {
+        setForm((prev) => ({ ...prev, storageProvider: pendingProvider }))
+        setStatus((prev) => prev ? { ...prev, activeProvider: pendingProvider } : prev)
+        toast.success(d.providerSaved)
+      } else {
+        toast.error(res.error ?? d.providerError)
+        setPendingProvider(status?.activeProvider ?? form.storageProvider)  // revert on error
+      }
     })
   }
 
   function handleSave() {
+    if (!canActions) return
     startSave(async () => {
       const res = await updateStorageSettings(form)
       if (res.success) {
@@ -204,6 +240,7 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
   }
 
   function handleR2Test() {
+    if (!canActions) return
     setR2TestResult(null)
     startR2Test(async () => {
       const res = await testStorageConnection()
@@ -213,6 +250,7 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
   }
 
   function handleBlobTest() {
+    if (!canActions) return
     setBlobTestResult(null)
     startBlobTest(async () => {
       const res = await testBlobConnection()
@@ -223,8 +261,9 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
 
   if (!loaded) return <SectionLoader text={loadingText} />
 
-  const activeProvider = status?.activeProvider ?? form.storageProvider
-  const bothConfigured = !!(status?.r2Configured && status?.blobConfigured)
+  const activeProvider            = status?.activeProvider ?? form.storageProvider
+  const bothConfigured            = !!(status?.r2Configured && status?.blobConfigured)
+  const providerHasUnsavedChanges = pendingProvider !== activeProvider
 
   return (
     <div className="space-y-5">
@@ -233,28 +272,31 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
         <p className="font-mono text-[10px] text-muted/60">{d.projectScopeNote}</p>
       </div>
 
-      {/* Provider selector — superAdmin only when both configured */}
-      {isSuperAdmin && bothConfigured && (
+      {/* Provider selector — superAdmin (both configured) or admin (always shown, validated on switch) */}
+      {canManage && (isSuperAdmin ? bothConfigured : true) && (
         <div className="space-y-3">
           <div className="flex items-start gap-2.5 rounded-lg border border-primary/30 bg-primary/10 px-3.5 py-2.5">
             <div className="mt-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
-            <span className="font-mono text-xs leading-snug text-primary">{d.providerSelectHint}</span>
+            <span className="font-mono text-xs leading-snug text-primary">
+              {isSuperAdmin ? d.providerSelectHint : (d.providerSelectHintAdmin ?? 'To switch provider, first configure the credentials for the target provider in its accordion below, then select it here.')}
+            </span>
           </div>
           <span className="block font-mono text-xs text-muted">{d.providerLabel}</span>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {(['r2', 'blob'] as StorageProvider[]).map((provider) => {
-              const label    = provider === 'r2' ? d.providerR2 : d.providerBlob
-              const isActive = activeProvider === provider
+              const label     = provider === 'r2' ? d.providerR2 : d.providerBlob
+              const isPending = pendingProvider === provider
+              const isActive  = activeProvider === provider
               return (
                 <button
                   key={provider}
                   type="button"
-                  disabled={isSwitching}
+                  disabled={isSwitching || !canActions}
                   onClick={() => handleProviderSwitch(provider)}
-                  className={providerBtn({ active: isActive })}
+                  className={providerBtn({ active: isPending })}
                 >
                   <span className="flex items-center gap-1.5 pr-12">
-                    {isActive && <Check size={11} className="shrink-0" />}
+                    {isPending && <Check size={11} className="shrink-0" />}
                     {label}
                   </span>
                   {isActive && (
@@ -266,6 +308,22 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
               )
             })}
           </div>
+
+          {/* Unsaved changes warning + save */}
+          {providerHasUnsavedChanges && (
+            <div className="flex items-center justify-between gap-3 rounded-md border border-warning/30 bg-warning/5 px-3 py-2">
+              <span className="font-mono text-[10px] text-warning/90">
+                ⚠ {d.providerUnsaved ?? 'Unsaved changes — provider not yet switched.'}
+              </span>
+              <button
+                onClick={handleSaveProvider}
+                disabled={isSwitching || !canActions}
+                className="shrink-0 rounded-md bg-primary px-3 py-1 font-mono text-[10px] font-semibold text-white hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
+              >
+                {isSwitching ? (d.providerSaved ?? '…') : (d.saveProviderBtn ?? d.providerSaved)}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -292,12 +350,14 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
           {isSuperAdmin ? (
             <Field label={d.r2Endpoint}>
               <input type="text" value={form.r2Endpoint} placeholder={d.r2EndpointPlaceholder}
-                onChange={(e) => handleChange('r2Endpoint', e.target.value)} className={inputCls} />
+                onChange={(e) => handleChange('r2Endpoint', e.target.value)}
+                disabled={!canActions}
+                className={inputCls + ' disabled:opacity-50 disabled:cursor-not-allowed'} />
             </Field>
           ) : (
             <MaskedField label={d.r2Endpoint} isSet={isSet.r2Endpoint}
               placeholder={d.r2EndpointPlaceholder} value={form.r2Endpoint}
-              onChange={(v) => handleChange('r2Endpoint', v)} d={d} />
+              onChange={(v) => handleChange('r2Endpoint', v)} d={d} disabled={!canActions} />
           )}
 
           {/* Access Key ID */}
@@ -305,11 +365,11 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
             <RevealField label={d.r2AccessKeyId} value={form.r2AccessKeyId}
               placeholder={d.r2AccessKeyIdPlaceholder}
               onChange={(v) => handleChange('r2AccessKeyId', v)}
-              showLabel={d.showKey} hideLabel={d.hideKey} />
+              showLabel={d.showKey} hideLabel={d.hideKey} disabled={!canActions} />
           ) : (
             <MaskedField label={d.r2AccessKeyId} isSet={isSet.r2AccessKeyId}
               placeholder={d.r2AccessKeyIdPlaceholder} value={form.r2AccessKeyId}
-              onChange={(v) => handleChange('r2AccessKeyId', v)} d={d} />
+              onChange={(v) => handleChange('r2AccessKeyId', v)} d={d} disabled={!canActions} />
           )}
 
           {/* Secret Access Key */}
@@ -317,29 +377,33 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
             <RevealField label={d.r2SecretAccessKey} value={form.r2SecretAccessKey}
               placeholder={d.r2SecretAccessKeyPlaceholder}
               onChange={(v) => handleChange('r2SecretAccessKey', v)}
-              showLabel={d.showKey} hideLabel={d.hideKey} />
+              showLabel={d.showKey} hideLabel={d.hideKey} disabled={!canActions} />
           ) : (
             <MaskedField label={d.r2SecretAccessKey} isSet={isSet.r2SecretAccessKey}
               placeholder={d.r2SecretAccessKeyPlaceholder} value={form.r2SecretAccessKey}
-              onChange={(v) => handleChange('r2SecretAccessKey', v)} d={d} />
+              onChange={(v) => handleChange('r2SecretAccessKey', v)} d={d} disabled={!canActions} />
           )}
 
           {/* Bucket name — non-sensitive, all roles see value */}
           {isSuperAdmin ? (
             <Field label={d.r2BucketName}>
               <input type="text" value={form.r2BucketName} placeholder={d.r2BucketNamePlaceholder}
-                onChange={(e) => handleChange('r2BucketName', e.target.value)} className={inputCls} />
+                onChange={(e) => handleChange('r2BucketName', e.target.value)}
+                disabled={!canActions}
+                className={inputCls + ' disabled:opacity-50 disabled:cursor-not-allowed'} />
             </Field>
           ) : (
             <MaskedField label={d.r2BucketName} isSet={isSet.r2BucketName}
               placeholder={d.r2BucketNamePlaceholder} value={form.r2BucketName}
-              onChange={(v) => handleChange('r2BucketName', v)} d={d} />
+              onChange={(v) => handleChange('r2BucketName', v)} d={d} disabled={!canActions} />
           )}
 
           {/* Public URL — all roles can see (not a secret) */}
           <Field label={d.r2PublicUrl}>
             <input type="url" value={form.r2PublicUrl} placeholder={d.r2PublicUrlPlaceholder}
-              onChange={(e) => handleChange('r2PublicUrl', e.target.value)} className={inputCls} />
+              onChange={(e) => handleChange('r2PublicUrl', e.target.value)}
+              disabled={!canActions}
+              className={inputCls + ' disabled:opacity-50 disabled:cursor-not-allowed'} />
           </Field>
 
           <div className="flex items-center justify-between gap-3 pt-1">
@@ -350,7 +414,7 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
             <div className="flex items-center gap-3">
               {r2TestResult && <span className="font-mono text-xs text-success">{r2TestResult}</span>}
               {canManage && (
-                <button onClick={handleR2Test} disabled={isR2Testing} className={ghostBtnCls}>
+                <button onClick={handleR2Test} disabled={isR2Testing || !canActions} className={ghostBtnCls}>
                   {isR2Testing ? d.testing : d.testConnection}
                 </button>
               )}
@@ -382,14 +446,15 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
               <label className="block font-mono text-xs text-muted">{d.blobToken}</label>
               <div className="flex gap-2">
                 <BlobTokenField value={form.blobToken ?? ''} placeholder={d.blobTokenPlaceholder}
-                  onChange={(v) => handleChange('blobToken', v)} showLabel={d.showKey} hideLabel={d.hideKey} />
+                  onChange={(v) => handleChange('blobToken', v)} showLabel={d.showKey} hideLabel={d.hideKey}
+                  disabled={!canActions} />
               </div>
               <p className="font-mono text-[10px] text-muted/60">{d.blobTokenHint}</p>
             </div>
           ) : (
             <MaskedField label={d.blobToken} isSet={isSet.blobToken}
               placeholder={d.blobTokenPlaceholder} value={form.blobToken ?? ''}
-              onChange={(v) => handleChange('blobToken', v)} d={d} />
+              onChange={(v) => handleChange('blobToken', v)} d={d} disabled={!canActions} />
           )}
 
           <div className="flex items-center justify-between gap-3 pt-1">
@@ -400,7 +465,7 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
             <div className="flex items-center gap-3">
               {blobTestResult && <span className="font-mono text-xs text-success">{blobTestResult}</span>}
               {canManage && (
-                <button onClick={handleBlobTest} disabled={isBlobTesting} className={ghostBtnCls}>
+                <button onClick={handleBlobTest} disabled={isBlobTesting || !canActions} className={ghostBtnCls}>
                   {isBlobTesting ? d.testing : d.testBlob}
                 </button>
               )}
@@ -427,7 +492,9 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
           <Field label={d.mediaVpsUrl}>
             {isSuperAdmin ? (
               <input type="url" value={form.mediaVpsUrl ?? ''} placeholder={d.mediaVpsUrlPlaceholder}
-                onChange={(e) => handleChange('mediaVpsUrl', e.target.value)} className={inputCls} />
+                onChange={(e) => handleChange('mediaVpsUrl', e.target.value)}
+                disabled={!canActions}
+                className={inputCls + ' disabled:opacity-50 disabled:cursor-not-allowed'} />
             ) : (
               <div className="flex h-9 items-center gap-2 rounded-md border border-border/40 bg-surface-2/40 px-3 font-mono text-sm text-muted/70 overflow-hidden cursor-default">
                 <span className="truncate flex-1">{form.mediaVpsUrl || d.mediaVpsUrlPlaceholder}</span>
@@ -447,7 +514,7 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
               <label className="block font-mono text-xs text-muted">{d.mediaVpsKey}</label>
               <div className="flex gap-2">
                 <VpsKeyField value={form.mediaVpsKey ?? ''} onChange={(v) => handleChange('mediaVpsKey', v)}
-                  showLabel={d.showKey} hideLabel={d.hideKey} />
+                  showLabel={d.showKey} hideLabel={d.hideKey} disabled={!canActions} />
               </div>
               <a href="https://optimus.azanolabs.com/guide" target="_blank" rel="noopener noreferrer"
                 className="inline-block mt-1 font-mono text-xs text-primary/70 hover:text-primary transition-colors">
@@ -457,7 +524,7 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
           ) : (
             <MaskedField label={d.mediaVpsKey} isSet={isSet.mediaVpsKey}
               placeholder="VPS API key" value={form.mediaVpsKey ?? ''}
-              onChange={(v) => handleChange('mediaVpsKey', v)} d={d} />
+              onChange={(v) => handleChange('mediaVpsKey', v)} d={d} disabled={!canActions} />
           )}
         </div>
       </Accordion>
@@ -472,7 +539,7 @@ export function StorageSection({ d, isSuperAdmin, isAdmin, loadingText }: Storag
           <div className="flex justify-end">
             <button
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || !canActions}
               className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               {isSaving ? d.saving : d.save}
@@ -495,9 +562,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function BlobTokenField({ value, placeholder, onChange, showLabel, hideLabel }: {
+function BlobTokenField({ value, placeholder, onChange, showLabel, hideLabel, disabled }: {
   value: string; placeholder: string; onChange: (v: string) => void
-  showLabel: string; hideLabel: string
+  showLabel: string; hideLabel: string; disabled?: boolean
 }) {
   const [show, setShow] = useState(false)
   return (
@@ -507,7 +574,8 @@ function BlobTokenField({ value, placeholder, onChange, showLabel, hideLabel }: 
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className={inputCls + ' flex-1 min-w-0'}
+        disabled={disabled}
+        className={inputCls + ' flex-1 min-w-0 disabled:opacity-50 disabled:cursor-not-allowed'}
       />
       <button type="button" onClick={() => setShow((v) => !v)}
         className="rounded-md border border-border bg-surface-2 px-3 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer">
@@ -517,9 +585,9 @@ function BlobTokenField({ value, placeholder, onChange, showLabel, hideLabel }: 
   )
 }
 
-function VpsKeyField({ value, onChange, showLabel, hideLabel }: {
+function VpsKeyField({ value, onChange, showLabel, hideLabel, disabled }: {
   value: string; onChange: (v: string) => void
-  showLabel: string; hideLabel: string
+  showLabel: string; hideLabel: string; disabled?: boolean
 }) {
   const [show, setShow] = useState(false)
   return (
@@ -528,7 +596,8 @@ function VpsKeyField({ value, onChange, showLabel, hideLabel }: {
         type={show ? 'text' : 'password'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={inputCls + ' flex-1 min-w-0'}
+        disabled={disabled}
+        className={inputCls + ' flex-1 min-w-0 disabled:opacity-50 disabled:cursor-not-allowed'}
       />
       <button type="button" onClick={() => setShow((v) => !v)}
         className="rounded-md border border-border bg-surface-2 px-3 font-mono text-xs text-muted hover:text-text transition-colors cursor-pointer">

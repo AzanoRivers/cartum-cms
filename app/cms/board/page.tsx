@@ -21,7 +21,23 @@ export default async function BoardPage() {
   const session     = await auth()
   const userId      = session?.user?.id
   const cookieStore = await cookies()
-  const projectId   = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session?.user?.currentProjectId
+  const cookieProjectId  = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? null
+  const sessionProjectId = session?.user?.currentProjectId ?? null
+
+  // Validate cookie project membership — no exceptions, even for super_admin
+  let projectId: string | null = sessionProjectId
+  if (cookieProjectId && userId) {
+    const isMember = await projectMembershipsRepository.isMember(userId, cookieProjectId)
+    if (isMember) projectId = cookieProjectId
+  }
+  // Fallback: if sessionProjectId is also invalid, find first membership
+  if (projectId && userId) {
+    const validMember = await projectMembershipsRepository.isMember(userId, projectId)
+    if (!validMember) {
+      const memberships = await projectMembershipsRepository.getUserProjects(userId)
+      projectId = memberships[0]?.projectId ?? null
+    }
+  }
 
   if (!projectId) {
     return (
@@ -35,6 +51,7 @@ export default async function BoardPage() {
     nodeService.getBoard(null, projectId),
     connectionsService.getForBoard(null, projectId),
   ])
+
 
   // SuperAdmins and project admins see all nodes; others see only nodes with canRead
   let nodes = allNodes

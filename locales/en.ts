@@ -159,6 +159,7 @@
       signInButton:      'Sign in and join →',
       signingIn:         'Joining…',
       goToLogin:         'Go to sign in',
+      roleLabels:        { admin: 'Admin', editor: 'Editor', viewer: 'Viewer', restricted: 'Restricted' },
     },
   },
   cms: {
@@ -191,6 +192,11 @@
       cancel:                 'Cancel',
       create:                 'Create →',
       creating:               'Creating…',
+      next:                   'Next →',
+      back:                   '← Back',
+      step1:                  'Step 1 of 2',
+      step2:                  'Step 2 of 2',
+      themeLabel:             'Choose a theme for your board',
     },
     player: {
       welcome:             'Welcome to the Poker table of CMS platforms. Fill in the details below to create your account and claim your seat at the table.',
@@ -292,6 +298,8 @@
         apiSchema:      'API: Table Discovery',
         relations:          'Node Relations',
         nodesAndFieldsDev:  'Nodes & Fields',
+        usersGuide:         'Users & Roles',
+        emailSetup:         'Email Setup',
         webMigrationDev:    'Web Migration',
         multiProject:       'Multi-Project',
         multiProjectDev:    'Multi-Project',
@@ -746,6 +754,48 @@
         },
         repoNote: 'Source code and issues: github.com/azanoRivers/cartum-cms',
       },
+      usersGuide: {
+        title: 'Users & Roles',
+        intro: 'Cartum has two distinct user levels with different scopes of access: the super admin and project admins. Understanding the difference is important before deploying to production.',
+
+        superAdminTitle: 'Super admin',
+        superAdminIntro: 'The super admin is the first account created during initial setup. Whether you install locally or deploy to the cloud, the setup wizard asks you to create this account before anything else.',
+        superAdminHow: 'How it is created',
+        superAdminHowDesc: 'When you run the CMS for the first time and visit the /setup route, you provide an email and password. That account is flagged as isSuperAdmin in the database and is the only account that can never be created from inside the CMS itself. You must have access to the server or the setup flow to create a second super admin.',
+        superAdminNote: 'The super admin is not scoped to any single project. It has access to everything across all projects in the instance.',
+
+        adminTitle: 'Project admin',
+        adminIntro: 'Project admins are regular users who have been granted admin-level access to one or more projects. They are created in two ways: invited to an existing project by a super admin or another admin, or registered via the public /register route when the first project is being set up.',
+        adminNote: 'An admin\'s permissions are always scoped to the projects they belong to. They cannot see or affect other projects.',
+
+        comparisonTitle: 'What each role can do',
+        comparisonHeaders: { feature: 'Feature', superAdmin: 'Super admin', admin: 'Admin' },
+        comparison: {
+          r1: { feature: 'Access all projects in the instance',        sa: 'Yes', adm: 'No — own projects only' },
+          r2: { feature: 'Settings → Defaults (CMS-wide providers)',   sa: 'Yes', adm: 'No' },
+          r3: { feature: 'Settings → Variables (env var overrides)',    sa: 'Yes', adm: 'No' },
+          r4: { feature: 'Settings → Users (global user management)',   sa: 'Yes', adm: 'No' },
+          r5: { feature: 'Settings → Cartum Projects (all projects)',   sa: 'Yes', adm: 'No' },
+          r6: { feature: 'View full credentials (API keys, secrets)',   sa: 'Yes', adm: 'No — status badge only' },
+          r7: { feature: 'Configure storage per project',               sa: 'Yes', adm: 'Yes' },
+          r8: { feature: 'Configure email per project',                 sa: 'Yes', adm: 'Yes' },
+          r9: { feature: 'Invite users to a project',                   sa: 'Yes', adm: 'Yes' },
+          r10: { feature: 'Manage roles and permissions',               sa: 'Yes', adm: 'Yes — non-admin roles only' },
+          r11: { feature: 'Create and delete decks and cards',          sa: 'Yes', adm: 'Yes' },
+          r12: { feature: 'Access the DB danger zone',                  sa: 'Yes', adm: 'Yes — export/import only' },
+          r13: { feature: 'Delete any project',                         sa: 'Yes', adm: 'No — only project owner' },
+          r14: { feature: 'Send Help reports',                          sa: 'Yes', adm: 'Yes' },
+        },
+
+        localVsCloudTitle: 'Local vs cloud install',
+        localVsCloudItems: {
+          i1: 'Local install: the setup runs once on your machine. The super admin account is created there. Other team members join as admins or editors via invitations.',
+          i2: 'Cloud deploy (Vercel, Cloudflare): the /setup route is accessible on first deploy. Complete it immediately — once setup is done, the route is locked and cannot be replayed.',
+          i3: 'If you skip the setup route, no super admin exists and the CMS cannot function. You would need to re-deploy or reset the database.',
+        },
+
+        securityNote: 'Keep your super admin credentials secure. If you lose access to the super admin account and cannot recover it, a database reset will be required.',
+      },
       storageSetup: {
         title: 'Storage Setup',
         intro: 'Step-by-step guides to connect Cloudflare R2 or Vercel Blob to your Cartum project. Settings are scoped per project and fall back to environment variables if not configured here.',
@@ -784,14 +834,91 @@
         },
         blobEnvTitle: 'Environment variable',
         blobEnvVar: 'BLOB_READ_WRITE_TOKEN: the token from step 7',
-        scopeNote: 'All credentials saved in the Settings panel override environment variables for that specific project only. Other projects continue using their own settings or the instance defaults.',
+        switchTitle: 'Switching providers via the UI',
+        switchIntro: 'Once you have configured both R2 and Blob, you can switch the active provider for any project from Settings → Storage without touching environment variables.',
+        switchItems: {
+          i1: 'Super admins see a provider selector at the top of the Storage section when both providers are configured.',
+          i2: 'Project admins also see the selector. To switch, they must first configure the credentials for the target provider (enter the replace fields in the accordion), then select it.',
+          i3: 'Switching triggers a server-side validation: if the target provider lacks credentials, the switch is rejected even if the client bypasses the UI check.',
+        },
+        fallbackTitle: 'Fallback chain',
+        fallbackIntro: 'When Cartum resolves which provider to use for a media upload, it checks in this order:',
+        fallbackItems: {
+          i1: '1. Project-specific setting: storage_provider:{projectId} in app_settings.',
+          i2: '2. Instance default: default_storage_provider in app_settings (set from Settings → Defaults).',
+          i3: '3. Hardcoded fallback: R2 if none of the above is set.',
+        },
+        defaultsTitle: 'CMS-wide default (super admin)',
+        defaultsIntro: 'Super admins can set a CMS-wide default provider from Settings → Defaults → Storage Provider. This default applies to any project that has not configured a local provider. Setting a default requires that the target provider is already configured globally (via environment variables or the Variables section).',
+        scopeNote: 'Credentials saved in the Settings panel are scoped to that specific project and take precedence over environment variables. Other projects continue using their own settings or the instance defaults. The CMS-wide default set in Defaults applies only when no project-level override exists.',
+      },
+      emailSetup: {
+        title: 'Email Setup',
+        intro: 'Cartum uses email to send password resets, user invitations, and OTP codes for account changes. You can configure the email provider per project from Settings → Email, or set a CMS-wide default from Settings → Defaults (super admin only).',
+
+        howTitle: 'How it works',
+        howItems: {
+          i1: 'Each project can have its own provider and credentials, overriding the instance default.',
+          i2: 'If a project has no configuration, Cartum falls back to the CMS-wide default provider.',
+          i3: 'The CMS-wide default is set in Settings → Defaults and applies to all projects without a local override.',
+          i4: 'Two providers are supported: Resend and AWS SES.',
+        },
+
+        resendTitle: 'Resend',
+        resendIntro: 'Resend is a developer-first email API. It is the recommended provider for most projects. To get started:',
+        resendSteps: {
+          s1: '1. Create an account at resend.com.',
+          s2: '2. Go to API Keys and click Create API Key. Give it a name and choose Send access.',
+          s3: '3. Copy the key (starts with re_). This is your RESEND_API_KEY.',
+          s4: '4. Go to Domains and add the domain you will send from. Follow the DNS verification steps.',
+          s5: '5. Once verified, set your From address using that domain (e.g. hello@yourdomain.com). This is your RESEND_FROM_EMAIL.',
+        },
+        resendEnvTitle: 'Environment variables',
+        resendEnvVars: {
+          v1: 'RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx',
+          v2: 'RESEND_FROM_EMAIL=hello@yourdomain.com',
+        },
+        resendNote: 'Unverified domains will cause Resend to reject the send request. Always verify your domain before going to production.',
+
+        sesTitle: 'AWS SES',
+        sesIntro: 'AWS Simple Email Service (SES) is a scalable, low-cost email solution for high-volume sending. To get started:',
+        sesSteps: {
+          s1: '1. Log in to your AWS console and navigate to Amazon SES.',
+          s2: '2. Go to Verified identities and add your sending domain or email address.',
+          s3: '3. Follow the DNS/verification steps (DKIM, DMARC recommended for deliverability).',
+          s4: '4. Go to IAM → Users → Create user. Attach the AmazonSESFullAccess policy (or a scoped send-only policy).',
+          s5: "5. Under the user's Security credentials tab, create an Access key. Save the Access Key ID and Secret Access Key.",
+          s6: '6. Set AWS_SES_FROM_EMAIL to the verified identity you want to send from.',
+        },
+        sesEnvTitle: 'Environment variables',
+        sesEnvVars: {
+          v1: 'AWS_SES_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE',
+          v2: 'AWS_SES_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+          v3: 'AWS_SES_FROM_EMAIL=hello@yourdomain.com',
+          v4: '# Optional — defaults to us-east-1',
+          v5: 'AWS_SES_REGION=us-east-1',
+        },
+        sesNote: 'New AWS SES accounts are in sandbox mode and can only send to verified addresses. Request production access from the SES console before sending to real users.',
+
+        uiTitle: 'Configuring via the UI',
+        uiIntro: 'You can configure and switch providers without touching environment variables. All values entered in the UI override the environment variables for that specific project:',
+        uiItems: {
+          i1: 'Settings → Email — configure Resend or AWS SES per project. Admins can replace credentials. Super admins can see and edit the full keys.',
+          i2: 'Settings → Defaults — choose the CMS-wide default provider. Only super admins can access this section.',
+          i3: 'Switching provider requires that the target provider already has credentials configured (either via env vars or UI overrides).',
+          i4: 'Use the "Send test email" button in both sections to verify delivery before going live.',
+        },
+
+        scopeNote: 'Credentials saved in the Settings panel are project-scoped and take precedence over environment variables. The Defaults section stores a CMS-wide default provider that applies to all projects without a local override.',
+        docsLink: 'Resend documentation ↗',
+        docsLinkSes: 'AWS SES documentation ↗',
       },
     },
     canvas: {
       ariaLabel:           'Deck board',
       loading:             'Loading board…',
       empty:               'No decks yet.',
-      emptyHint:           'Use + to create your first deck.',
+      emptyHint:           'Use (G + N) to create your first deck or click +',
       multiSelected:       'selected',
       multiSelectedHint:   'drag to move · right-click to delete · Esc to clear',
     },
@@ -1050,6 +1177,7 @@
         uploadBtn:       'Upload',
         emptyImages:     'No images yet.',
         emptyVideos:     'No videos yet.',
+        noUploadAccess:  'You don\'t have permission to upload content.',
         emptySearch:     'No results for your search.',
         dropHere:        'Drop files here',
         orClick:         'or click to browse',
@@ -1127,14 +1255,18 @@
     board: {
       title: 'Board',
       canvasMenu: {
-        back:    'Go back',
-        forward: 'Go forward',
-        fitAll:  'Center decks',
+        back:       'Go back',
+        forward:    'Go forward',
+        fitAll:     'Center decks',
+        createDeck: 'New deck here',
       },
       contextMenu: {
         rename:     'Rename',
-        duplicate: 'Duplicate',
+        duplicate:  'Duplicate',
         deleteNode: 'Delete deck',
+        back:       'Go back',
+        forward:    'Go forward',
+        fitAll:     'Center decks',
       },
       deleteDialog: {
         title:                  'Delete "{name}"?',
@@ -1184,7 +1316,7 @@
       project:         'Projects',
       subscription:    'Subscription',
       storage:         'Storage',
-      email:           'Sending',
+      email:           'Email',
       api:             'API Tokens',
       members:         'Members',
       users:           'Users',
@@ -1192,8 +1324,10 @@
       info:            'Info',
       db:              'Database',
       webMigration:    'Web Migration',
+      help:            'Help',
       cartumProjects:  'Cartum Projects',
       variables:       'Variables',
+      defaults:        'Defaults',
     },
     panelTitle: 'SETTINGS',
     loading:    'Loading…',
@@ -1289,7 +1423,11 @@
       providerBlob:            'Vercel Blob',
       providerSaved:           'Provider updated.',
       providerError:           'Could not update provider.',
-      providerSelectHint:      'Select the active storage provider for new uploads.',
+      providerSelectHint:          'Select the active storage provider for new uploads.',
+      providerSelectHintAdmin:     'To switch provider, configure the credentials for the target provider in its accordion below, then select it here.',
+      providerMissingCredentials:  'Configure the required credentials for this provider before switching.',
+      providerUnsaved:             'Unsaved changes — provider not yet switched.',
+      saveProviderBtn:             'Save changes',
       statusConfigured:        'Configured',
       statusNotConfigured:     'Not configured',
       statusActive:            'Active',
@@ -1302,28 +1440,48 @@
       docsLinkDesc:            'Step-by-step guides for Cloudflare R2, Vercel Blob, and the media optimizer.',
     },    email: {
       title:               'Email',
-      notConfigured:       'Email delivery is not configured. Add a Resend API key to enable password recovery and user invites.',
+      notConfigured:       'Email delivery is not configured. Configure a provider to enable password recovery and invitations.',
+      providerLabel:       'Email provider',
+      active:              'Active',
+      inactive:            'Inactive',
+      configured:          'Configured',
+      notConfiguredBadge:  'Not configured',
+      resendTab:           'Resend',
+      sesTab:              'AWS SES',
       resendApiKey:        'Resend API key',
       resendKeyPlaceholder: 're_••••••••••••',
       apiKeySet:           'API key configured',
       apiKeyNotSet:        'No API key configured',
       apiKeyReplaceLabel:  'Replace API key',
       apiKeyReplacePlaceholder: 'Enter new key to replace the current one',
+      sesAccessKeyId:      'AWS SES Access Key ID',
+      sesSecretKey:        'AWS SES Secret Access Key',
+      sesKeyPlaceholder:   'AKIA••••••••••••••••',
+      sesSecretPlaceholder:'••••••••••••••••••••••••••••••••••••••••',
       fromEmailLabel:      'From email address',
-      fromEmailHint:       'Must be from a verified domain in your Resend account.',
-      fromEmailDomainWarning: 'Changing the From domain may cause delivery failures if the new domain is not verified in Resend.',
+      fromEmailHint:       'Sender address used for all outgoing emails from this project.',
+      fromEmailDomainWarning: 'Changing the From domain may cause delivery failures if the new domain is not verified.',
+      sesFromEmailLabel:      'AWS SES From email (AWS_SES_FROM_EMAIL)',
+      sesFromEmailDomainWarning: 'The sender domain must be verified and configured correctly in',
+      unsavedProvider:        'Unsaved changes — provider not yet switched.',
+      saveProvider:           'Save changes',
+      providerSwitchWarning:  'To switch provider you must include the Access Key for Resend or the Access Key ID + Secret Access Key for AWS SES, otherwise you cannot save the new email provider configuration.',
+      providerSwitchError:    'Configure credentials for this provider before switching.',
+      testToPlaceholder:      'Send test to email…',
       testEmail:           'Send test email',
       testing:             'Sending...',
       testOk:              'Test email sent.',
       testFail:            'Could not send test email.',
-      save:                'Save changes',
+      save:                'Save',
       saving:              'Saving...',
-      saved:               'Email settings saved.',
-      error:               'Could not save email settings.',
+      saved:               'Settings saved.',
+      error:               'Could not save settings.',
       projectScopeNote:    'These settings apply to this project only. Leave blank to use the instance default.',
     },
     api: {
-      title:           'API Tokens',
+      title:           'Tokens API',
+      tokenListTab:    'My Tokens',
+      newTokenTab:     'New Token',
       tokenName:       'Name',
       lastUsed:        'Last used',
       expiresCol:      'Expires',
@@ -1367,15 +1525,27 @@
       title:              'Members',
       subtitle:           'All members assigned to the active project.',
       inviteLabel:        'Invite a member',
+      emailLabel:         'Email',
+      projectLabel:       'Project',
+      roleLabel:          'Role',
       emailPlaceholder:   'colleague@company.com',
       inviting:           'Inviting…',
       inviteButton:       'Invite',
+      inviteSuccess:      'Invitation sent.',
+      builtInRoleLabels:  { admin: 'Admin', editor: 'Editor', viewer: 'Viewer' },
       currentMembers:     'Current members',
       memberSingular:     'member',
       memberPlural:       'members',
       pendingTitle:       'Pending invitations',
       pending:            'pending',
+      noPending:          'No pending invitations.',
+      resend:             'Resend',
+      revoke:             'Revoke',
+      revokeConfirm:      'Revoke this invitation?',
+      resendSuccess:      'Invitation resent.',
+      revokeSuccess:      'Invitation revoked.',
       // MemberList strings
+      ownerLabel:         'Owner',
       youLabel:           '(you)',
       changeRole:         'Change role',
       removeButton:       'Remove',
@@ -1450,8 +1620,9 @@
       deleteSuccess:         'Role deleted.',
       deleteError:           'Could not delete role.',
       confirmDeleteTitle:    'Delete role "{name}"?',
-      confirmDeleteAffected: '{count} user(s) will be reassigned to viewer.',
-      confirmDeleteNone:     'No users assigned to this role.',
+      confirmDeleteAffected: 'There are {count} user(s) with this role. You need to reassign them before deleting.',
+      confirmDeleteNone:     'No users assigned to this role in this project.',
+      reassignLabel:         'Select the role to assign them to:',
       permissionsTitle:      'Permissions · {name}',
       nodeCol:               'Node',
       readCol:               'Read',
@@ -1466,15 +1637,37 @@
       noCustomRoles:         'No custom roles yet.',
       selectToEdit:          'Select a custom role to edit its permissions.',
       systemBadge:           'SYSTEM',
-      noPermission:          'No permission to edit',
+      noPermission:          'All decks and cards on this table are yours to play. You hold the Admin hand.',
+      noPermissionSub:       'Remember, with great power comes great responsibility.',
+      nodeAccessTab:           'Deck & Node Access',
+      settingsAccessTab:       'Settings Access',
+      galleryAccessTab:        'Gallery Access',
+      galleryImages:           'Images',
+      galleryVideos:           'Videos',
+      galleryView:             'View',
+      galleryUpload:           'Upload',
+      galleryDelete:           'Delete',
+      gallerySave:             'Save',
+      gallerySaving:           'Saving...',
+      gallerySaved:            'Gallery permissions saved.',
+      schemaAccessTab:         'Board Access',
+      schemaBoardRow:          'Board',
+      schema_canCreate:        'Create',
+      schema_canUpdate:        'Edit',
+      schema_canDelete:        'Delete',
+      schema_canConnect:       'Connect',
+      schemaSaved:             'Board permissions saved.',
+      schemaViewNote:          'By default all roles can view the board.',
       sectionPermissionsTitle: 'Settings access',
+      sectionColView:        'View',
+      sectionColActions:     'Actions',
       saveSectionPerms:      'Save changes',
       savingSectionPerms:    'Saving...',
       sectionPermsSaved:     'Permissions saved.',
       sectionPermsError:     'Could not save permissions.',
       cancel:                'Cancel',
       userCount:             '{count} user(s)',
-      projectScopeWarning:   'Default roles apply to the entire CMS. Any changes you make here will be saved only for this project.',
+      projectScopeWarning:   'The Admin, Editor and Viewer roles cannot be deleted. Any changes you make here will only apply to the current project.',
       projectOverrideBadge:  'Project override',
       globalDefaultBadge:    'CMS default',
       builtInRoleLabels: {
@@ -1689,8 +1882,33 @@
         'Final touches on your Cartas. Worth every millisecond.',
       ],
     },
+    help: {
+      title:             'Help & Feedback',
+      description:       'Found a bug, vulnerability, improvement or something that could help make CartumCMS better? Send the details and if it has relevance you will receive subscription time on your account as a reward.',
+      rewardNote:        'Relevant reports are rewarded with subscription time on your account.',
+      subjectLabel:      'Subject',
+      subjectPlaceholder:'Bug report / Security issue / Improvement…',
+      emailLabel:        'Email (for communication)',
+      messageLabel:      'Details',
+      messagePlaceholder:'Describe the issue, steps to reproduce, expected behavior…',
+      imagesLabel:       'Screenshots (optional)',
+      dropZoneText:      'Drag & drop images or click to browse',
+      dropZoneHint:      'JPG, PNG, WebP, GIF · max 3 MB each · up to 5 images',
+      send:              'Send report',
+      sending:           'Sending…',
+      sent:              'Report sent. Thank you!',
+      sendError:         'Could not send the report. Please try again.',
+      allFieldsRequired: 'Subject, email and message are required.',
+      messageTooLong:    'Message must be at most 800 characters.',
+      maxImagesError:    'You can attach up to 5 images.',
+      invalidTypeError:  'Only JPG, PNG, WebP and GIF images are allowed.',
+      fileTooLargeError: 'Each image must be at most 3 MB.',
+      rateLimited:       'You can only send 1 report per day.',
+      nextAllowed:       'Next available:',
+    },
     info: {
       title:          'Info',
+      thankYou:       'Thank you for using Cartum CMS. We know there are many CMS options out there, but none ready to use without spending two months learning them. May Cartum power your projects, your CMS made Poker table!',
       version:        '1.0.0',
       versionLabel:   'Version',
       releasedOn:     'Released',
@@ -1783,12 +2001,17 @@
       show:          'Show',
       hide:          'Hide',
       // Groups
+      groupStorage:  'Storage',
       groupR2:       'Cloudflare R2',
       groupBlob:     'Vercel Blob',
-      groupResend:   'Resend (Email)',
+      groupEmail:    'Email',
+      groupResend:   'Resend',
+      groupSes:      'AWS SES',
       groupScraper:  'Scraper API',
       groupAuth:     'Auth & Database',
       groupMisc:     'Misc',
+      varConfigured:    'Configured',
+      varNotConfigured: 'Not configured',
       // Field labels
       r2Endpoint:      'R2 Endpoint',
       r2AccessKeyId:   'Access Key ID',
@@ -1796,8 +2019,10 @@
       r2BucketName:    'Bucket Name',
       r2PublicUrl:     'Public URL',
       blobToken:       'Blob Token',
-      resendApiKey:    'Resend API Key',
-      resendFromEmail: 'From Email',
+      resendApiKey:       'Resend API Key',
+      resendFromEmail:    'From Email',
+      sesAccessKeyId:     'AWS SES Access Key ID',
+      sesSecretAccessKey: 'AWS SES Secret Access Key',
       scraperApiUrl:   'Scraper URL',
       scraperApiKey:   'Scraper API Key',
       cartumNewPlayer: 'CARTUM_NEW_PLAYER',
@@ -1854,6 +2079,39 @@
         confirm:       'Yes, delete project',
         confirming:    'Deleting...',
       },
+    },
+    defaults: {
+      title:       'Defaults',
+      subtitle:    'Configure default providers for the entire CMS, not per project. These options apply to all projects in this instance.',
+      emailSection: 'Email Provider',
+      emailDesc:   'Select the default email provider for all outgoing emails in this instance.',
+      resend:            'Resend',
+      ses:               'AWS SES',
+      active:            'Active',
+      configured:        'Configured',
+      notConfigured:     'Not configured',
+      notConfiguredError:'Provider not configured — configure credentials first.',
+      setAsDefault:      'Set as default',
+      defaultBadge:      'Default',
+      testEmail:         'Send test',
+      testing:           'Sending…',
+      testOk:            'Test email sent.',
+      testFail:          'Test failed.',
+      testToLabel:       'Destination email for test',
+      testToPlaceholder: 'email@example.com',
+      testToRequired:    'Enter a destination email to send the test.',
+      storageSection:         'Storage Provider',
+      storageDesc:            'Select the default storage provider for new media uploads across all projects without a local override.',
+      storageNotConfiguredNote: 'No storage provider is configured globally. Set credentials in Settings → Variables first.',
+      resendFromEmailLabel:   'RESEND_FROM_EMAIL (global default)',
+      resendFromEmailWarning: 'Must be from a verified domain in your Resend account.',
+      sesFromEmailLabel:      'AWS_SES_FROM_EMAIL (global default)',
+      sesFromEmailWarning:    'The sender domain must be verified in AWS SES. Unverified domains will cause delivery failures.',
+      testSectionTitle:       'Send test email',
+      save:        'Save',
+      saving:      'Saving...',
+      saved:       'Default saved.',
+      error:       'Could not save default.',
     },
   },
   email: {
@@ -1971,6 +2229,7 @@ export type Dictionary = {
       createButton: string; creating: string
       emailLabel: string; signInButton: string; signingIn: string
       goToLogin: string
+      roleLabels: Record<string, string>
     }
   }
   cms: {
@@ -1982,6 +2241,7 @@ export type Dictionary = {
       descriptionLabel: string; descriptionPlaceholder: string
       localeLabel: string; localeEn: string; localeEs: string
       cancel: string; create: string; creating: string
+      next: string; back: string; step1: string; step2: string; themeLabel: string
     }
     player: {
       welcome: string; langSelect: string
@@ -2036,6 +2296,8 @@ export type Dictionary = {
         content: string; webMigration: string; relationsGuide: string; rolesGuide: string; multiProject: string
         media: string; apiForDevs: string; apiSchema: string; relations: string; nodesAndFieldsDev: string; webMigrationDev: string; multiProjectDev: string
         storageSetup: string
+        usersGuide: string
+        emailSetup: string
         installation: string
       }
       userBadge: string
@@ -2220,7 +2482,30 @@ export type Dictionary = {
         r2CorsTitle: string; r2CorsNote: string
         blobTitle: string; blobIntro: string; blobSteps: Record<string, string>
         blobEnvTitle: string; blobEnvVar: string
+        switchTitle: string; switchIntro: string; switchItems: Record<string, string>
+        fallbackTitle: string; fallbackIntro: string; fallbackItems: Record<string, string>
+        defaultsTitle: string; defaultsIntro: string
         scopeNote: string
+      }
+      emailSetup: {
+        title: string; intro: string
+        howTitle: string; howItems: Record<string, string>
+        resendTitle: string; resendIntro: string; resendSteps: Record<string, string>
+        resendEnvTitle: string; resendEnvVars: Record<string, string>; resendNote: string
+        sesTitle: string; sesIntro: string; sesSteps: Record<string, string>
+        sesEnvTitle: string; sesEnvVars: Record<string, string>; sesNote: string
+        uiTitle: string; uiIntro: string; uiItems: Record<string, string>
+        scopeNote: string; docsLink: string; docsLinkSes: string
+      }
+      usersGuide: {
+        title: string; intro: string
+        superAdminTitle: string; superAdminIntro: string; superAdminHow: string; superAdminHowDesc: string; superAdminNote: string
+        adminTitle: string; adminIntro: string; adminNote: string
+        comparisonTitle: string
+        comparisonHeaders: { feature: string; superAdmin: string; admin: string }
+        comparison: Record<string, { feature: string; sa: string; adm: string }>
+        localVsCloudTitle: string; localVsCloudItems: Record<string, string>
+        securityNote: string
       }
       installation: {
         title: string; intro: string
@@ -2301,6 +2586,7 @@ export type Dictionary = {
       mediaGallery: {
         title: string; tabImages: string; tabVideos: string; searchPlaceholder: string
         uploadBtn: string; emptyImages: string; emptyVideos: string; emptySearch: string
+        noUploadAccess: string
         dropHere: string; orClick: string; uploadStart: string
         optimizing: string; uploading: string; uploadSuccess: string; uploadError: string
         deleteLabel: string; confirmDelete: string; deleteSuccess: string; deleteError: string; copyUrlLabel: string; copiedLabel: string
@@ -2332,8 +2618,8 @@ export type Dictionary = {
     }
     board: {
       title: string
-      canvasMenu: { back: string; forward: string; fitAll: string }
-      contextMenu: { rename: string; duplicate: string; deleteNode: string }
+      canvasMenu: { back: string; forward: string; fitAll: string; createDeck?: string }
+      contextMenu: { rename: string; duplicate: string; deleteNode: string; back?: string; forward?: string; fitAll?: string }
       deleteDialog: {
         title: string; safeMessage: string; warnMessage: string; dangerMessage: string
         cancel: string; confirm: string; confirmDanger: string; deleting: string
@@ -2358,7 +2644,31 @@ export type Dictionary = {
     nav: {
       account: string; appearance: string; project: string; subscription: string; storage: string; email: string
       api: string; members: string; users: string; roles: string; info: string; db: string; webMigration: string
-      cartumProjects: string; variables: string
+      cartumProjects: string; variables: string; defaults: string; help: string
+    }
+    help: {
+      title: string; description: string; rewardNote: string
+      subjectLabel: string; subjectPlaceholder: string
+      emailLabel: string; messageLabel: string; messagePlaceholder: string
+      imagesLabel: string; dropZoneText: string; dropZoneHint: string
+      send: string; sending: string; sent: string; sendError: string
+      allFieldsRequired: string; messageTooLong: string
+      maxImagesError: string; invalidTypeError: string; fileTooLargeError: string
+      rateLimited: string; nextAllowed: string
+    }
+    defaults: {
+      title: string; subtitle: string
+      emailSection: string; emailDesc: string
+      resend: string; ses: string; active: string
+      configured?: string; notConfigured?: string; notConfiguredError?: string
+      setAsDefault?: string; defaultBadge?: string
+      testEmail?: string; testing?: string; testOk?: string; testFail?: string
+      testToLabel?: string; testToPlaceholder?: string; testToRequired?: string
+      sesFromEmailLabel?: string; sesFromEmailWarning?: string
+      resendFromEmailLabel?: string; resendFromEmailWarning?: string
+      testSectionTitle?: string
+      storageSection?: string; storageDesc?: string; storageNotConfiguredNote?: string
+      save: string; saving: string; saved: string; error: string
     }
     appearance: {
       title: string; themeLabel: string; saved: string; saveError: string
@@ -2399,23 +2709,31 @@ export type Dictionary = {
       showKey: string; hideKey: string
       testConnection: string; testing: string; testOk: string; testFail: string
       providerLabel: string; providerR2: string; providerBlob: string
-      providerSaved: string; providerError: string; providerSelectHint: string
+      providerSaved: string; providerError: string; providerSelectHint: string; providerSelectHintAdmin?: string; providerMissingCredentials?: string; providerUnsaved?: string; saveProviderBtn?: string
       statusConfigured: string; statusNotConfigured: string; statusActive: string
       save: string; saving: string; saved: string; error: string; saveEmptyNotice: string
       docsLinkLabel: string; docsLinkDesc: string
     }
     email: {
       title: string; notConfigured: string
+      providerLabel: string; active: string; inactive: string; configured: string; notConfiguredBadge: string
+      resendTab: string; sesTab: string
       resendApiKey: string; resendKeyPlaceholder: string
       apiKeySet: string; apiKeyNotSet: string
       apiKeyReplaceLabel: string; apiKeyReplacePlaceholder: string
+      sesAccessKeyId: string; sesSecretKey: string; sesKeyPlaceholder: string; sesSecretPlaceholder: string
       fromEmailLabel: string; fromEmailHint: string; fromEmailDomainWarning: string
+      sesFromEmailLabel?: string; sesFromEmailDomainWarning?: string
+      providerSwitchWarning?: string; providerSwitchError?: string
+      unsavedProvider?: string; saveProvider?: string
+      testToPlaceholder?: string
       testEmail: string; testing: string; testOk: string; testFail: string
       save: string; saving: string; saved: string; error: string
       projectScopeNote: string
     }
     api: {
-      title: string; tokenName: string; lastUsed: string; expiresCol: string
+      title: string; tokenListTab: string; newTokenTab: string
+      tokenName: string; lastUsed: string; expiresCol: string
       never: string; revoke: string; revoking: string; revokeSuccess: string
       newTokenTitle: string; nameLabel: string; namePlaceholder: string; expiresLabel: string
       createButton: string; creating: string; createSuccess: string; createError: string
@@ -2428,11 +2746,15 @@ export type Dictionary = {
       docsLinkLabel: string; docsLinkDesc: string
     }
     members: {
-      title: string; subtitle: string; inviteLabel: string; emailPlaceholder: string
-      inviting: string; inviteButton: string
+      title: string; subtitle: string; inviteLabel: string
+      emailLabel: string; projectLabel: string; roleLabel: string
+      emailPlaceholder: string; inviting: string; inviteButton: string; inviteSuccess: string
+      builtInRoleLabels: { admin: string; editor: string; viewer: string }
       currentMembers: string; memberSingular: string; memberPlural: string
       pendingTitle: string; pending: string
-      youLabel: string; changeRole: string; removeButton: string
+      noPending: string; resend: string; revoke: string; revokeConfirm: string
+      resendSuccess: string; revokeSuccess: string
+      ownerLabel: string; youLabel: string; changeRole: string; removeButton: string
       removeConfirmTitle: string; removeConfirmDesc: string
       removeSuccess: string; removeError: string; roleUpdated: string; noMembers: string
     }
@@ -2459,12 +2781,20 @@ export type Dictionary = {
       createButton: string; creating: string; createSuccess: string; createError: string
       deleteButton: string; deleting: string; deleteSuccess: string; deleteError: string
       confirmDeleteTitle: string; confirmDeleteAffected: string; confirmDeleteNone: string
+      reassignLabel: string
       permissionsTitle: string; nodeCol: string; readCol: string; createCol: string
       updateCol: string; deleteCol: string; wildcardRow: string
       savePerms: string; savingPerms: string; permsSaved: string; permsError: string
       noCustomRoles: string; selectToEdit: string
-      systemBadge: string; noPermission: string
+      systemBadge: string; noPermission: string; noPermissionSub: string
+      nodeAccessTab: string; settingsAccessTab: string; galleryAccessTab: string
+      galleryImages: string; galleryVideos: string
+      galleryView: string; galleryUpload: string; galleryDelete: string
+      gallerySave: string; gallerySaving: string; gallerySaved: string
+      schemaAccessTab?: string; schemaBoardRow?: string; schemaSaved?: string; schemaViewNote?: string
+      schema_canCreate?: string; schema_canUpdate?: string; schema_canDelete?: string; schema_canConnect?: string
       sectionPermissionsTitle: string
+      sectionColView?: string; sectionColActions?: string
       saveSectionPerms: string; savingSectionPerms: string
       sectionPermsSaved: string; sectionPermsError: string
       cancel: string; userCount: string
@@ -2521,7 +2851,7 @@ export type Dictionary = {
       importMessages: string[]
     }
     info: {
-      title: string; version: string; versionLabel: string; releasedOn: string; releaseDate: string
+      title: string; thankYou: string; version: string; versionLabel: string; releasedOn: string; releaseDate: string
       builtWith: string; stack: string
       openSource: string; openSourceUrl: string; developedBy: string
       license: string; licenseValue: string
@@ -2562,9 +2892,11 @@ export type Dictionary = {
       saveButton: string; saving: string; saved: string
       clearButton: string; clearDesc: string
       overrideBadge: string; envBadge: string; readOnlyNote: string; show: string; hide: string
-      groupR2: string; groupBlob: string; groupResend: string; groupScraper: string; groupAuth: string; groupMisc: string
+      groupStorage?: string; groupR2: string; groupBlob: string; groupEmail?: string; groupResend: string; groupSes?: string; groupScraper: string; groupAuth: string; groupMisc: string
+      varConfigured?: string; varNotConfigured?: string
       r2Endpoint: string; r2AccessKeyId: string; r2SecretKey: string; r2BucketName: string; r2PublicUrl: string
       blobToken: string; resendApiKey: string; resendFromEmail: string
+      sesAccessKeyId?: string; sesSecretAccessKey?: string
       scraperApiUrl: string; scraperApiKey: string; cartumNewPlayer: string; cartumNewPlayerHint: string
       authUrl: string; dbProvider: string; databaseUrl: string
       resetAllButton: string; resetAllConfirmTitle: string; resetAllConfirmDesc: string; resetAllSuccess: string

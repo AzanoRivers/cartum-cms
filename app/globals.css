@@ -1,6 +1,15 @@
 @import "tailwindcss";
 @import "./theme.css";
 
+/* === DISABLED ELEMENTS — cursor always not-allowed, no matter what other cursor class is set === */
+input:disabled,
+textarea:disabled,
+select:disabled,
+button:disabled,
+[role="button"][aria-disabled="true"] {
+    cursor: not-allowed !important;
+}
+
 /* === SAFE AREA INSET UTILITIES (iPhone notch / home indicator) === */
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 .pt-safe { padding-top: env(safe-area-inset-top); }
@@ -283,6 +292,11 @@ html[data-project-switching]::after {
     100% { background-position: 300% 50%; }
 }
 
+@keyframes cursor-blink {
+    0%, 49%  { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
 /* === VHS ANIMATION LAYERS ===
    .vhs-transition::before → scanlines sweep
    .vhs-transition::after  → RGB shift glow
@@ -394,6 +408,26 @@ html[data-project-switching]::after {
   color: transparent;
   animation: cartum-rainbow 8s linear infinite;
   filter: drop-shadow(0 0 5px rgba(99, 102, 241, 0.45));
+}
+
+/* Rainbow border — mask technique: fills only the border area, not the content */
+.rainbow-border {
+  position: relative;
+}
+.rainbow-border::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(90deg, #6366f1, #22d3ee, #a855f7, #22c55e, #eab308, #f97316, #ec4899, #6366f1);
+  background-size: 200% auto;
+  animation: cartum-rainbow 8s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 /* === NEW-NODE RAINBOW BORDER (2 s auto-dismiss) === */

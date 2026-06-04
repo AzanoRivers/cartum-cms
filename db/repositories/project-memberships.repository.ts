@@ -39,41 +39,19 @@ async function removeMember(userId: string, projectId: string): Promise<void> {
 }
 
 async function listMembers(projectId: string) {
-  const [members, superAdmins] = await Promise.all([
-    db
-      .select({
-        userId:       projectMemberships.userId,
-        roleId:       projectMemberships.roleId,
-        joinedAt:     projectMemberships.joinedAt,
-        email:        users.email,
-        roleName:     roles.name,
-        isSuperAdmin: users.isSuperAdmin,
-      })
-      .from(projectMemberships)
-      .innerJoin(users, eq(users.id, projectMemberships.userId))
-      .innerJoin(roles, eq(roles.id, projectMemberships.roleId))
-      .where(eq(projectMemberships.projectId, projectId)),
-
-    db
-      .select({ id: users.id, email: users.email })
-      .from(users)
-      .where(eq(users.isSuperAdmin, true)),
-  ])
-
-  const memberIds = new Set(members.map((m) => m.userId))
-
-  const extraSuperAdmins = superAdmins
-    .filter((sa) => !memberIds.has(sa.id))
-    .map((sa) => ({
-      userId:       sa.id,
-      roleId:       '' as string,
-      joinedAt:     null as Date | null,
-      email:        sa.email,
-      roleName:     '' as string,
-      isSuperAdmin: true as boolean,
-    }))
-
-  return [...members, ...extraSuperAdmins]
+  return db
+    .select({
+      userId:       projectMemberships.userId,
+      roleId:       projectMemberships.roleId,
+      joinedAt:     projectMemberships.joinedAt,
+      email:        users.email,
+      roleName:     roles.name,
+      isSuperAdmin: users.isSuperAdmin,
+    })
+    .from(projectMemberships)
+    .innerJoin(users, eq(users.id, projectMemberships.userId))
+    .innerJoin(roles, eq(roles.id, projectMemberships.roleId))
+    .where(eq(projectMemberships.projectId, projectId))
 }
 
 async function findByEmail(projectId: string, email: string) {

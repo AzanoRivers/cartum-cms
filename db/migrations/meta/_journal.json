@@ -106,6 +106,13 @@
       "when": 1780012800000,
       "tag": "0014_invitation_project_email_unique",
       "breakpoints": false
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1780303822072,
+      "tag": "0015_cool_excalibur",
+      "breakpoints": true
     }
   ]
 }

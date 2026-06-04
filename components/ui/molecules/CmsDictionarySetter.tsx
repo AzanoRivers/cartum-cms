@@ -3,21 +3,22 @@
 import { useEffect } from 'react'
 import { useUIStore } from '@/lib/stores/uiStore'
 import type { CmsDictionary } from '@/locales/en'
+import type { SchemaPermissions } from '@/types/roles'
 
 export function CmsDictionarySetter({
   dict,
-  canAccessBuilder,
+  schemaPermissions,
 }: {
   dict: CmsDictionary
-  canAccessBuilder: boolean
+  schemaPermissions: SchemaPermissions
 }) {
-  const setCmsDict          = useUIStore((s) => s.setCmsDict)
-  const setCanAccessBuilder = useUIStore((s) => s.setCanAccessBuilder)
-  const setGlobalLoading    = useUIStore((s) => s.setGlobalLoading)
+  const setCmsDict            = useUIStore((s) => s.setCmsDict)
+  const setSchemaPermissions  = useUIStore((s) => s.setSchemaPermissions)
+  const setGlobalLoading      = useUIStore((s) => s.setGlobalLoading)
   useEffect(() => {
     setCmsDict(dict)
-    setCanAccessBuilder(canAccessBuilder)
+    setSchemaPermissions(schemaPermissions)
     setGlobalLoading(false)
-  }, [dict, setCmsDict, canAccessBuilder, setCanAccessBuilder, setGlobalLoading])
+  }, [dict, setCmsDict, schemaPermissions, setSchemaPermissions, setGlobalLoading])
   return null
 }

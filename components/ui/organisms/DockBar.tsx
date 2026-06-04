@@ -13,7 +13,7 @@ export function DockBar() {
   const openHelp           = useUIStore((s) => s.openHelp)
   const setGlobalLoading   = useUIStore((s) => s.setGlobalLoading)
   const d                  = useUIStore((s) => s.cmsDict)
-  const canAccessBuilder   = useUIStore((s) => s.canAccessBuilder)
+  const schemaPermissions  = useUIStore((s) => s.schemaPermissions)
 
   const createBtnRef    = useRef<HTMLSpanElement>(null)
   const iconsSectionRef = useRef<HTMLDivElement>(null)
@@ -33,7 +33,7 @@ export function DockBar() {
       const w = iconsSectionRef.current.scrollWidth
       if (w > 0) setIconsHalfW(Math.round(w / 2))
     }
-  }, [collapsed, canAccessBuilder, isDocs, isContent])
+  }, [collapsed, schemaPermissions.canCreate, isDocs, isContent])
 
   function goHome() {
     if (pathname === '/cms/board') return
@@ -74,15 +74,13 @@ export function DockBar() {
           pointerEvents: collapsed ? 'none' : undefined,
         }}
       >
-        {canAccessBuilder && (
-          <DockIcon
-            icon="House"
-            tooltip={d?.dock.home ?? 'Home'}
-            active={isHome}
-            onClick={goHome}
-          />
-        )}
-        {!isDocs && !isContent && canAccessBuilder && (
+        <DockIcon
+          icon="House"
+          tooltip={d?.dock.home ?? 'Home'}
+          active={isHome}
+          onClick={goHome}
+        />
+        {!isDocs && !isContent && schemaPermissions.canCreate && (
           <span ref={createBtnRef}>
             <DockIcon
               icon="Plus"

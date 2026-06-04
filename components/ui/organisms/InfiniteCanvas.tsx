@@ -146,9 +146,11 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   const [isCheckingDelete, setIsCheckingDelete] = useState(false)
   const [boardReady,       setBoardReady]       = useState(false)
 
-  const editingFieldId = useUIStore((s) => s.editingFieldId)
-  const openFieldEdit  = useUIStore((s) => s.openFieldEdit)
-  const d              = useUIStore((s) => s.cmsDict)
+  const editingFieldId      = useUIStore((s) => s.editingFieldId)
+  const openFieldEdit       = useUIStore((s) => s.openFieldEdit)
+  const openCreationPanel   = useUIStore((s) => s.openCreationPanel)
+  const schemaPermissions   = useUIStore((s) => s.schemaPermissions)
+  const d                   = useUIStore((s) => s.cmsDict)
 
   const {
     connections: liveConnections,
@@ -209,7 +211,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     },
 
     onCanvasLongPress: (x, y) => {
-      setCanvasMenu({ x, y })
+      setCanvasMenu({ x, y, canvasPos: clientToCanvas(x, y) })
     },
 
     suppressClick: (nodeId) => {
@@ -297,6 +299,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
       }
 
       if ((e.key === 'Delete' || e.key === 'Backspace')) {
+        if (!useUIStore.getState().schemaPermissions.canDelete) return
         const { selectedNodeIds: ids } = useNodeBoardStore.getState()
         if (ids.length === 0) return
         e.preventDefault()
@@ -685,7 +688,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
     // Quick right-click (no drag) → show context menu
     const nodeEl = (e.target as HTMLElement).closest('[data-nodeid]') as HTMLElement | null
     if (!nodeEl) {
-      setCanvasMenu({ x: e.clientX, y: e.clientY })
+      setCanvasMenu({ x: e.clientX, y: e.clientY, canvasPos: clientToCanvas(e.clientX, e.clientY) })
       return
     }
     const nodeId   = nodeEl.dataset.nodeid!
@@ -915,6 +918,11 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
           menu={canvasMenu}
           onFitAll={handleFitAll}
           onClose={() => setCanvasMenu(null)}
+          onCreateHere={(pos) => {
+            openCreationPanel(null, pos)
+            setCanvasMenu(null)
+          }}
+          canCreate={schemaPermissions.canCreate}
           d={d?.board.canvasMenu as CanvasContextMenuDict | undefined}
         />
       )}
@@ -925,7 +933,10 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
           onRename={(nodeId) => setRenameNodeId(nodeId)}
           onDuplicate={handleDuplicate}
           onDelete={handleDeleteNode}
+          onFitAll={handleFitAll}
           onClose={() => setContextMenu(null)}
+          canEdit={schemaPermissions.canUpdate}
+          canDelete={schemaPermissions.canDelete}
           d={d?.board.contextMenu}
         />
       )}

@@ -10,6 +10,7 @@ import {
   revokeSubscriptionAction,
   type GlobalUserRow,
 } from '@/lib/actions/settings.actions'
+import { Clock } from 'lucide-react'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { useToast } from '@/lib/hooks/useToast'
 import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
@@ -194,7 +195,10 @@ export function UsersSection({ currentUserId, d, loadingText }: UsersSectionProp
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
+        <h2 className="font-mono text-xs text-muted uppercase tracking-widest flex items-center gap-2">
+          {d.title}
+          <span className="font-mono text-[8px] text-warning/70 border border-warning/30 rounded px-1.5 py-px leading-none normal-case tracking-normal">super</span>
+        </h2>
         <p className="font-mono text-[10px] text-muted/60">{d.subtitle}</p>
       </div>
 
@@ -271,8 +275,8 @@ export function UsersSection({ currentUserId, d, loadingText }: UsersSectionProp
                     {d.colOwned}: <span className="text-muted">{user.ownedCount}</span>
                   </span>
                   {!user.isSuperAdmin && (
-                    <span className={`font-mono text-[10px] ${active ? 'text-success' : 'text-muted/40'}`}>
-                      {d.colSub}: {active ? d.subDaysLeft.replace('{n}', String(days)) : d.subExpired}
+                    <span className={`font-mono text-[10px] flex items-center gap-1 ${active ? 'text-success' : 'text-muted/40'}`}>
+                      {active ? `⏱ ${days}d` : <><Clock size={10} className="shrink-0" />{d.subExpired}</>}
                     </span>
                   )}
                 </div>

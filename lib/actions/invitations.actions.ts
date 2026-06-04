@@ -14,6 +14,7 @@ import { projectInvitationsRepository } from '@/db/repositories/project-invitati
 import { usersRepository } from '@/db/repositories/users.repository'
 import { hashPassword } from '@/lib/services/auth.service'
 import { requireProjectId, assertProjectAccess } from '@/lib/auth/get-project-id'
+import { requireProjectAdmin } from '@/lib/rbac/guard'
 import { updateSessionProject } from '@/lib/auth/session-utils'
 import { InviteSchema, RegisterAndAcceptSchema } from './invitations.schemas'
 
@@ -25,9 +26,16 @@ function tokenHash(raw: string) {
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
-export async function getMembersForProject() {
+export async function getMembersForProject(): Promise<{
+  members: Awaited<ReturnType<typeof projectMembershipsRepository.listMembers>>
+  ownerId: string | null
+}> {
   const projectId = await requireProjectId()
-  return projectMembershipsRepository.listMembers(projectId)
+  const [members, [proj]] = await Promise.all([
+    projectMembershipsRepository.listMembers(projectId),
+    db.select({ ownerId: project.ownerId }).from(project).where(eq(project.id, projectId)).limit(1),
+  ])
+  return { members, ownerId: proj?.ownerId ?? null }
 }
 
 export async function getPendingInvitations() {
@@ -113,6 +121,7 @@ export async function revokeInvitation(
   if (!session) throw new Error('UNAUTHORIZED')
   const projectId = await requireProjectId()
   await assertProjectAccess(projectId)
+  await requireProjectAdmin(projectId)
   await invitationsService.revokeInvite(invitationId, projectId)
   revalidatePath('/cms/settings')
   return { success: true }
@@ -125,6 +134,7 @@ export async function resendInvitation(
   if (!session) throw new Error('UNAUTHORIZED')
   const projectId = await requireProjectId()
   await assertProjectAccess(projectId)
+  await requireProjectAdmin(projectId)
   try {
     await invitationsService.resendInvite(invitationId, projectId)
   } catch (err: unknown) {
@@ -145,6 +155,7 @@ export async function updateMemberRole(
   if (!session) throw new Error('UNAUTHORIZED')
   const projectId = await requireProjectId()
   await assertProjectAccess(projectId)
+  await requireProjectAdmin(projectId)
   await projectMembershipsRepository.addMember(userId, projectId, newRoleId)
   revalidatePath('/cms/settings')
   return { success: true }
@@ -157,6 +168,7 @@ export async function removeMember(
   if (!session) throw new Error('UNAUTHORIZED')
   const projectId = await requireProjectId()
   await assertProjectAccess(projectId)
+  await requireProjectAdmin(projectId)
 
   const admins = await projectMembershipsRepository.getMembersByRole(projectId, 'admin')
   if (admins.some((a) => a.userId === userId) && admins.length === 1) {

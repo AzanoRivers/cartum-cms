@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { nodeService } from '@/lib/services/nodes.service'
 import { connectionsService } from '@/lib/services/connections.service'
 import { requireProjectId, assertProjectAccess } from '@/lib/auth/get-project-id'
+import { requireSchemaPermission } from '@/lib/rbac/guard'
 import {
   CreateContainerSchema,
   CreateConnectionSchema,
@@ -28,6 +29,7 @@ export async function createContainerNode(
   try {
     const projectId = await requireProjectId()
     await assertProjectAccess(projectId)
+    await requireSchemaPermission(projectId, 'canCreate')
     const parsed = CreateContainerSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const node = await nodeService.createContainer(parsed.data, projectId)
@@ -44,6 +46,7 @@ export async function createFieldNode(
   try {
     const projectId = await requireProjectId()
     await assertProjectAccess(projectId)
+    await requireSchemaPermission(projectId, 'canCreate')
     const parsed = CreateFieldSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const node = await nodeService.createField(parsed.data, projectId)
@@ -60,6 +63,7 @@ export async function updateNodePosition(
   try {
     const projectId = await requireProjectId()
     await assertProjectAccess(projectId)
+    await requireSchemaPermission(projectId, 'canUpdate')
     const parsed = UpdatePositionSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     await nodeService.updatePosition(parsed.data.id, parsed.data.x, parsed.data.y, projectId)
@@ -76,6 +80,7 @@ export async function renameNode(
   try {
     const projectId = await requireProjectId()
     await assertProjectAccess(projectId)
+    await requireSchemaPermission(projectId, 'canUpdate')
     const parsed = RenameNodeSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const node = await nodeService.rename(parsed.data.id, parsed.data.name, projectId)
@@ -92,6 +97,7 @@ export async function deleteNode(
   try {
     const projectId = await requireProjectId()
     await assertProjectAccess(projectId)
+    await requireSchemaPermission(projectId, 'canDelete')
     const parsed = DeleteNodeSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     await nodeService.delete(parsed.data.id, projectId, parsed.data.confirmed)
@@ -108,6 +114,7 @@ export async function deleteNodes(
   try {
     const projectId = await requireProjectId()
     await assertProjectAccess(projectId)
+    await requireSchemaPermission(projectId, 'canDelete')
     const parsed = DeleteNodesSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     for (const id of parsed.data.ids) {
@@ -128,6 +135,7 @@ export async function createConnection(
   try {
     const projectId = await requireProjectId()
     await assertProjectAccess(projectId)
+    await requireSchemaPermission(projectId, 'canConnect')
     const parsed = CreateConnectionSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const connection = await connectionsService.create(
@@ -148,6 +156,7 @@ export async function deleteConnection(
   try {
     const projectId = await requireProjectId()
     await assertProjectAccess(projectId)
+    await requireSchemaPermission(projectId, 'canConnect')
     const parsed = DeleteConnectionSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     await connectionsService.delete(parsed.data.connectionId, projectId)
@@ -163,6 +172,7 @@ export async function updateConnection(
   try {
     const projectId = await requireProjectId()
     await assertProjectAccess(projectId)
+    await requireSchemaPermission(projectId, 'canConnect')
     const parsed = UpdateConnectionSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
     const conn = await connectionsService.updateType(parsed.data.connectionId, parsed.data.relationType, projectId)
@@ -182,6 +192,7 @@ export async function updateFieldMeta(
     await assertProjectAccess(projectId)
     const parsed = UpdateFieldMetaSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
+    await requireSchemaPermission(projectId, 'canUpdate')
     const node = await nodeService.updateFieldMeta(parsed.data.nodeId, {
       name:             parsed.data.name,
       isRequired:       parsed.data.isRequired,
@@ -204,6 +215,7 @@ export async function forceChangeFieldType(
     await assertProjectAccess(projectId)
     const parsed = ForceChangeFieldTypeSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error.' }
+    await requireSchemaPermission(projectId, 'canUpdate')
     const node = await nodeService.forceChangeFieldType(parsed.data.nodeId, {
       name:             parsed.data.name,
       isRequired:       parsed.data.isRequired,

@@ -206,6 +206,93 @@ function NodesAndFieldsSection({ d }: { d: DocsDict }) {
 
 // ── Section: Nodes & Fields (Developer) ───────────────────────────────────────
 
+// ── Section: Users & Roles ────────────────────────────────────────────────────
+
+function UsersGuideSection({ d }: { d: DocsDict }) {
+  const s = d.usersGuide
+  const h = s.comparisonHeaders
+  const rowCls = 'border-b border-border/40 last:border-0'
+  const cellCls = 'px-3 py-2.5 font-mono text-xs text-text/80 leading-relaxed'
+  const headCls = 'px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-muted bg-surface-2/60 text-left'
+  return (
+    <div className="space-y-6">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      <div className="h-px bg-border" />
+
+      {/* Super admin */}
+      <div className="space-y-3">
+        <SubHeading>{s.superAdminTitle}</SubHeading>
+        <Prose>{s.superAdminIntro}</Prose>
+        <p className="font-mono text-xs font-semibold text-text/90">{s.superAdminHow}</p>
+        <Prose>{s.superAdminHowDesc}</Prose>
+        <Note>{s.superAdminNote}</Note>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Project admin */}
+      <div className="space-y-3">
+        <SubHeading>{s.adminTitle}</SubHeading>
+        <Prose>{s.adminIntro}</Prose>
+        <Note>{s.adminNote}</Note>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Comparison table */}
+      <div className="space-y-3">
+        <SubHeading>{s.comparisonTitle}</SubHeading>
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr>
+                <th className={headCls} style={{ width: '55%' }}>{h.feature}</th>
+                <th className={`${headCls} text-center`} style={{ width: '22.5%' }}>{h.superAdmin}</th>
+                <th className={`${headCls} text-center`} style={{ width: '22.5%' }}>{h.admin}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.values(s.comparison).map((row, i) => (
+                <tr key={i} className={rowCls}>
+                  <td className={cellCls}>{row.feature}</td>
+                  <td className={`${cellCls} text-center`}>
+                    <span className={row.sa === 'Yes' || row.sa === 'Sí' ? 'text-success' : 'text-muted/60'}>
+                      {row.sa}
+                    </span>
+                  </td>
+                  <td className={`${cellCls} text-center`}>
+                    <span className={
+                      row.adm === 'No' ? 'text-muted/50' :
+                      row.adm === 'Yes' || row.adm === 'Sí' ? 'text-success' :
+                      'text-warning/80'
+                    }>
+                      {row.adm}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Local vs cloud */}
+      <div className="space-y-3">
+        <SubHeading>{s.localVsCloudTitle}</SubHeading>
+        <UL items={Object.values(s.localVsCloudItems)} />
+      </div>
+
+      <Note>{s.securityNote}</Note>
+    </div>
+  )
+}
+
+// ── Section: Nodes & Fields (dev) ─────────────────────────────────────────────
+
 function NodesAndFieldsDevSection({ d }: { d: DocsDict }) {
   const s = d.nodesAndFieldsDev
   return (
@@ -1030,6 +1117,67 @@ function InstallationSection({ d }: { d: DocsDict }) {
 
 // ── Section: Storage Setup ────────────────────────────────────────────────────
 
+// ── Section: Email Setup ──────────────────────────────────────────────────────
+
+function EmailSetupSection({ d }: { d: DocsDict }) {
+  const s = d.emailSetup
+  const linkCls = 'inline-flex items-center gap-1 font-mono text-xs text-primary hover:text-primary/80 transition-colors'
+  return (
+    <div className="space-y-6">
+      <SectionHeading>{s.title}</SectionHeading>
+      <Prose>{s.intro}</Prose>
+
+      <div className="space-y-2">
+        <SubHeading>{s.howTitle}</SubHeading>
+        <UL items={Object.values(s.howItems)} />
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Resend */}
+      <div className="space-y-4">
+        <SubHeading>{s.resendTitle}</SubHeading>
+        <Prose>{s.resendIntro}</Prose>
+        <UL items={Object.values(s.resendSteps)} />
+        <SubHeading>{s.resendEnvTitle}</SubHeading>
+        <DocsCodeBlock language="env" code={Object.values(s.resendEnvVars).join('\n')} />
+        <Note>{s.resendNote}</Note>
+        <a href="https://resend.com/docs" target="_blank" rel="noopener noreferrer" className={linkCls}>
+          {s.docsLink}
+        </a>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* AWS SES */}
+      <div className="space-y-4">
+        <SubHeading>{s.sesTitle}</SubHeading>
+        <Prose>{s.sesIntro}</Prose>
+        <UL items={Object.values(s.sesSteps)} />
+        <SubHeading>{s.sesEnvTitle}</SubHeading>
+        <DocsCodeBlock language="env" code={Object.values(s.sesEnvVars).join('\n')} />
+        <Note>{s.sesNote}</Note>
+        <a href="https://docs.aws.amazon.com/ses/latest/dg/setting-up.html" target="_blank" rel="noopener noreferrer" className={linkCls}>
+          {s.docsLinkSes}
+        </a>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* UI configuration */}
+      <div className="space-y-2">
+        <SubHeading>{s.uiTitle}</SubHeading>
+        <Prose>{s.uiIntro}</Prose>
+        <UL items={Object.values(s.uiItems)} />
+      </div>
+
+      <Note>{s.scopeNote}</Note>
+    </div>
+  )
+}
+
+// ── Section: Storage Setup ────────────────────────────────────────────────────
+
 function StorageSetupSection({ d }: { d: DocsDict }) {
   const s = d.storageSetup
   return (
@@ -1089,6 +1237,30 @@ function StorageSetupSection({ d }: { d: DocsDict }) {
 
       <div className="h-px bg-border" />
 
+      {/* Switching providers */}
+      <div className="space-y-3">
+        <SubHeading>{s.switchTitle}</SubHeading>
+        <Prose>{s.switchIntro}</Prose>
+        <UL items={Object.values(s.switchItems)} />
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Fallback chain */}
+      <div className="space-y-3">
+        <SubHeading>{s.fallbackTitle}</SubHeading>
+        <Prose>{s.fallbackIntro}</Prose>
+        <UL items={Object.values(s.fallbackItems)} />
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* CMS-wide default */}
+      <div className="space-y-3">
+        <SubHeading>{s.defaultsTitle}</SubHeading>
+        <Prose>{s.defaultsIntro}</Prose>
+      </div>
+
       <Note>{s.scopeNote}</Note>
     </div>
   )
@@ -1099,12 +1271,12 @@ function StorageSetupSection({ d }: { d: DocsDict }) {
 const ORDERED_SECTIONS = [
   'gettingStarted','navigation','nodesAndFields','content','webMigration',
   'relationsGuide','rolesGuide','multiProject',
-  'installation','nodesAndFieldsDev','webMigrationDev','multiProjectDev','media',
+  'installation','usersGuide','nodesAndFieldsDev','emailSetup','webMigrationDev','multiProjectDev','media',
   'storageSetup','apiForDevs','apiSchema','relations',
 ] as const
 
 const DEV_SECTION_SET = new Set([
-  'installation','nodesAndFieldsDev','webMigrationDev','multiProjectDev','media',
+  'installation','usersGuide','nodesAndFieldsDev','emailSetup','webMigrationDev','multiProjectDev','media',
   'storageSetup','apiForDevs','apiSchema','relations',
 ])
 
@@ -1174,7 +1346,9 @@ type SectionId =
   | 'rolesGuide'
   | 'multiProject'
   | 'installation'
+  | 'usersGuide'
   | 'nodesAndFieldsDev'
+  | 'emailSetup'
   | 'webMigrationDev'
   | 'multiProjectDev'
   | 'media'
@@ -1187,7 +1361,7 @@ type SectionId =
 
 const VALID_SECTION_IDS = new Set<string>([
   'gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration',
-  'relationsGuide', 'rolesGuide', 'multiProject', 'nodesAndFieldsDev', 'webMigrationDev',
+  'relationsGuide', 'rolesGuide', 'multiProject', 'nodesAndFieldsDev', 'usersGuide', 'emailSetup', 'webMigrationDev',
   'multiProjectDev', 'media', 'installation', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations',
 ])
 
@@ -1243,7 +1417,9 @@ export function DocsPage({ d, locale, noPad = false }: DocsPageProps) {
       case 'relationsGuide':     return <RelationsGuideSection d={d} />
       case 'rolesGuide':         return <RolesGuideSection d={d} />
       case 'multiProject':       return <MultiProjectSection d={d} />
+      case 'usersGuide':         return <UsersGuideSection d={d} />
       case 'nodesAndFieldsDev':  return <NodesAndFieldsDevSection d={d} />
+      case 'emailSetup':         return <EmailSetupSection d={d} />
       case 'webMigrationDev':    return <WebMigrationDevSection d={d} />
       case 'multiProjectDev':    return <MultiProjectDevSection d={d} />
       case 'media':              return <MediaSection d={d} />

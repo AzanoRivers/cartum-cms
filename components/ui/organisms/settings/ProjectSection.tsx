@@ -8,6 +8,7 @@ import {
   deleteUserProject,
   type UserProjectRow,
 } from '@/lib/actions/settings.actions'
+import { switchProject } from '@/lib/actions/project.actions'
 import { useToast } from '@/lib/hooks/useToast'
 import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
@@ -17,9 +18,10 @@ import type { ProjectSettings } from '@/types/settings'
 export type ProjectSectionProps = {
   d:           Dictionary['settings']['project']
   loadingText: string
+  canActions?: boolean
 }
 
-export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
+export function ProjectSection({ d, loadingText, canActions = true }: ProjectSectionProps) {
   // Project list
   const [projects, setProjects]           = useState<UserProjectRow[]>([])
   const [selectedId, setSelectedId]       = useState<string>('')
@@ -81,6 +83,7 @@ export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
   }
 
   function handleSave() {
+    if (!canActions) return
     startSave(async () => {
       const res = await updateProjectSettingsById(selectedId, form)
       if (res.success) {
@@ -139,7 +142,12 @@ export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
           <label className="block font-mono text-xs text-text-muted">{d.selectProject}</label>
           <select
             value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
+            onChange={async (e) => {
+              const id = e.target.value
+              setSelectedId(id)
+              await switchProject(id)
+              window.location.href = window.location.href
+            }}
             className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors cursor-pointer"
           >
             {projects.map((p) => (
@@ -160,8 +168,9 @@ export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
             <input
               type="text"
               value={form.projectName}
-              onChange={(e) => handleChange('projectName', e.target.value)}
-              className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors"
+              onChange={(e) => canActions && handleChange('projectName', e.target.value)}
+              disabled={!canActions}
+              className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -170,10 +179,11 @@ export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
             <label className="block font-mono text-xs text-text-muted">{d.description}</label>
             <textarea
               value={form.description ?? ''}
-              onChange={(e) => handleChange('description', e.target.value)}
+              onChange={(e) => canActions && handleChange('description', e.target.value)}
+              disabled={!canActions}
               rows={3}
               placeholder={d.descriptionPlaceholder}
-              className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors resize-none"
+              className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text placeholder-muted/40 outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors resize-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -182,8 +192,9 @@ export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
             <label className="block font-mono text-xs text-text-muted">{d.defaultLocale}</label>
             <select
               value={form.defaultLocale}
-              onChange={(e) => handleChange('defaultLocale', e.target.value as 'en' | 'es')}
-              className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors cursor-pointer"
+              onChange={(e) => canActions && handleChange('defaultLocale', e.target.value as 'en' | 'es')}
+              disabled={!canActions}
+              className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="en">{d.localeEn}</option>
               <option value="es">{d.localeEs}</option>
@@ -193,7 +204,7 @@ export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
           <div className="pt-2 flex justify-end">
             <button
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || !canActions}
               className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white transition-colors hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               {isSaving ? d.saving : d.save}
@@ -218,7 +229,7 @@ export function ProjectSection({ d, loadingText }: ProjectSectionProps) {
                 </button>
               </div>
             ) : (
-              <p className="font-mono text-[11px] text-muted/60">{d.onlyOwnerCanDelete}</p>
+              <p className="font-mono text-xs text-muted border border-border/50 bg-surface-2/50 rounded-md px-3 py-2">{d.onlyOwnerCanDelete}</p>
             )}
           </div>
         </>

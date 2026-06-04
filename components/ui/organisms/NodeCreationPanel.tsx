@@ -66,8 +66,9 @@ function calcNextPosition(parentId: string | null): { positionX: number; positio
 }
 
 export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
-  const closeCreationPanel = useUIStore((s) => s.closeCreationPanel)
-  const anchorEl           = useUIStore((s) => s.creationPanelAnchorEl)
+  const closeCreationPanel      = useUIStore((s) => s.closeCreationPanel)
+  const anchorEl                = useUIStore((s) => s.creationPanelAnchorEl)
+  const creationContextPosition = useUIStore((s) => s.creationContextPosition)
   const addNode     = useNodeBoardStore((s) => s.addNode)
   const markNodeNew = useNodeBoardStore((s) => s.markNodeNew)
   const d = useUIStore((s) => s.cmsDict)
@@ -130,8 +131,13 @@ export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
     const trimmed = name.trim()
 
     startTransition(async () => {
+      // Use context-menu position if set, otherwise fall back to auto-grid
+      const contextPos = creationContextPosition
+        ? { positionX: creationContextPosition.x, positionY: creationContextPosition.y }
+        : null
+
       if (selectedKind === 'container') {
-        const pos = calcNextPosition(parentId)
+        const pos = contextPos ?? calcNextPosition(parentId)
         const result = await createContainerNode({ name: trimmed, parentId, ...pos })
         if (!result.success) {
           setNameError(result.error)
@@ -141,7 +147,7 @@ export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
         markNodeNew(result.data.id)
       } else if (selectedKind) {
         if (!parentId) return
-        const pos = calcNextPosition(parentId)
+        const pos = contextPos ?? calcNextPosition(parentId)
         const result = await createFieldNode({
           name: trimmed,
           parentId,

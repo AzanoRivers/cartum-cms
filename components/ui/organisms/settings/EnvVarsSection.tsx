@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { Eye, EyeOff, RotateCcw } from 'lucide-react'
+import { Eye, EyeOff, RotateCcw, ChevronDown } from 'lucide-react'
 import {
   getEnvSettings,
   updateEnvVar,
@@ -23,21 +23,24 @@ export type EnvVarsSectionProps = {
 
 // Map from field key → app_settings key
 const FIELD_KEY_MAP: Record<string, string> = {
-  r2Endpoint:      'r2_endpoint',
-  r2AccessKeyId:   'r2_access_key_id',
-  r2SecretKey:     'r2_secret_key',
-  r2BucketName:    'r2_bucket_name',
-  r2PublicUrl:     'r2_public_url',
-  blobToken:       'blob_token',
-  resendApiKey:    'resend_api_key',
-  resendFromEmail: 'resend_from_email',
-  scraperApiUrl:   'scraper_api_url',
-  scraperApiKey:   'scraper_api_key',
-  cartumNewPlayer: 'cartum_new_player',
+  r2Endpoint:         'r2_endpoint',
+  r2AccessKeyId:      'r2_access_key_id',
+  r2SecretKey:        'r2_secret_key',
+  r2BucketName:       'r2_bucket_name',
+  r2PublicUrl:        'r2_public_url',
+  blobToken:          'blob_token',
+  resendApiKey:       'resend_api_key',
+  resendFromEmail:    'resend_from_email',
+  sesAccessKeyId:     'ses_access_key_id',
+  sesSecretAccessKey: 'ses_secret_access_key',
+  scraperApiUrl:      'scraper_api_url',
+  scraperApiKey:      'scraper_api_key',
+  cartumNewPlayer:    'cartum_new_player',
 }
 
 const SENSITIVE_FIELDS = new Set([
   'r2AccessKeyId', 'r2SecretKey', 'blobToken', 'resendApiKey', 'scraperApiKey',
+  'sesAccessKeyId', 'sesSecretAccessKey',
 ])
 
 type FieldConfig = {
@@ -157,13 +160,55 @@ function ReadOnlyRow({ label, value, note }: { label: string; value: string; not
   )
 }
 
-// ── Group header ───────────────────────────────────────────────────────────────
+// ── Group helpers ──────────────────────────────────────────────────────────────
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border/60 bg-surface-2/20 p-4 space-y-4">
       <p className="font-mono text-[10px] text-muted/70 uppercase tracking-widest">{title}</p>
       {children}
+    </div>
+  )
+}
+
+function AccordionGroup({
+  title, children, configured, defaultOpen = false,
+  configuredLabel, notConfiguredLabel,
+}: {
+  title:              string
+  children:           React.ReactNode
+  configured:         boolean
+  defaultOpen?:       boolean
+  configuredLabel:    string
+  notConfiguredLabel: string
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="rounded-lg border border-border/60 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors cursor-pointer ${open ? 'bg-surface-2/40' : 'bg-surface-2/20 hover:bg-surface-2/30'}`}
+      >
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] text-muted/70 uppercase tracking-widest">{title}</span>
+          <span className={`font-mono text-[9px] rounded px-1.5 py-0.5 border ${
+            configured
+              ? 'border-success/40 text-success bg-success/5'
+              : 'border-border text-muted/60 bg-surface-2'
+          }`}>
+            {configured ? configuredLabel : notConfiguredLabel}
+          </span>
+        </div>
+        <ChevronDown size={12} className={`transition-transform duration-200 text-muted/50 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <div className={`grid transition-[grid-template-rows] duration-250 ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className="min-h-0 overflow-hidden">
+          <div className="border-t border-border/40 p-4 space-y-4">
+            {children}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -238,7 +283,10 @@ export function EnvVarsSection({ d, loadingText }: EnvVarsSectionProps) {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="font-mono text-xs text-muted uppercase tracking-widest">{d.title}</h2>
+          <h2 className="font-mono text-xs text-muted uppercase tracking-widest flex items-center gap-2">
+            {d.title}
+            <span className="font-mono text-[8px] text-warning/70 border border-warning/30 rounded px-1.5 py-px leading-none normal-case tracking-normal">super</span>
+          </h2>
           <p className="font-mono text-[10px] text-muted/60 leading-relaxed">{d.subtitle}</p>
         </div>
         <button
@@ -294,36 +342,74 @@ export function EnvVarsSection({ d, loadingText }: EnvVarsSectionProps) {
 
       {/* Auth & DB — read-only */}
       <Group title={d.groupAuth}>
-        <ReadOnlyRow label={d.authUrl}    value={data.authUrl}    note={d.readOnlyNote} />
-        <ReadOnlyRow label={d.dbProvider} value={data.dbProvider} note={d.readOnlyNote} />
+        <ReadOnlyRow label={d.authUrl}     value={data.authUrl}     note={d.readOnlyNote} />
+        <ReadOnlyRow label={d.dbProvider}  value={data.dbProvider}  note={d.readOnlyNote} />
         <ReadOnlyRow label={d.databaseUrl} value={data.databaseUrl} note={d.readOnlyNote} />
       </Group>
 
-      {/* Cloudflare R2 */}
-      <Group title={d.groupR2}>
-        {makeRow('r2Endpoint',    d.r2Endpoint)}
-        {makeRow('r2AccessKeyId', d.r2AccessKeyId)}
-        {makeRow('r2SecretKey',   d.r2SecretKey)}
-        {makeRow('r2BucketName',  d.r2BucketName)}
-        {makeRow('r2PublicUrl',   d.r2PublicUrl)}
-      </Group>
+      {/* Almacenamiento — R2 + Blob */}
+      <div className="space-y-2">
+        <p className="font-mono text-[10px] text-muted/70 uppercase tracking-widest px-1">{d.groupStorage ?? 'Almacenamiento'}</p>
+        <AccordionGroup
+          title={d.groupR2}
+          configured={Boolean(data.r2Endpoint?.value || data.r2AccessKeyId?.value)}
+          defaultOpen={false}
+          configuredLabel={d.varConfigured ?? 'Configured'}
+          notConfiguredLabel={d.varNotConfigured ?? 'Not configured'}
+        >
+          {makeRow('r2Endpoint',    d.r2Endpoint)}
+          {makeRow('r2AccessKeyId', d.r2AccessKeyId)}
+          {makeRow('r2SecretKey',   d.r2SecretKey)}
+          {makeRow('r2BucketName',  d.r2BucketName)}
+          {makeRow('r2PublicUrl',   d.r2PublicUrl)}
+        </AccordionGroup>
+        <AccordionGroup
+          title={d.groupBlob}
+          configured={Boolean(data.blobToken?.value)}
+          defaultOpen={false}
+          configuredLabel={d.varConfigured ?? 'Configured'}
+          notConfiguredLabel={d.varNotConfigured ?? 'Not configured'}
+        >
+          {makeRow('blobToken', d.blobToken)}
+        </AccordionGroup>
+      </div>
 
-      {/* Vercel Blob */}
-      <Group title={d.groupBlob}>
-        {makeRow('blobToken', d.blobToken)}
-      </Group>
-
-      {/* Resend */}
-      <Group title={d.groupResend}>
-        {makeRow('resendApiKey',    d.resendApiKey)}
-        {makeRow('resendFromEmail', d.resendFromEmail)}
-      </Group>
+      {/* Email — Resend + AWS SES */}
+      <div className="space-y-2">
+        <p className="font-mono text-[10px] text-muted/70 uppercase tracking-widest px-1">{d.groupEmail ?? 'Email'}</p>
+        <AccordionGroup
+          title={d.groupResend}
+          configured={Boolean(data.resendApiKey?.value)}
+          defaultOpen={false}
+          configuredLabel={d.varConfigured ?? 'Configured'}
+          notConfiguredLabel={d.varNotConfigured ?? 'Not configured'}
+        >
+          {makeRow('resendApiKey',    d.resendApiKey)}
+          {makeRow('resendFromEmail', d.resendFromEmail)}
+        </AccordionGroup>
+        <AccordionGroup
+          title={d.groupSes ?? 'AWS SES'}
+          configured={Boolean(data.sesAccessKeyId?.value || data.sesSecretAccessKey?.value)}
+          defaultOpen={false}
+          configuredLabel={d.varConfigured ?? 'Configured'}
+          notConfiguredLabel={d.varNotConfigured ?? 'Not configured'}
+        >
+          {makeRow('sesAccessKeyId',     d.sesAccessKeyId     ?? 'AWS SES Access Key ID')}
+          {makeRow('sesSecretAccessKey', d.sesSecretAccessKey ?? 'AWS SES Secret Access Key')}
+        </AccordionGroup>
+      </div>
 
       {/* Scraper */}
-      <Group title={d.groupScraper}>
+      <AccordionGroup
+        title={d.groupScraper}
+        configured={Boolean(data.scraperApiUrl?.value)}
+        defaultOpen={false}
+        configuredLabel={d.varConfigured ?? 'Configured'}
+        notConfiguredLabel={d.varNotConfigured ?? 'Not configured'}
+      >
         {makeRow('scraperApiUrl', d.scraperApiUrl)}
         {makeRow('scraperApiKey', d.scraperApiKey)}
-      </Group>
+      </AccordionGroup>
 
       {/* Misc */}
       <Group title={d.groupMisc}>

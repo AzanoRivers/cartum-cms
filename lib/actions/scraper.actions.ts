@@ -209,6 +209,7 @@ export async function cancelScrapeJob(
   jobId: string,
 ): Promise<ActionResult<void>> {
   try {
+    await assertTier2Access()
     const { apiUrl, apiKey } = await getApiConfig()
     await scraperService.cancelJob(apiUrl, apiKey, jobId)
     return { success: true, data: undefined }

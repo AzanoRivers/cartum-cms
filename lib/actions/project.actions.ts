@@ -17,6 +17,7 @@ export async function createProject(formData: FormData): Promise<never> {
   const name        = formData.get('name') as string
   const description = (formData.get('description') as string) ?? ''
   const locale      = (formData.get('locale') as string) ?? 'en'
+  const theme       = (formData.get('theme') as string) || 'dusk'
 
   const { projectId } = await createProjectService({
     name,
@@ -24,6 +25,10 @@ export async function createProject(formData: FormData): Promise<never> {
     locale,
     creatorId: session.user.id,
   })
+
+  // Save theme as project-scoped setting
+  const { setSetting } = await import('@/lib/settings/get-setting')
+  await setSetting(`theme:${projectId}`, theme, session.user.id)
 
   await updateSessionProject(projectId)
   redirect('/cms/board')

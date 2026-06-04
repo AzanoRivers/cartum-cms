@@ -12,6 +12,7 @@ import { ThemeSync } from '@/components/ui/atoms/ThemeSync'
 import { rolesService } from '@/lib/services/roles.service'
 import { projectMembershipsRepository } from '@/db/repositories/project-memberships.repository'
 import { ROLE_ADMIN, ROLE_EDITOR } from '@/types/roles'
+import { resolveSchemaPermissions } from '@/lib/actions/roles.actions'
 import { getTheme } from '@/lib/settings/get-setting'
 import { getMyProjects } from '@/lib/actions/project.actions'
 import { NoProjectModal } from '@/components/ui/molecules/NoProjectModal'
@@ -24,20 +25,40 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
   const userId               = session.user?.id ?? ''
   const isSuperAdmin         = session.user.isSuperAdmin ?? false
   const cookieStore          = await cookies()
-  const currentProjectId     = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId ?? null
+  const cookieProjectId      = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? null
+  const sessionProjectId     = session.user.currentProjectId ?? null
+
+  // Validate cookie project — user MUST be an actual member regardless of role
+  // Super_admin is NOT exempt: projects are isolated capsules
+  let currentProjectId: string | null = sessionProjectId
+  if (cookieProjectId) {
+    const isMember = await projectMembershipsRepository.isMember(userId, cookieProjectId)
+    if (isMember) {
+      currentProjectId = cookieProjectId
+    }
+  }
+
+  // If resolved project is still not one the user is a member of, find their first membership
+  if (currentProjectId) {
+    const validMember = await projectMembershipsRepository.isMember(userId, currentProjectId)
+    if (!validMember) {
+      const memberships = await projectMembershipsRepository.getUserProjects(userId)
+      currentProjectId = memberships[0]?.projectId ?? null
+    }
+  }
   const cartumSuscriptor     = session.user.cartumSuscriptor ?? true
   const cartumSuscriptorTime = session.user.cartumSuscriptorTime ?? 0
 
-  const [sectionPermissions, isProjectAdmin, isProjectEditor, theme, allProjects] = await Promise.all([
+  const [sectionPermissions, isProjectAdmin, schemaPermissions, theme, allProjects] = await Promise.all([
     isSuperAdmin
       ? Promise.resolve({} as Awaited<ReturnType<typeof rolesService.getSectionPermissionsForUser>>)
       : rolesService.getSectionPermissionsForUser(userId, currentProjectId),
     isSuperAdmin || !currentProjectId
       ? Promise.resolve(false)
       : projectMembershipsRepository.isMemberWithRole(userId, currentProjectId, ROLE_ADMIN),
-    !currentProjectId
-      ? Promise.resolve(false)
-      : projectMembershipsRepository.isMemberWithRole(userId, currentProjectId, ROLE_EDITOR),
+    currentProjectId
+      ? resolveSchemaPermissions(userId, currentProjectId)
+      : Promise.resolve({ canCreate: false, canUpdate: false, canDelete: false, canConnect: false }),
     getTheme(currentProjectId),
     getMyProjects(),
   ])
@@ -45,6 +66,10 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
   const isAdmin = isSuperAdmin
     || (session.user.roles ?? []).includes(ROLE_ADMIN)
     || isProjectAdmin
+
+
+  const isProjectEditor = schemaPermissions.canCreate && schemaPermissions.canUpdate
+    && schemaPermissions.canDelete && schemaPermissions.canConnect
 
   const projects = allProjects.map((p) => ({ id: p.id, name: p.name, locale: p.defaultLocale ?? 'en' }))
   const currentProject = projects.find((p) => p.id === currentProjectId)
@@ -55,8 +80,6 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
   const dict = getDictionary(locale)
   const cmsDict = dict.cms
   const settingsDict = dict.settings
-  // Admin and Editor can interact with the board builder; Viewer is read-only
-  const canAccessBuilder = isSuperAdmin || isAdmin || isProjectEditor
 
   const ua = (await headers()).get('user-agent') ?? ''
   const mobile = isMobileUserAgent(ua)
@@ -70,7 +93,7 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
     return (
       <>
         <ThemeSync theme={theme} />
-        <CmsDictionarySetter dict={cmsDict} canAccessBuilder={canAccessBuilder} />
+        <CmsDictionarySetter dict={cmsDict} schemaPermissions={schemaPermissions} />
         <GlobalLoader />
         {noProject && <NoProjectModal d={dict.cms.noProject} />}
         <MobileLayout
@@ -95,7 +118,7 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
   return (
     <>
       <ThemeSync theme={theme} />
-      <CmsDictionarySetter dict={cmsDict} canAccessBuilder={canAccessBuilder} />
+      <CmsDictionarySetter dict={cmsDict} schemaPermissions={schemaPermissions} />
       <GlobalLoader />
       {noProject && <NoProjectModal d={dict.cms.noProject} />}
       <DesktopLayout

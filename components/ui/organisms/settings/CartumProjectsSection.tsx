@@ -64,7 +64,10 @@ export function CartumProjectsSection({ d, loadingText }: Props) {
   return (
     <VHSTransition duration="fast" className="space-y-5">
       <div>
-        <h2 className="font-mono text-sm font-semibold text-text">{d.title}</h2>
+        <h2 className="font-mono text-sm font-semibold text-text flex items-center gap-2">
+          {d.title}
+          <span className="font-mono text-[8px] text-warning/70 border border-warning/30 rounded px-1.5 py-px leading-none normal-case tracking-normal font-normal">super</span>
+        </h2>
         <p className="mt-1 font-mono text-xs text-muted leading-relaxed">{d.subtitle}</p>
       </div>
 
@@ -110,7 +113,7 @@ export function CartumProjectsSection({ d, loadingText }: Props) {
           })
         if (filtered.length === 0) return <p className="font-mono text-xs text-muted">{d.noResults}</p>
         return (
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
           {filtered.map((proj) => (
             <div
               key={proj.id}

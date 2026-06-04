@@ -11,6 +11,7 @@ import { mediaRepository } from '@/db/repositories/media.repository'
 import { requireProjectId, assertProjectAccess } from '@/lib/auth/get-project-id'
 import { auth } from '@/auth'
 import { assertTier2Access } from '@/lib/subscription'
+import { resolveGalleryPermissions } from '@/lib/actions/roles.actions'
 import type { ActionResult } from '@/types/actions'
 import type {
   UploadUrlResult,
@@ -43,6 +44,25 @@ async function requireSessionUserId(): Promise<string> {
   return session.user.id as string
 }
 
+type MediaCategory = 'images' | 'videos'
+type GalleryOp     = 'canUpload' | 'canDelete'
+
+function mimeToCategory(mimeType: string): MediaCategory {
+  return mimeType.startsWith('video/') ? 'videos' : 'images'
+}
+
+async function requireGalleryPermission(
+  userId:    string,
+  projectId: string,
+  category:  MediaCategory,
+  op:        GalleryOp,
+): Promise<void> {
+  const session = await auth()
+  if (session?.user?.isSuperAdmin) return
+  const perms = await resolveGalleryPermissions(userId, projectId)
+  if (!perms[category][op]) throw new Error('FORBIDDEN')
+}
+
 // -----------------------------------------------------------------------
 // getUploadUrl — generates a presigned PUT URL for direct browser upload (R2)
 // -----------------------------------------------------------------------
@@ -50,7 +70,7 @@ export async function getUploadUrl(
   input: GetUploadUrlInput,
 ): Promise<ActionResult<UploadUrlResult>> {
   try {
-    await requireSessionUserId()
+    const userId = await requireSessionUserId()
 
     if (!ALLOWED.includes(input.mimeType)) {
       return { success: false, error: 'FILE_TYPE_NOT_ALLOWED' }
@@ -62,7 +82,8 @@ export async function getUploadUrl(
     }
 
     const projectId = await requireProjectId()
-    const { client, bucket, publicUrl } = await getR2Client()
+    await requireGalleryPermission(userId, projectId, mimeToCategory(input.mimeType), 'canUpload')
+    const { client, bucket, publicUrl } = await getR2Client(projectId)
     const ext       = sanitizeExtension(input.filename)
     const key       = `uploads/${projectId}/${randomUUID()}.${ext}`
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
@@ -102,6 +123,7 @@ export async function saveMediaRecord(
 ): Promise<ActionResult<MediaRecord>> {
   try {
     const [userId, projectId] = await Promise.all([requireSessionUserId(), requireProjectId()])
+    await requireGalleryPermission(userId, projectId, mimeToCategory(input.mimeType), 'canUpload')
     const record = await mediaRepository.create({ ...input, uploadedBy: userId, projectId })
     return { success: true, data: record }
   } catch {
@@ -123,7 +145,7 @@ export async function uploadViaServer(
       return { success: false, error: 'FILE_TYPE_NOT_ALLOWED' }
     }
 
-    const { client, bucket, publicUrl: baseUrl } = await getR2Client()
+    const { client, bucket, publicUrl: baseUrl } = await getR2Client(projectId)
     const vpsUrl = await getSetting('media_vps_url', process.env.MEDIA_VPS_URL)
     const vpsKey = await getSetting('media_vps_key', process.env.MEDIA_VPS_KEY)
 
@@ -217,6 +239,8 @@ export async function uploadBlobDirect(
       return { success: false, error: 'FILE_TYPE_NOT_ALLOWED' }
     }
 
+    await requireGalleryPermission(userId, projectId, mimeToCategory(input.mimeType), 'canUpload')
+
     const ext      = input.filename ? sanitizeExtension(input.filename) : (input.mimeType.split('/')[1] ?? 'bin')
     const pathname = `uploads/${projectId}/${randomUUID()}.${ext}`
 
@@ -251,6 +275,7 @@ export async function uploadVideoBlobDirect(
 ): Promise<ActionResult<{ publicUrl: string; key: string }>> {
   try {
     const [userId, projectId] = await Promise.all([requireSessionUserId(), requireProjectId()])
+    await requireGalleryPermission(userId, projectId, 'videos', 'canUpload')
 
     if (input.file.byteLength > BLOB_VIDEO_MAX_BYTES) {
       return { success: false, error: 'VIDEO_TOO_LARGE_FOR_BLOB' }
@@ -388,8 +413,11 @@ export async function deleteMediaRecord(
   id: string,
 ): Promise<ActionResult<void>> {
   try {
-    const projectId = await requireProjectId()
+    const [userId, projectId] = await Promise.all([requireSessionUserId(), requireProjectId()])
     await assertProjectAccess(projectId)
+    const record = await mediaRepository.findById(id, projectId)
+    if (!record) return { success: false, error: 'NOT_FOUND' }
+    await requireGalleryPermission(userId, projectId, mimeToCategory(record.mimeType), 'canDelete')
     await mediaRepository.delete(id, projectId)
     return { success: true }
   } catch (err) {
@@ -407,12 +435,15 @@ export async function bulkDeleteMediaRecords(
   ids: string[],
 ): Promise<ActionResult<{ deleted: number; failed: number }>> {
   try {
-    const projectId = await requireProjectId()
+    const [userId, projectId] = await Promise.all([requireSessionUserId(), requireProjectId()])
     await assertProjectAccess(projectId)
     let deleted = 0
     let failed  = 0
     for (const id of ids) {
       try {
+        const record = await mediaRepository.findById(id, projectId)
+        if (!record) { failed++; continue }
+        await requireGalleryPermission(userId, projectId, mimeToCategory(record.mimeType), 'canDelete')
         await mediaRepository.delete(id, projectId)
         deleted++
       } catch {
