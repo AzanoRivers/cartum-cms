@@ -108,6 +108,7 @@ export const ALLOWED_VIDEO_TYPES = [
 export const MAX_IMAGE_SIZE_BYTES          = 80  * 1024 * 1024  //  80 MB
 export const MAX_VIDEO_SIZE_BYTES          = 500 * 1024 * 1024  // 500 MB
 export const VIDEO_CHUNK_MAX_BYTES         = 10  * 1024 * 1024  //  10 MB — safe for most proxies (nginx default 1 MB raised)
+export const VIDEO_VPS_MIN_BYTES           = 20  * 1024 * 1024  //  20 MB — skip VPS compression for smaller videos (re-encoding small files often increases size)
 export const VIDEO_FALLBACK_WARNING_BYTES  = 100 * 1024 * 1024  // 100 MB — threshold for unoptimized upload warning
 export const IMAGE_FALLBACK_WARNING_BYTES  =   5 * 1024 * 1024  //   5 MB — warn when VPS unavailable and image is large
 // Hard Vercel Server Action limit for Blob uploads — cannot be raised without changing Vercel infra

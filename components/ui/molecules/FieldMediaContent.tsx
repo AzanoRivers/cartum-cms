@@ -12,7 +12,7 @@ import { MediaLibraryPicker } from '@/components/ui/organisms/MediaLibraryPicker
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import type { FieldType, ImageFieldConfig, VideoFieldConfig } from '@/types/nodes'
 import type { MediaRecord } from '@/types/media'
-import { ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES, MAX_IMAGE_SIZE_BYTES, MAX_VIDEO_SIZE_BYTES } from '@/types/media'
+import { ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES, MAX_IMAGE_SIZE_BYTES, MAX_VIDEO_SIZE_BYTES, VIDEO_VPS_MIN_BYTES } from '@/types/media'
 
 export type FieldMediaContentProps = {
   fieldType:  FieldType
@@ -149,8 +149,9 @@ function MediaContentInner({
           }
         } catch { /* VPS unreachable — use Tier 1 result silently */ }
       }
-    } else if (hasTier2) {
+    } else if (hasTier2 && file.size >= VIDEO_VPS_MIN_BYTES) {
       // Tier 2: VPS video pipeline (compresses + pushes to R2; bytes never pass through Vercel)
+      // Only for videos >= 20 MB: re-encoding small files often increases size
       try {
         const sessionRes = await fetch('/api/internal/media/vps-session')
         if (sessionRes.ok) {

@@ -19,6 +19,7 @@ import {
   VIDEO_FALLBACK_WARNING_BYTES,
   IMAGE_FALLBACK_WARNING_BYTES,
   BLOB_VIDEO_MAX_BYTES,
+  VIDEO_VPS_MIN_BYTES,
 } from '@/types/media'
 
 export type UploadLabels = {
@@ -659,7 +660,8 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
       const controller = new AbortController()
       uploadAbortControllers.current.set(id, controller)
 
-      const videoVpsConfig = getVpsConfig()
+      // Only send to VPS when file is >= 20 MB; re-encoding small videos often increases size
+      const videoVpsConfig = file.size >= VIDEO_VPS_MIN_BYTES ? getVpsConfig() : undefined
 
       try {
         const result = videoVpsConfig

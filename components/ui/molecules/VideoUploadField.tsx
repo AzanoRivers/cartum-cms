@@ -15,6 +15,7 @@ import type { MediaRecord } from '@/types/media'
 import {
   ALLOWED_VIDEO_TYPES,
   MAX_VIDEO_SIZE_BYTES,
+  VIDEO_VPS_MIN_BYTES,
 } from '@/types/media'
 
 export type VideoUploadFieldProps = {
@@ -61,7 +62,8 @@ export function VideoUploadField({
 
     const pipeline = async (): Promise<string> => {
       // Tier 2 — VPS direct (compresses + pushes to R2; bytes never pass through Vercel)
-      if (hasTier2) {
+      // Only for videos >= 20 MB: re-encoding small files often increases size
+      if (hasTier2 && file.size >= VIDEO_VPS_MIN_BYTES) {
         try {
           const sessionRes = await fetch('/api/internal/media/vps-session')
           if (sessionRes.ok) {
