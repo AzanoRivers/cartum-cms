@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'INVALID_BODY' }, { status: 400 })
   }
 
-  const fileEntry = formData.get('file')
+  const fileEntry = formData.get('files')
   if (!fileEntry || !(fileEntry instanceof Blob)) {
     return NextResponse.json({ error: 'MISSING_FILE' }, { status: 400 })
   }
