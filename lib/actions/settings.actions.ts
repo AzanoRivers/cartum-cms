@@ -812,9 +812,20 @@ export type EmailTestOverride = {
 export async function testEmailConnection(
   toEmail?:  string,
   override?: EmailTestOverride,
-): Promise<ActionResult<{ sent: boolean }>> {
+): Promise<ActionResult<{ sent: boolean; nextAllowedAt?: string }>> {
   try {
     const { session, projectId } = await requireEmailAccess()
+
+    // Rate limit: 1 test per 5 minutes per user
+    const rl = await consumeRateLimit(
+      RATE_LIMITS.EMAIL_TEST.key,
+      RATE_LIMITS.EMAIL_TEST.windowSecs,
+      RATE_LIMITS.EMAIL_TEST.maxRequests,
+    )
+    if (!rl.allowed) {
+      return { success: false, error: 'RATE_LIMITED', nextAllowedAt: rl.nextAllowedAt }
+    }
+
     const to = toEmail ?? session.user.email!
 
     // Case 1: Unsaved credentials provided — use them directly, bypass DB
@@ -874,7 +885,10 @@ export async function testEmailConnection(
       projectId,
     })
     if (!result.sent) return { success: false, error: result.error ?? 'Send failed.' }
-    return { success: true, data: { sent: true } }
+    const nextAllowedAt = rl.remaining === 0
+      ? new Date(Date.now() + RATE_LIMITS.EMAIL_TEST.windowSecs * 1000).toISOString()
+      : undefined
+    return { success: true, data: { sent: true, nextAllowedAt } }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }

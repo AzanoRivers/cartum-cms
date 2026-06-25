@@ -15,6 +15,8 @@ import {
 import { Mail } from 'lucide-react'
 import { DocLink } from '@/components/ui/atoms/DocLink'
 import { useToast } from '@/lib/hooks/useToast'
+import { useLocalRateLimit } from '@/lib/hooks/useLocalRateLimit'
+import { RATE_LIMITS } from '@/lib/rate-limits'
 import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
 import type { Dictionary } from '@/locales/en'
 
@@ -139,7 +141,8 @@ export function EmailSection({ isSuperAdmin, d, loadingText, canActions = true }
   const [isSavingSes,    startSaveSes]    = useTransition()
   const [isTesting,      startTest]       = useTransition()
 
-  const toast = useToast()
+  const emailRL  = useLocalRateLimit(RATE_LIMITS.EMAIL_TEST.key)
+  const toast    = useToast()
 
   useEffect(() => {
     getEmailSettings().then((res) => {
@@ -226,10 +229,8 @@ export function EmailSection({ isSuperAdmin, d, loadingText, canActions = true }
   }
 
   function handleTest(provider: EmailProvider) {
-    if (!canActions) return
+    if (!canActions || emailRL.blocked) return
     startTest(async () => {
-      // Always pass the provider being tested (the accordion's provider, not the saved active one)
-      // Include any unsaved credentials typed in the form fields
       let override: EmailTestOverride
       if (provider === 'resend') {
         override = { provider: 'resend' }
@@ -242,8 +243,15 @@ export function EmailSection({ isSuperAdmin, d, loadingText, canActions = true }
         if (sesFrom) override.sesFromEmail  = sesFrom
       }
       const res = await testEmailConnection(testTo || undefined, override)
-      if (res.success) toast.success(d.testOk)
-      else toast.error(d.testFail, res.error ? { description: res.error } : undefined)
+      if (res.success) {
+        toast.success(d.testOk)
+        if (res.data.nextAllowedAt) emailRL.markBlocked(res.data.nextAllowedAt)
+      } else {
+        if (res.error === 'RATE_LIMITED' && res.nextAllowedAt) {
+          emailRL.markBlocked(res.nextAllowedAt)
+        }
+        toast.error(d.testFail, res.error ? { description: res.error } : undefined)
+      }
     })
   }
 
@@ -418,10 +426,10 @@ export function EmailSection({ isSuperAdmin, d, loadingText, canActions = true }
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <button
             onClick={() => handleTest('resend')}
-            disabled={isTesting || !resendConfigured || !canActions || !testTo.trim()}
+            disabled={isTesting || !resendConfigured || !canActions || !testTo.trim() || emailRL.blocked}
             className="w-full sm:w-auto rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isTesting ? d.testing : d.testEmail}
+            {isTesting ? d.testing : emailRL.blocked ? emailRL.countdown : d.testEmail}
           </button>
           <button
             onClick={handleSaveResend}
@@ -547,10 +555,10 @@ export function EmailSection({ isSuperAdmin, d, loadingText, canActions = true }
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <button
             onClick={() => handleTest('ses')}
-            disabled={isTesting || !sesConfigured || !canActions || !testTo.trim()}
+            disabled={isTesting || !sesConfigured || !canActions || !testTo.trim() || emailRL.blocked}
             className="w-full sm:w-auto rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isTesting ? d.testing : d.testEmail}
+            {isTesting ? d.testing : emailRL.blocked ? emailRL.countdown : d.testEmail}
           </button>
           <button
             onClick={handleSaveSes}
