@@ -6,11 +6,9 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { getR2Client } from '@/lib/media/r2-client'
 import { blobUpload, BLOB_VIDEO_MAX_BYTES } from '@/lib/media/blob-client'
 import { getActiveProvider } from '@/lib/media/storage-router'
-import { getSetting } from '@/lib/settings/get-setting'
 import { mediaRepository } from '@/db/repositories/media.repository'
 import { requireProjectId, assertProjectAccess } from '@/lib/auth/get-project-id'
 import { auth } from '@/auth'
-import { assertTier2Access } from '@/lib/subscription'
 import { resolveGalleryPermissions } from '@/lib/actions/roles.actions'
 import type { ActionResult } from '@/types/actions'
 import type {
@@ -21,12 +19,10 @@ import type {
   MediaMeta,
   MediaStorageSummary,
   UploadViaServerInput,
-  UploadViaServerResult,
   ListMediaAssetsInput,
   MediaAssetsPage,
   ListMediaAssetsPagedInput,
   MediaAssetsPagedResult,
-  VpsWarning,
 } from '@/types/media'
 import type { StorageProvider } from '@/types/settings'
 import { ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES } from '@/types/media'
@@ -128,101 +124,6 @@ export async function saveMediaRecord(
     return { success: true, data: record }
   } catch {
     return { success: false, error: 'Failed to save media record.' }
-  }
-}
-
-// -----------------------------------------------------------------------
-// uploadViaServer — Tier 2 path: receive file, call Optimus, PUT to R2
-// -----------------------------------------------------------------------
-export async function uploadViaServer(
-  input: UploadViaServerInput,
-): Promise<ActionResult<UploadViaServerResult>> {
-  try {
-    await assertTier2Access()
-    const [userId, projectId] = await Promise.all([requireSessionUserId(), requireProjectId()])
-
-    if (!ALLOWED.includes(input.mimeType)) {
-      return { success: false, error: 'FILE_TYPE_NOT_ALLOWED' }
-    }
-
-    const { client, bucket, publicUrl: baseUrl } = await getR2Client(projectId)
-    const vpsUrl = await getSetting('media_vps_url', process.env.MEDIA_VPS_URL)
-    const vpsKey = await getSetting('media_vps_key', process.env.MEDIA_VPS_KEY)
-
-    let fileBuffer   = input.file
-    let vpsWarning:  VpsWarning | null = null
-    let vpsPartialMeta: { processed: number; total: number } | undefined
-
-    const isImage = input.mimeType.startsWith('image/')
-    const OPTIMUS_SUPPORTED = ['image/jpeg', 'image/png', 'image/webp']
-    const isOptimizable = isImage && OPTIMUS_SUPPORTED.includes(input.mimeType)
-
-    if (isOptimizable && vpsUrl && vpsKey) {
-      try {
-        const formData = new FormData()
-        formData.append('files', new Blob([fileBuffer], { type: input.mimeType }), 'upload')
-        formData.append('out', 'webp')
-
-        const res = await fetch(`${vpsUrl}/api/v1/media/images/compress`, {
-          method:  'POST',
-          headers: { 'X-API-Key': vpsKey },
-          body:    formData,
-        })
-
-        if (res.ok || res.status === 206) {
-          fileBuffer = await res.arrayBuffer()
-          if (res.status === 206) {
-            const processed = parseInt(res.headers.get('X-Optimus-Processed') ?? '0', 10)
-            const total     = parseInt(res.headers.get('X-Optimus-Total')     ?? '0', 10)
-            vpsWarning      = 'partial'
-            vpsPartialMeta  = { processed, total }
-          }
-        } else if (res.status === 401) {
-          vpsWarning = 'auth'
-        } else if (res.status === 408) {
-          vpsWarning = 'timeout'
-        } else if (res.status === 422) {
-          vpsWarning = 'validation'
-        }
-      } catch {
-        vpsWarning = 'unreachable'
-      }
-    }
-
-    const optimized = isOptimizable && !vpsWarning
-    const ext = optimized ? 'webp' : (input.mimeType.split('/')[1] ?? 'bin')
-    const key = `uploads/${projectId}/${randomUUID()}.${ext}`
-
-    const { PutObjectCommand: Put } = await import('@aws-sdk/client-s3')
-    await client.send(new Put({
-      Bucket:      bucket,
-      Key:         key,
-      Body:        new Uint8Array(fileBuffer),
-      ContentType: optimized ? 'image/webp' : input.mimeType,
-    }))
-
-    const finalPublicUrl = `${baseUrl}/${key}`
-
-    await mediaRepository.create({
-      projectId,
-      key,
-      publicUrl:  finalPublicUrl,
-      mimeType:   optimized ? 'image/webp' : input.mimeType,
-      sizeBytes:  fileBuffer.byteLength,
-      name:       input.filename ?? undefined,
-      nodeId:     input.nodeId,
-      uploadedBy: userId,
-    })
-
-    return {
-      success: true,
-      data: { publicUrl: finalPublicUrl, key, vpsWarning, vpsPartialMeta },
-    }
-  } catch (err) {
-    if (err instanceof Error && err.message === 'R2_NOT_CONFIGURED') {
-      return { success: false, error: 'STORAGE_NOT_CONFIGURED' }
-    }
-    return { success: false, error: 'Upload failed.' }
   }
 }
 

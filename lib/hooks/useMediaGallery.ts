@@ -652,28 +652,33 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
         }
       }
 
-      // ── Video: VPS chunked pipeline (fallback to direct R2 on init rejection/no config) ──
+      // ── Video: VPS chunked pipeline (direct VPS only — bytes never pass through Vercel) ──
+      // Only run when a live VPS session is available. Without it, go straight to R2.
       patchEntry(id, { status: 'uploading', progress: 0, phaseLabel: labels.videoChunking })
 
       const controller = new AbortController()
       uploadAbortControllers.current.set(id, controller)
 
+      const videoVpsConfig = getVpsConfig()
+
       try {
-        const result = await uploadVideoViaVps(
-          file,
-          {
-            chunking:   labels.videoChunking,
-            processing: labels.videoProcessing,
-            finalizing: labels.videoFinalizing,
-          },
-          {
-            onProgress:   (pct)   => patchEntry(id, { progress: pct }),
-            onPhaseLabel: (label) => patchEntry(id, { phaseLabel: label }),
-            onError:      ()      => { /* non-recoverable errors are thrown and caught below */ },
-            signal:       controller.signal,
-          },
-          getVpsConfig(),
-        )
+        const result = videoVpsConfig
+          ? await uploadVideoViaVps(
+              file,
+              {
+                chunking:   labels.videoChunking,
+                processing: labels.videoProcessing,
+                finalizing: labels.videoFinalizing,
+              },
+              {
+                onProgress:   (pct)   => patchEntry(id, { progress: pct }),
+                onPhaseLabel: (label) => patchEntry(id, { phaseLabel: label }),
+                onError:      ()      => { /* non-recoverable errors are thrown and caught below */ },
+                signal:       controller.signal,
+              },
+              videoVpsConfig,
+            )
+          : { skipped: true, key: '', publicUrl: '', mimeType: file.type, sizeBytes: null }
 
         if (result.cancelled) {
           // cancelUpload() already removed the entry from the queue

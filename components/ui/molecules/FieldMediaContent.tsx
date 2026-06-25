@@ -4,8 +4,10 @@ import { useRef, useState } from 'react'
 import { ImageIcon, VideoIcon, Upload, Library, X, RefreshCw, Link, Check } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { optimizeImage } from '@/lib/media/optimize'
+import { uploadVideoViaVps } from '@/lib/media/video-vps-upload'
 import { uploadFileWithProgress } from '@/lib/media/upload'
 import { getUploadUrl, saveMediaRecord } from '@/lib/actions/media.actions'
+import { useTier2Status } from '@/lib/hooks/useTier2Status'
 import { MediaLibraryPicker } from '@/components/ui/organisms/MediaLibraryPicker'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import type { FieldType, ImageFieldConfig, VideoFieldConfig } from '@/types/nodes'
@@ -83,8 +85,9 @@ function MediaContentInner({
   onChange,
   labels,
 }: Omit<FieldMediaContentProps, 'fieldType'> & { fieldType: 'image' | 'video' }) {
-  const isImage = fieldType === 'image'
-  const fileRef = useRef<HTMLInputElement>(null)
+  const isImage  = fieldType === 'image'
+  const hasTier2 = useTier2Status()
+  const fileRef  = useRef<HTMLInputElement>(null)
   const [uploadState, setUploadState] = useState<UploadState>('idle')
   const [progress, setProgress]       = useState(0)
   const [dragging,  setDragging]      = useState(false)
@@ -118,6 +121,67 @@ function MediaContentInner({
       const { file: opt } = await optimizeImage(file)
       uploadFile = opt
       uploadMime = opt.type || file.type
+
+      // Tier 2: direct VPS image optimization (bytes never pass through Vercel)
+      if (hasTier2) {
+        try {
+          const sessionRes = await fetch('/api/internal/media/vps-session')
+          if (sessionRes.ok) {
+            const { vpsUrl, token, skipped } = await sessionRes.json() as {
+              vpsUrl?: string; token?: string; skipped?: boolean
+            }
+            if (!skipped && vpsUrl && token) {
+              const form = new FormData()
+              form.append('files', uploadFile as Blob, file.name)
+              const vpsRes = await fetch(`${vpsUrl}/api/v1/media/images/compress?out=webp`, {
+                method:  'POST',
+                headers: { 'X-Session-Token': token },
+                body:    form,
+              })
+              if (vpsRes.ok) {
+                const ct = vpsRes.headers.get('Content-Type') ?? ''
+                if (ct.startsWith('image/')) {
+                  uploadFile = await vpsRes.blob()
+                  uploadMime = 'image/webp'
+                }
+              }
+            }
+          }
+        } catch { /* VPS unreachable — use Tier 1 result silently */ }
+      }
+    } else if (hasTier2) {
+      // Tier 2: VPS video pipeline (compresses + pushes to R2; bytes never pass through Vercel)
+      try {
+        const sessionRes = await fetch('/api/internal/media/vps-session')
+        if (sessionRes.ok) {
+          const { vpsUrl: vpsBaseUrl, token, skipped } = await sessionRes.json() as {
+            vpsUrl?: string; token?: string; skipped?: boolean
+          }
+          if (!skipped && vpsBaseUrl && token) {
+            const result = await uploadVideoViaVps(
+              file,
+              {
+                chunking:   labels.uploading,
+                processing: labels.uploading,
+                finalizing: labels.uploading,
+              },
+              {
+                onProgress:   (p) => setProgress(p),
+                onPhaseLabel: () => {},
+                onError:      () => {},
+              },
+              { url: vpsBaseUrl, token },
+            )
+
+            if (!result.skipped && !result.cancelled) {
+              setUploadState('idle')
+              onChange({ defaultUrl: result.publicUrl, defaultMediaId: undefined })
+              return
+            }
+            // skipped or cancelled → fall through to direct R2 path
+          }
+        }
+      } catch { /* VPS unreachable — fall through to direct R2 */ }
     }
 
     const urlRes = await getUploadUrl({ filename: file.name, mimeType: uploadMime, nodeId })

@@ -14,6 +14,7 @@ import {
   SortableItem,
   arrayMove,
 } from '@/components/external/dnd/SortableGalleryGrid'
+import { useTier2Status } from '@/lib/hooks/useTier2Status'
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES } from '@/types/media'
 import type { GalleryItem, GalleryContentLabels } from '@/types/nodes'
 import type { MediaRecord } from '@/types/media'
@@ -337,7 +338,8 @@ export function FieldGalleryContent({
   onChange,
   labels,
 }: FieldGalleryContentProps) {
-  const fileRef = useRef<HTMLInputElement>(null)
+  const hasTier2 = useTier2Status()
+  const fileRef  = useRef<HTMLInputElement>(null)
 
   const [uploading,    setUploading]    = useState<UploadingSlot[]>([])
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
@@ -365,13 +367,41 @@ export function FieldGalleryContent({
     try {
       // Tier 1: client-side optimization
       const { file: opt } = await optimizeImage(file)
-      const finalMime = opt.type || file.type
-      const baseName  = file.name.replace(/\.[^.]+$/, '')
-      const finalExt  = finalMime === 'image/webp' ? 'webp' : (file.name.split('.').pop() ?? 'bin')
-      const finalName = `${baseName}.${finalExt}`
+      let finalMime: string = opt.type || file.type
+      const baseName = file.name.replace(/\.[^.]+$/, '')
 
       // Tier 2: direct VPS call — only when a session is available (bytes never pass through Vercel)
       let finalBlob: Blob = opt
+
+      if (hasTier2) {
+        try {
+          const sessionRes = await fetch('/api/internal/media/vps-session')
+          if (sessionRes.ok) {
+            const { vpsUrl, token, skipped } = await sessionRes.json() as {
+              vpsUrl?: string; token?: string; skipped?: boolean
+            }
+            if (!skipped && vpsUrl && token) {
+              const form = new FormData()
+              form.append('files', opt, file.name)
+              const vpsRes = await fetch(`${vpsUrl}/api/v1/media/images/compress?out=webp`, {
+                method:  'POST',
+                headers: { 'X-Session-Token': token },
+                body:    form,
+              })
+              if (vpsRes.ok) {
+                const ct = vpsRes.headers.get('Content-Type') ?? ''
+                if (ct.startsWith('image/')) {
+                  finalBlob = await vpsRes.blob()
+                  finalMime = 'image/webp'
+                }
+              }
+            }
+          }
+        } catch { /* VPS unreachable — use Tier 1 result silently */ }
+      }
+
+      const finalExt  = finalMime === 'image/webp' ? 'webp' : (file.name.split('.').pop() ?? 'bin')
+      const finalName = `${baseName}.${finalExt}`
 
       patchSlot({ phase: 'uploading', progress: 0 })
 

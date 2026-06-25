@@ -59,45 +59,21 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   })
 }
 
-/**
- * Returns the full URL for a VPS endpoint.
- * When vpsConfig is present, calls VPS directly; otherwise uses the Vercel proxy.
- */
-function vpsOrProxy(vpsConfig: VpsDirectConfig | undefined, vpsPath: string, proxyPath: string): string {
-  return vpsConfig
-    ? `${vpsConfig.url}/api/v1/media${vpsPath}`
-    : proxyPath
+function vpsUrl(config: VpsDirectConfig, path: string): string {
+  return `${config.url}/api/v1/media${path}`
 }
 
-/**
- * Returns auth headers for VPS calls.
- * Direct VPS calls use X-Session-Token; proxy calls need no extra auth.
- */
-function authHeaders(vpsConfig: VpsDirectConfig | undefined): Record<string, string> {
-  return vpsConfig ? { 'X-Session-Token': vpsConfig.token } : {}
+function vpsAuth(config: VpsDirectConfig): Record<string, string> {
+  return { 'X-Session-Token': config.token }
 }
 
-/** Fire-and-forget: tells VPS to clean up a partially uploaded job.
- *  Uses keepalive:true so the request survives a tab close / beforeunload. */
-function cancelVpsUpload(uploadId: string, vpsConfig?: VpsDirectConfig): void {
-  const url = vpsConfig
-    ? `${vpsConfig.url}/api/v1/media/videos/upload/${encodeURIComponent(uploadId)}`
-    : '/api/internal/media/videos/cancel'
-
-  const init: RequestInit = vpsConfig
-    ? {
-        method:    'DELETE',
-        headers:   { 'X-Session-Token': vpsConfig.token },
-        keepalive: true,
-      }
-    : {
-        method:    'DELETE',
-        headers:   { 'Content-Type': 'application/json' },
-        body:      JSON.stringify({ upload_id: uploadId }),
-        keepalive: true,
-      }
-
-  void fetch(url, init).catch(() => { /* ignore — VPS may have already expired the job */ })
+/** Fire-and-forget: tells VPS to clean up a partially uploaded job. */
+function cancelVpsUpload(uploadId: string, config: VpsDirectConfig): void {
+  void fetch(vpsUrl(config, `/videos/upload/${encodeURIComponent(uploadId)}`), {
+    method:    'DELETE',
+    headers:   vpsAuth(config),
+    keepalive: true,
+  }).catch(() => { /* ignore — VPS may have already expired the job */ })
 }
 
 function sliceIntoChunks(file: File, chunkSize: number): Blob[] {
@@ -130,17 +106,16 @@ function sliceIntoChunks(file: File, chunkSize: number): Blob[] {
  * Throws on non-recoverable errors (chunk failure, status 'failed', etc.).
  */
 export async function uploadVideoViaVps(
-  file:       File,
-  labels:     VideoPhaseLabels,
-  callbacks:  VideoUploadCallbacks,
-  vpsConfig?: VpsDirectConfig,
+  file:      File,
+  labels:    VideoPhaseLabels,
+  callbacks: VideoUploadCallbacks,
+  vpsConfig: VpsDirectConfig,
 ): Promise<VideoVpsResult> {
   const { onProgress, onPhaseLabel, onError, signal } = callbacks
 
   let uploadId: string | undefined
 
   try { return await _runUpload() } catch (err) {
-    // Clean up orphan chunks on the VPS for ANY error — token expiry, network failure, etc.
     if (uploadId) cancelVpsUpload(uploadId, vpsConfig)
 
     if (err instanceof DOMException && err.name === 'AbortError') {
@@ -171,8 +146,13 @@ export async function uploadVideoViaVps(
         destinationUrl = pd.presignedUrl as string
       }
     } catch {
-      // Presign failed (e.g. R2 not configured) — proceed without destination_url.
-      // VPS keeps the file; Vercel's legacy download path is used as fallback.
+      // Presign failed — abort VPS pipeline. Without destination_url the VPS cannot
+      // push to R2 directly, and bytes must never transit Vercel as a fallback.
+    }
+
+    // No destination_url → skip VPS entirely, caller falls back to direct R2 upload.
+    if (!destinationUrl) {
+      return { key: '', publicUrl: '', mimeType: file.type, sizeBytes: null, skipped: true }
     }
   }
 
@@ -190,15 +170,12 @@ export async function uploadVideoViaVps(
 
   let initRes: Response
   try {
-    initRes = await fetch(
-      vpsOrProxy(vpsConfig, '/videos/upload/init', '/api/internal/media/videos/init'),
-      {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders(vpsConfig) },
-        signal,
-        body:    JSON.stringify(initBody),
-      },
-    )
+    initRes = await fetch(vpsUrl(vpsConfig, '/videos/upload/init'), {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', ...vpsAuth(vpsConfig) },
+      signal,
+      body:    JSON.stringify(initBody),
+    })
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err
     return { key: '', publicUrl: '', mimeType: file.type, sizeBytes: null, skipped: true, vpsError: 'unreachable' }
@@ -234,7 +211,7 @@ export async function uploadVideoViaVps(
   onProgress(0)
 
   const chunks   = sliceIntoChunks(file, VIDEO_CHUNK_MAX_BYTES)
-  const chunkUrl = vpsOrProxy(vpsConfig, '/videos/upload/chunk', '/api/internal/media/videos/chunk')
+  const chunkUrl = vpsUrl(vpsConfig, '/videos/upload/chunk')
 
   for (let i = 0; i < totalChunks; i++) {
     const form = new FormData()
@@ -244,7 +221,7 @@ export async function uploadVideoViaVps(
 
     const chunkRes = await fetch(chunkUrl, {
       method:  'POST',
-      headers: authHeaders(vpsConfig),
+      headers: vpsAuth(vpsConfig),
       body:    form,
       signal,
     })
@@ -259,11 +236,9 @@ export async function uploadVideoViaVps(
 
   // ── Phase 3: Finalize ─────────────────────────────────────────────────────
   let jobId: string | null = null
-  const finalizeUrl = vpsOrProxy(vpsConfig, '/videos/upload/finalize', '/api/internal/media/videos/finalize')
-
-  const finalRes = await fetch(finalizeUrl, {
+  const finalRes = await fetch(vpsUrl(vpsConfig, '/videos/upload/finalize'), {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(vpsConfig) },
+    headers: { 'Content-Type': 'application/json', ...vpsAuth(vpsConfig) },
     body:    JSON.stringify({ upload_id: uploadId }),
     signal,
   })
@@ -294,13 +269,8 @@ export async function uploadVideoViaVps(
   for (let poll = 0; poll < MAX_POLLS; poll++) {
     await sleep(POLL_INTERVAL_MS, signal)
 
-    // Direct VPS uses path param; Vercel proxy uses query param
-    const statusUrl = vpsConfig
-      ? `${vpsConfig.url}/api/v1/media/videos/status/${encodeURIComponent(jobId)}`
-      : `/api/internal/media/videos/status?job_id=${encodeURIComponent(jobId)}`
-
-    const statusRes = await fetch(statusUrl, {
-      headers: authHeaders(vpsConfig),
+    const statusRes = await fetch(vpsUrl(vpsConfig, `/videos/status/${encodeURIComponent(jobId)}`), {
+      headers: vpsAuth(vpsConfig),
       signal,
     })
     if (!statusRes.ok) continue  // transient error — keep polling
@@ -329,34 +299,25 @@ export async function uploadVideoViaVps(
 
   let completeRes: Response
 
-  if (r2DirectSuccess && r2Key && r2PublicUrl) {
-    // Fast path: VPS already pushed to R2 — just verify + save DB record
-    completeRes = await fetch('/api/internal/media/videos/complete', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal,
-      body:    JSON.stringify({
-        key:       r2Key,
-        publicUrl: r2PublicUrl,
-        filename:  file.name,
-        mime_type: file.type,
-        sizeBytes: outputSize,
-      }),
-    })
-  } else {
-    // Legacy path: Vercel downloads from VPS → uploads to storage → saves DB
-    completeRes = await fetch('/api/internal/media/videos/complete', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal,
-      body:    JSON.stringify({
-        job_id:      jobId,
-        filename:    file.name,
-        mime_type:   file.type,
-        output_size: outputSize,
-      }),
-    })
+  if (!r2DirectSuccess || !r2Key || !r2PublicUrl) {
+    // VPS did not push to R2 — this should not happen since we abort when presign fails.
+    // Treat as a non-recoverable error; caller falls back to direct R2 upload.
+    throw new Error('VPS_R2_PUSH_FAILED')
   }
+
+  // Fast path: VPS pushed directly to R2 — verify + save DB record (no bytes through Vercel)
+  completeRes = await fetch('/api/internal/media/videos/complete', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal,
+    body:    JSON.stringify({
+      key:       r2Key,
+      publicUrl: r2PublicUrl,
+      filename:  file.name,
+      mime_type: file.type,
+      sizeBytes: outputSize,
+    }),
+  })
 
   if (!completeRes.ok) throw new Error('VPS_COMPLETE_FAILED')
 

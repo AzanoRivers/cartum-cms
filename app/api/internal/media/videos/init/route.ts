@@ -8,6 +8,7 @@ import { getSetting } from '@/lib/settings/get-setting'
 import { getR2Client } from '@/lib/media/r2-client'
 import { getActiveProvider } from '@/lib/media/storage-router'
 import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
+import { hasTier2Access } from '@/lib/subscription'
 
 /**
  * POST /api/internal/media/videos/init
@@ -32,6 +33,14 @@ export async function POST(req: NextRequest) {
   const projectId   = cookieStore.get(ACTIVE_PROJECT_COOKIE)?.value ?? session.user.currentProjectId
   if (!projectId) {
     return NextResponse.json({ error: 'No project context' }, { status: 403 })
+  }
+
+  if (!hasTier2Access({
+    isSuperAdmin:         session.user.isSuperAdmin         ?? false,
+    cartumSuscriptor:     session.user.cartumSuscriptor     ?? false,
+    cartumSuscriptorTime: session.user.cartumSuscriptorTime ?? 0,
+  })) {
+    return NextResponse.json({ skipped: true })
   }
 
   const vpsUrl = await getSetting('media_vps_url', process.env.MEDIA_VPS_URL)

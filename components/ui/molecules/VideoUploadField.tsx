@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { toast } from '@/lib/toast'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { optimizeVideo } from '@/lib/media/video-optimize'
+import { uploadVideoViaVps } from '@/lib/media/video-vps-upload'
 import { uploadFileWithProgress } from '@/lib/media/upload'
 import { getUploadUrl, saveMediaRecord } from '@/lib/actions/media.actions'
 import { MediaLibraryPicker } from '@/components/ui/organisms/MediaLibraryPicker'
@@ -59,6 +60,37 @@ export function VideoUploadField({
     setProgress(0)
 
     const pipeline = async (): Promise<string> => {
+      // Tier 2 — VPS direct (compresses + pushes to R2; bytes never pass through Vercel)
+      if (hasTier2) {
+        try {
+          const sessionRes = await fetch('/api/internal/media/vps-session')
+          if (sessionRes.ok) {
+            const { vpsUrl: vpsBaseUrl, token, skipped } = await sessionRes.json() as {
+              vpsUrl?: string; token?: string; skipped?: boolean
+            }
+            if (!skipped && vpsBaseUrl && token) {
+              const result = await uploadVideoViaVps(
+                file,
+                {
+                  chunking:   u?.uploading       ?? 'Uploading…',
+                  processing: u?.videoProcessing ?? 'Processing video…',
+                  finalizing: u?.uploading       ?? 'Saving…',
+                },
+                {
+                  onProgress:   (p) => setProgress(p),
+                  onPhaseLabel: () => {},
+                  onError:      () => {},
+                },
+                { url: vpsBaseUrl, token },
+              )
+
+              if (!result.skipped && !result.cancelled) return result.publicUrl
+              // skipped or cancelled → fall through to direct R2 path
+            }
+          }
+        } catch { /* VPS unreachable — fall through to direct R2 */ }
+      }
+
       // Tier 1 — client-side video compression (ffmpeg.wasm, only >20 MB)
       const { file: optimized, tier1Failed } = await optimizeVideo(file, (p) => setProgress(Math.round(p * 50)))
       if (tier1Failed) toast.warning(u?.tier1VideoWarn ?? 'Video compression failed. Uploading original.')

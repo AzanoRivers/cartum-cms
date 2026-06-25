@@ -5,8 +5,7 @@ import { toast } from '@/lib/toast'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { optimizeImage } from '@/lib/media/optimize'
 import { uploadFileWithProgress } from '@/lib/media/upload'
-import { emitVpsWarningToast } from '@/lib/media/vps-toast'
-import { uploadViaServer, getUploadUrl, saveMediaRecord } from '@/lib/actions/media.actions'
+import { getUploadUrl, saveMediaRecord } from '@/lib/actions/media.actions'
 import { MediaLibraryPicker } from '@/components/ui/organisms/MediaLibraryPicker'
 import { Button } from '@/components/ui/atoms/Button'
 import { Tier2Badge } from '@/components/ui/atoms/Tier2Badge'
@@ -61,43 +60,59 @@ export function ImageUploadField({
     setProgress(0)
 
     const pipeline = async (): Promise<string> => {
-      // Tier 1 — client-side compression
+      // Tier 1 — client-side compression (no network)
       const { file: compressed, tier1Failed } = await optimizeImage(file)
       if (tier1Failed) toast.warning(u?.tier1ImageWarn ?? 'Image compression failed. Uploading original.')
 
-      const mimeType    = compressed.type || file.type
-      const arrayBuffer = await compressed.arrayBuffer()
-      const result = await uploadViaServer({
-        file:     arrayBuffer,
-        mimeType,
-        filename: file.name,
+      let finalFile: Blob   = compressed
+      let finalMime: string = compressed.type || file.type
+
+      // Tier 2 — direct VPS call (only when session available — bytes never pass through Vercel)
+      if (hasTier2) {
+        try {
+          const sessionRes = await fetch('/api/internal/media/vps-session')
+          if (sessionRes.ok) {
+            const { vpsUrl, token, skipped } = await sessionRes.json() as {
+              vpsUrl?: string; token?: string; skipped?: boolean
+            }
+            if (!skipped && vpsUrl && token) {
+              const form = new FormData()
+              form.append('files', compressed, file.name)
+              const vpsRes = await fetch(`${vpsUrl}/api/v1/media/images/compress?out=webp`, {
+                method:  'POST',
+                headers: { 'X-Session-Token': token },
+                body:    form,
+              })
+              if (vpsRes.ok) {
+                const ct = vpsRes.headers.get('Content-Type') ?? ''
+                if (ct.startsWith('image/')) {
+                  finalFile = await vpsRes.blob()
+                  finalMime = 'image/webp'
+                }
+              }
+            }
+          }
+        } catch { /* VPS unreachable — use Tier 1 result silently */ }
+      }
+
+      // Direct upload — browser → presigned URL → R2 (bytes never pass through Vercel)
+      const baseName  = file.name.replace(/\.[^.]+$/, '')
+      const finalExt  = finalMime === 'image/webp' ? 'webp' : (file.name.split('.').pop() ?? 'bin')
+      const finalName = `${baseName}.${finalExt}`
+
+      const urlResult = await getUploadUrl({ filename: finalName, mimeType: finalMime, nodeId })
+      if (!urlResult.success) throw new Error(u?.uploadError ?? 'Upload failed. Please try again.')
+
+      await uploadFileWithProgress(finalFile, urlResult.data.uploadUrl, finalMime, setProgress)
+      await saveMediaRecord({
+        key:       urlResult.data.key,
+        publicUrl: urlResult.data.publicUrl,
+        mimeType:  finalMime,
+        sizeBytes: finalFile.size,
         nodeId,
       })
 
-      if (!result.success) {
-        if (result.error === 'TIER2_SUBSCRIPTION_REQUIRED') {
-          // No subscription — fall back to direct presigned-URL upload (tier1)
-          toast.warning(u?.tier2NoSubscription ?? 'Optimization unavailable. File uploaded without optimization.')
-          const urlResult = await getUploadUrl({ filename: file.name, mimeType, nodeId })
-          if (!urlResult.success) throw new Error(u?.uploadError ?? 'Upload failed. Please try again.')
-          await uploadFileWithProgress(compressed, urlResult.data.uploadUrl, mimeType, setProgress)
-          await saveMediaRecord({
-            key:       urlResult.data.key,
-            publicUrl: urlResult.data.publicUrl,
-            mimeType,
-            sizeBytes: compressed.size,
-            nodeId,
-          })
-          return urlResult.data.publicUrl
-        }
-        throw new Error(u?.uploadError ?? 'Upload failed. Please try again.')
-      }
-
-      if (result.data.vpsWarning) {
-        emitVpsWarningToast(result.data.vpsWarning, d!.content.upload, result.data.vpsPartialMeta)
-      }
-
-      return result.data.publicUrl
+      return urlResult.data.publicUrl
     }
 
     toast.promise(
