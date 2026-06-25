@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { getSetting } from '@/lib/settings/get-setting'
+import { hasTier2Access } from '@/lib/subscription'
 
 /**
  * GET /api/internal/media/vps-session
@@ -18,6 +19,14 @@ export async function GET() {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if (!hasTier2Access({
+    isSuperAdmin:         session.user.isSuperAdmin         ?? false,
+    cartumSuscriptor:     session.user.cartumSuscriptor     ?? false,
+    cartumSuscriptorTime: session.user.cartumSuscriptorTime ?? 0,
+  })) {
+    return NextResponse.json({ skipped: true })
   }
 
   const vpsUrl = await getSetting('media_vps_url', process.env.MEDIA_VPS_URL)

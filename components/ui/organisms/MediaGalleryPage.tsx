@@ -151,7 +151,7 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
     activeProvider,
     vpsConfigured,
     blobVideoTooLargeLabel: g.videoBlobTooLarge,
-    onBatchComplete: refreshSummary,
+    onBatchComplete: () => { void refreshSummary(); setShowUpload(false) },
   })
 
   const blobVideoWarning = activeProvider === 'blob' && !vpsConfigured

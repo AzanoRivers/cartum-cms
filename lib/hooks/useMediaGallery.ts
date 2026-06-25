@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useUIStore } from '@/lib/stores/uiStore'
 import { toast } from '@/lib/toast'
 import { uploadFileWithProgress } from '@/lib/media/upload'
 import { optimizeImage } from '@/lib/media/optimize'
@@ -106,6 +107,11 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
   const onBatchCompleteRef = useRef(config?.onBatchComplete)
   onBatchCompleteRef.current = config?.onBatchComplete
 
+  // Tier2 ref — mirrors store value for use in async callbacks
+  const hasTier2StoreVal = useUIStore((s) => s.hasTier2)
+  const hasTier2Ref = useRef<boolean | null>(null)
+  hasTier2Ref.current = hasTier2StoreVal
+
   // ── All-names cache — cross-tab duplicate detection ───────────────────────
   // Loaded once on mount, updated after each upload/delete via refresh().
   const allNamesRef = useRef<Set<string>>(new Set())
@@ -158,8 +164,9 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
     }
   }, [])
 
-  /** Returns a VpsDirectConfig when the session is valid, undefined otherwise. */
+  /** Returns a VpsDirectConfig when the session is valid and user has Tier2, undefined otherwise. */
   function getVpsConfig(): VpsDirectConfig | undefined {
+    if (hasTier2Ref.current === false) return undefined
     const s = vpsSessionRef.current
     if (!s || Date.now() >= s.expiresAt) return undefined
     return { url: s.url, token: s.token }
