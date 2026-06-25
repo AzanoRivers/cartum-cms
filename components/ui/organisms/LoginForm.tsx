@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
+import { playStartSound } from '@/lib/sounds'
 import { CaptchaChallenge } from '@/components/ui/molecules/CaptchaChallenge'
 import type { Dictionary } from '@/locales/en'
 
@@ -112,6 +113,7 @@ export function LoginForm({ dict, initialError, registrationEnabled }: LoginForm
       return
     }
 
+    playStartSound()
     toast.success(dict.loginSuccess)
     router.push('/cms/board')
   }

@@ -6,7 +6,7 @@ import { Spinner } from '@/components/ui/atoms/Spinner'
 import { DangerResetDialog } from '@/components/ui/molecules/DangerResetDialog'
 import { exportProjectAction, importProjectAction, purgeAllImagesAction } from '@/lib/actions/db.actions'
 import { DocLink } from '@/components/ui/atoms/DocLink'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import type { Dictionary } from '@/locales/en'
 
 export type DbSectionProps = {

@@ -10,6 +10,7 @@ import {
   updateEmailProvider,
   testEmailConnection,
   type EmailProvider,
+  type EmailTestOverride,
 } from '@/lib/actions/settings.actions'
 import { Mail } from 'lucide-react'
 import { DocLink } from '@/components/ui/atoms/DocLink'
@@ -224,17 +225,33 @@ export function EmailSection({ isSuperAdmin, d, loadingText, canActions = true }
     })
   }
 
-  function handleTest() {
+  function handleTest(provider: EmailProvider) {
     if (!canActions) return
     startTest(async () => {
-      const res = await testEmailConnection(testTo || undefined)
+      // Always pass the provider being tested (the accordion's provider, not the saved active one)
+      // Include any unsaved credentials typed in the form fields
+      let override: EmailTestOverride
+      if (provider === 'resend') {
+        override = { provider: 'resend' }
+        if (resendKey)  override.resendApiKey = resendKey
+        if (resendFrom) override.resendFrom   = resendFrom
+      } else {
+        override = { provider: 'ses' }
+        if (sesAk)  override.sesAccessKeyId = sesAk
+        if (sesSk)  override.sesSecretKey   = sesSk
+        if (sesFrom) override.sesFromEmail  = sesFrom
+      }
+      const res = await testEmailConnection(testTo || undefined, override)
       if (res.success) toast.success(d.testOk)
-      else toast.error(res.error ?? d.testFail)
+      else toast.error(d.testFail, res.error ? { description: res.error } : undefined)
     })
   }
 
-  const resendConfigured = isSuperAdmin ? Boolean(resendKey) : resendKeySet
-  const sesConfigured    = isSuperAdmin ? Boolean(sesAk && sesSk) : (sesAkSet && sesSkSet)
+  // Can test if: saved credentials exist OR unsaved form values are present
+  const resendHasUnsaved = Boolean(resendKey)
+  const sesHasUnsaved    = Boolean(sesAk && sesSk)
+  const resendConfigured = resendKeySet || resendHasUnsaved
+  const sesConfigured    = (sesAkSet && sesSkSet) || sesHasUnsaved
   const anyConfigured    = resendConfigured || sesConfigured
 
   if (!loaded) return <SectionLoader text={loadingText} />
@@ -400,8 +417,8 @@ export function EmailSection({ isSuperAdmin, d, loadingText, canActions = true }
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <button
-            onClick={handleTest}
-            disabled={isTesting || !resendConfigured || !canActions || activeProvider !== 'resend' || !testTo.trim()}
+            onClick={() => handleTest('resend')}
+            disabled={isTesting || !resendConfigured || !canActions || !testTo.trim()}
             className="w-full sm:w-auto rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isTesting ? d.testing : d.testEmail}
@@ -529,8 +546,8 @@ export function EmailSection({ isSuperAdmin, d, loadingText, canActions = true }
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <button
-            onClick={handleTest}
-            disabled={isTesting || !sesConfigured || !canActions || activeProvider !== 'ses' || !testTo.trim()}
+            onClick={() => handleTest('ses')}
+            disabled={isTesting || !sesConfigured || !canActions || !testTo.trim()}
             className="w-full sm:w-auto rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-text hover:border-border/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isTesting ? d.testing : d.testEmail}

@@ -17,6 +17,8 @@ import {
 } from '@/lib/actions/settings.actions'
 import { HardDrive } from 'lucide-react'
 import { useToast } from '@/lib/hooks/useToast'
+import { useLocalRateLimit } from '@/lib/hooks/useLocalRateLimit'
+import { RATE_LIMITS } from '@/lib/rate-limits'
 import { SectionLoader } from '@/components/ui/atoms/SectionLoader'
 import { Spinner } from '@/components/ui/atoms/Spinner'
 import type { Dictionary } from '@/locales/en'
@@ -109,7 +111,8 @@ export function DefaultSection({ d, loadingText }: DefaultSectionProps) {
   const [isSavingSesFrom,    startSaveSesFrom]    = useTransition()
   const [isTesting,          startTest]           = useTransition()
   const [isSaving,           startSave]           = useTransition()
-  const toast = useToast()
+  const toast  = useToast()
+  const localRL = useLocalRateLimit(RATE_LIMITS.EMAIL_TEST.key)
 
   async function refreshStatus() {
     setCheckingStatus(true)
@@ -161,10 +164,26 @@ export function DefaultSection({ d, loadingText }: DefaultSectionProps) {
 
   function handleTest() {
     if (!testTo.trim()) { toast.error(d.testToRequired ?? 'Enter a destination email.'); return }
+    if (localRL.blocked) {
+      toast.error(d.rateLimited ?? 'Too many tests.', { description: `${d.retryIn ?? 'Retry in'} ${localRL.countdown}` })
+      return
+    }
     startTest(async () => {
-      const res = await testDefaultEmailConnection(testingProvider, testTo)
-      if (res.success) toast.success(d.testOk ?? 'Test email sent.')
-      else toast.error(res.error ?? d.testFail ?? 'Could not send test email.')
+      const fromOverride = testingProvider === 'resend'
+        ? (resendFromEmail || undefined)
+        : (sesFromEmail || undefined)
+      const res = await testDefaultEmailConnection(testingProvider, testTo, fromOverride)
+      if (res.success) {
+        toast.success(d.testOk ?? 'Test email sent.')
+        if (res.nextAllowedAt) localRL.markBlocked(res.nextAllowedAt)
+      } else {
+        if (res.error === 'RATE_LIMITED' && res.nextAllowedAt) {
+          localRL.markBlocked(res.nextAllowedAt)
+          toast.error(d.rateLimited ?? 'Too many tests.', { description: `${d.retryIn ?? 'Retry in'} ${localRL.countdown}` })
+        } else {
+          toast.error(d.testFail ?? 'Could not send test email.', res.error ? { description: res.error } : undefined)
+        }
+      }
     })
   }
 
@@ -389,13 +408,20 @@ export function DefaultSection({ d, loadingText }: DefaultSectionProps) {
                     <option value="resend">{d.resend}</option>
                     <option value="ses">{d.ses}</option>
                   </select>
-                  <button
-                    onClick={handleTest}
-                    disabled={isTesting || !testTo.trim() || !(testingProvider === 'resend' ? resendStatus?.configured : sesStatus?.configured)}
-                    className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap"
-                  >
-                    {isTesting ? (d.testing ?? '…') : (d.testEmail ?? 'Send test')}
-                  </button>
+                  <div className="flex flex-col items-end gap-1">
+                    <button
+                      onClick={handleTest}
+                      disabled={isTesting || localRL.blocked || !testTo.trim() || !(testingProvider === 'resend' ? resendStatus?.configured : sesStatus?.configured)}
+                      className="rounded-md bg-primary px-4 py-1.5 font-mono text-xs text-white hover:bg-primary/80 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {isTesting ? (d.testing ?? '…') : (d.testEmail ?? 'Send test')}
+                    </button>
+                    {localRL.blocked && localRL.countdown && (
+                      <span className="font-mono text-[10px] text-warning/70">
+                        {d.retryIn ?? 'Retry in'} {localRL.countdown}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

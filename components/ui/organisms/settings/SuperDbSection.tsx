@@ -7,7 +7,7 @@ import { DangerResetDialog } from '@/components/ui/molecules/DangerResetDialog'
 import { exportDatabaseAction, importDatabaseAction, resetCmsAction } from '@/lib/actions/db.actions'
 import { DocLink } from '@/components/ui/atoms/DocLink'
 import { useUIStore } from '@/lib/stores/uiStore'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import type { Dictionary } from '@/locales/en'
 
 export type SuperDbSectionProps = {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useStrangerThingsSound } from '@/lib/hooks/useStrangerThingsSound'
 import { ThemeSwatch } from '@/components/ui/molecules/ThemeSwatch'

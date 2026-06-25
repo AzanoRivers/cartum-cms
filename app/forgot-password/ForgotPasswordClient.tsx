@@ -8,7 +8,7 @@ import { generateCaptchaAction } from '@/lib/actions/captcha.actions'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { CaptchaChallenge } from '@/components/ui/molecules/CaptchaChallenge'
 import type { CaptchaChallenge as CaptchaData } from '@/lib/services/captcha.service'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import type { Dictionary } from '@/locales/en'
 
 type Props = {

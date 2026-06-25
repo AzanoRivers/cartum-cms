@@ -1,6 +1,6 @@
 'use client'
 
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import type { VpsWarning } from '@/types/media'
 import type { CmsDictionary } from '@/locales/en'
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { t } from '@/lib/i18n/t'
 import type { ExternalToast } from 'sonner'

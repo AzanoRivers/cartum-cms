@@ -15,6 +15,8 @@ import { blobUpload, blobDelete, isBlobConfigured } from '@/lib/media/blob-clien
 import { PutObjectCommand, DeleteObjectCommand, PutBucketCorsCommand } from '@aws-sdk/client-s3'
 
 import { sendWelcomeEmail } from '@/lib/email/mailer'
+import { consumeRateLimit } from '@/lib/actions/rate-limit.actions'
+import { RATE_LIMITS } from '@/lib/rate-limits'
 import type { SupportedLocale } from '@/types/project'
 import type { ActionResult } from '@/types/actions'
 import type {
@@ -413,7 +415,7 @@ export async function updateStorageSettings(
 
     await Promise.all(saves)
 
-    // Auto-configure CORS on R2 bucket
+    // Auto-configure CORS on R2 bucket (PUT required for presigned-URL uploads)
     try {
       const { client, bucket } = await getR2Client(projectId)
       await client.send(new PutBucketCorsCommand({
@@ -421,7 +423,7 @@ export async function updateStorageSettings(
         CORSConfiguration: {
           CORSRules: [{
             AllowedOrigins: ['*'],
-            AllowedMethods: ['GET', 'HEAD'],
+            AllowedMethods: ['GET', 'HEAD', 'PUT'],
             AllowedHeaders: ['*'],
             MaxAgeSeconds: 3600,
           }],
@@ -478,9 +480,44 @@ export async function testStorageConnection(): Promise<
       new PutObjectCommand({ Bucket: bucket, Key: testKey, Body: Buffer.from('1'), ContentLength: 1 }),
     )
     await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: testKey }))
+    // Repair CORS after every successful test — ensures PUT is always present
+    try {
+      await client.send(new PutBucketCorsCommand({
+        Bucket: bucket,
+        CORSConfiguration: {
+          CORSRules: [{
+            AllowedOrigins: ['*'],
+            AllowedMethods: ['GET', 'HEAD', 'PUT'],
+            AllowedHeaders: ['*'],
+            MaxAgeSeconds: 3600,
+          }],
+        },
+      }))
+    } catch { /* ignore CORS repair failures — test result still valid */ }
     return { success: true, data: { ok: true, latencyMs: Date.now() - started } }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Connection failed' }
+  }
+}
+
+export async function repairR2Cors(): Promise<ActionResult<void>> {
+  try {
+    const { projectId } = await requireStorageAccess()
+    const { client, bucket } = await getR2Client(projectId)
+    await client.send(new PutBucketCorsCommand({
+      Bucket: bucket,
+      CORSConfiguration: {
+        CORSRules: [{
+          AllowedOrigins: ['*'],
+          AllowedMethods: ['GET', 'HEAD', 'PUT'],
+          AllowedHeaders: ['*'],
+          MaxAgeSeconds: 3600,
+        }],
+      },
+    }))
+    return { success: true, data: undefined }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'CORS repair failed' }
   }
 }
 
@@ -763,12 +800,75 @@ export async function updateEmailProvider(provider: EmailProvider): Promise<Acti
   }
 }
 
-export async function testEmailConnection(toEmail?: string): Promise<ActionResult<{ sent: boolean }>> {
+export type EmailTestOverride = {
+  provider:       EmailProvider
+  resendApiKey?:  string
+  resendFrom?:    string
+  sesAccessKeyId?: string
+  sesSecretKey?:  string
+  sesFromEmail?:  string
+}
+
+export async function testEmailConnection(
+  toEmail?:  string,
+  override?: EmailTestOverride,
+): Promise<ActionResult<{ sent: boolean }>> {
   try {
     const { session, projectId } = await requireEmailAccess()
+    const to = toEmail ?? session.user.email!
+
+    // Case 1: Unsaved credentials provided — use them directly, bypass DB
+    if (override && (override.resendApiKey || (override.sesAccessKeyId && override.sesSecretKey))) {
+      const { Resend } = await import('resend')
+      const { SESClient, SendEmailCommand } = await import('@aws-sdk/client-ses')
+
+      if (override.provider === 'ses' && override.sesAccessKeyId && override.sesSecretKey) {
+        const from = override.sesFromEmail || undefined
+        if (!from) return { success: false, error: 'El campo "De:" de AWS SES es obligatorio.' }
+        const ses = new SESClient({
+          region: process.env.AWS_SES_REGION ?? 'us-east-1',
+          credentials: { accessKeyId: override.sesAccessKeyId, secretAccessKey: override.sesSecretKey },
+        })
+        try {
+          await ses.send(new SendEmailCommand({
+            Source: from, Destination: { ToAddresses: [to] },
+            Message: { Subject: { Data: 'Cartum · Email test', Charset: 'UTF-8' }, Body: { Html: { Data: '<p>Your email delivery is working correctly.</p>', Charset: 'UTF-8' } } },
+          }))
+          return { success: true, data: { sent: true } }
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Error al enviar con AWS SES.' }
+        }
+      }
+
+      if (override.provider === 'resend' && override.resendApiKey) {
+        const resend = new Resend(override.resendApiKey)
+        const from = override.resendFrom || undefined
+        if (!from) return { success: false, error: 'El campo "De:" de Resend es obligatorio.' }
+        try {
+          const result = await resend.emails.send({ from, to, subject: 'Cartum · Email test', html: '<p>Your email delivery is working correctly.</p>' } as Parameters<typeof resend.emails.send>[0])
+          if (result.error) return { success: false, error: result.error.message }
+          return { success: true, data: { sent: true } }
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Error al enviar con Resend.' }
+        }
+      }
+    }
+
+    // Case 2: Provider specified (selected in UI) but no unsaved credentials — use saved credentials for that provider
+    if (override?.provider) {
+      const { sendEmailViaProvider } = await import('@/lib/email/mailer')
+      const result = await sendEmailViaProvider(
+        { to, subject: 'Cartum · Email test', html: '<p>Your email delivery is working correctly.</p>', projectId },
+        override.provider,
+      )
+      if (!result.sent) return { success: false, error: result.error ?? 'Send failed.' }
+      return { success: true, data: { sent: true } }
+    }
+
+    // Case 3: No override — use active provider from DB
     const { sendEmail } = await import('@/lib/email/mailer')
     const result = await sendEmail({
-      to:        toEmail ?? session.user.email!,
+      to,
       subject:   'Cartum · Email test',
       html:      '<p>Your email delivery is working correctly.</p>',
       projectId,
@@ -781,26 +881,41 @@ export async function testEmailConnection(toEmail?: string): Promise<ActionResul
 }
 
 export async function testDefaultEmailConnection(
-  provider: EmailProvider,
-  toEmail:  string,
-): Promise<ActionResult<{ sent: boolean }>> {
+  provider:      EmailProvider,
+  toEmail:       string,
+  overrideFrom?: string,
+): Promise<{ success: true; data: { sent: boolean }; nextAllowedAt?: string } | { success: false; error: string; nextAllowedAt?: string }> {
   try {
     const session = await auth()
     if (!session?.user?.isSuperAdmin) throw new Error('UNAUTHORIZED')
+
+    // Rate limit: max 3 tests per 5 minutes across all providers
+    const rl = await consumeRateLimit(
+      RATE_LIMITS.EMAIL_TEST.key,
+      RATE_LIMITS.EMAIL_TEST.windowSecs,
+      RATE_LIMITS.EMAIL_TEST.maxRequests,
+    )
+    if (!rl.allowed) {
+      return { success: false, error: 'RATE_LIMITED', nextAllowedAt: rl.nextAllowedAt }
+    }
+
     const { sendEmailViaProvider, checkProviderStatus } = await import('@/lib/email/mailer')
 
-    // Validate provider is configured before sending
     const status = await checkProviderStatus(provider)
     if (!status.configured) return { success: false, error: status.error ?? 'Provider not configured.' }
 
-    // Force the specific provider being tested (global keys, no project)
     const testResult = await sendEmailViaProvider({
       to:      toEmail,
       subject: `Cartum · ${provider === 'ses' ? 'AWS SES' : 'Resend'} Email test`,
       html:    `<p>Your <strong>${provider === 'ses' ? 'AWS SES' : 'Resend'}</strong> email delivery is working correctly.</p>`,
-    }, provider)
+    }, provider, overrideFrom)
     if (!testResult.sent) return { success: false, error: testResult.error ?? 'Send failed.' }
-    return { success: true, data: { sent: true } }
+
+    // When all slots are consumed, tell the client when the window resets
+    const nextAllowedAt = rl.remaining === 0
+      ? new Date(Date.now() + RATE_LIMITS.EMAIL_TEST.windowSecs * 1000).toISOString()
+      : undefined
+    return { success: true, data: { sent: true }, nextAllowedAt }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }

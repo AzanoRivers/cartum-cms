@@ -21,6 +21,7 @@ interface UIState {
   parentId: string | null
   cmsDict: CmsDictionary | null
   schemaPermissions: SchemaPermissions
+  hasTier2: boolean | null
   globalLoading: boolean
   globalLoadingLabel: string | undefined
   /** True while a web migration scrape/import job is active. */
@@ -38,6 +39,7 @@ interface UIState {
   setBreadcrumb: (items: BreadcrumbItem[], parentId: string | null) => void
   setCmsDict: (dict: CmsDictionary) => void
   setSchemaPermissions: (perms: SchemaPermissions) => void
+  setHasTier2: (val: boolean) => void
   setGlobalLoading: (loading: boolean, label?: string) => void
   setMigrationState: (active: boolean, cancelFn?: (() => void) | null) => void
 }
@@ -54,6 +56,7 @@ export const useUIStore = create<UIState>()((set) => ({
   parentId: null,
   cmsDict: null,
   schemaPermissions: { ...DEFAULT_SCHEMA_PERMS_READONLY },
+  hasTier2: null,
   globalLoading: false,
   globalLoadingLabel: undefined,
   migrationActive: false,
@@ -69,6 +72,7 @@ export const useUIStore = create<UIState>()((set) => ({
   setBreadcrumb: (items, parentId) => set({ breadcrumb: items, parentId }),
   setCmsDict: (dict) => set({ cmsDict: dict }),
   setSchemaPermissions: (perms) => set({ schemaPermissions: perms }),
+  setHasTier2: (val) => set({ hasTier2: val }),
   setGlobalLoading: (loading, label) => set({ globalLoading: loading, globalLoadingLabel: label }),
   setMigrationState: (active, cancelFn) => set({
     migrationActive: active,

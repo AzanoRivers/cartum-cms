@@ -1,13 +1,15 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { optimizeVideo } from '@/lib/media/video-optimize'
 import { uploadFileWithProgress } from '@/lib/media/upload'
 import { getUploadUrl, saveMediaRecord } from '@/lib/actions/media.actions'
 import { MediaLibraryPicker } from '@/components/ui/organisms/MediaLibraryPicker'
 import { Button } from '@/components/ui/atoms/Button'
+import { Tier2Badge } from '@/components/ui/atoms/Tier2Badge'
+import { useTier2Status } from '@/lib/hooks/useTier2Status'
 import type { MediaRecord } from '@/types/media'
 import {
   ALLOWED_VIDEO_TYPES,
@@ -33,6 +35,7 @@ export function VideoUploadField({
 }: VideoUploadFieldProps) {
   const d           = useUIStore((s) => s.cmsDict)
   const u           = d?.content.upload
+  const hasTier2    = useTier2Status()
   const fileRef     = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [progress,  setProgress]  = useState(0)
@@ -191,6 +194,13 @@ export function VideoUploadField({
         onChange={handleFile}
         tabIndex={-1}
       />
+
+      {hasTier2 === false && u?.tier2Inactive && (
+        <Tier2Badge
+          label={u.tier2Inactive}
+          cta={u.tier2UpgradeCta ?? 'View subscription'}
+        />
+      )}
 
       {error && <p className="text-xs text-danger">{error}</p>}
 

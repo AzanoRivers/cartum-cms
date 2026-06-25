@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useEffect, useRef } from 'react'
+import { toast } from '@/lib/toast'
 import { CheckCircle2, AlertTriangle } from 'lucide-react'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
 import { Button } from '@/components/ui/atoms/Button'
@@ -331,6 +332,7 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
 
         const updated = result.data
         setNodes(nodes.map((n) => (n.id === updated.id ? updated : n)))
+        toast.success(d?.fieldEdit.saved ?? 'Data saved successfully.')
         closeFieldEdit()
         return
       }
@@ -357,6 +359,7 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
 
       const updated = result.data
       setNodes(nodes.map((n) => (n.id === updated.id ? updated : n)))
+      toast.success(d?.fieldEdit.saved ?? 'Data saved successfully.')
       closeFieldEdit()
     })
   }
@@ -826,34 +829,35 @@ export function FieldEditPanel({ isStorageConfigured, asSheet = false }: FieldEd
             {renderTypeConfig()}
           </div>
 
-          {/* Global error */}
-          {errors.global && (
-            <p className="text-xs text-danger">{errors.global}</p>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-2 pt-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex-1"
-              onClick={closeFieldEdit}
-              disabled={pending}
-            >
-              {d?.fieldEdit.cancel ?? 'Cancel'}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              className="flex-1"
-              onClick={handleSubmit}
-              disabled={pending}
-            >
-              {pending ? (d?.fieldEdit.saving ?? 'Saving…') : (d?.fieldEdit.save ?? 'Save')}
-            </Button>
-          </div>
         </div>
       </FieldAccordionSection>
+
+      {/* ── Actions — always visible, outside both accordion sections ────────── */}
+      <div className="flex flex-col gap-2 px-4 py-3 border-t border-border">
+        {errors.global && (
+          <p className="text-xs text-danger">{errors.global}</p>
+        )}
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1"
+            onClick={closeFieldEdit}
+            disabled={pending}
+          >
+            {d?.fieldEdit.cancel ?? 'Cancel'}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            className="flex-1"
+            onClick={handleSubmit}
+            disabled={pending}
+          >
+            {pending ? (d?.fieldEdit.saving ?? 'Saving…') : (d?.fieldEdit.save ?? 'Save')}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 

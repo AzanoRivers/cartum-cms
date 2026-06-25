@@ -23,6 +23,50 @@ const OPPOSITE: Record<PortSide, PortSide> = {
   top: 'bottom', bottom: 'top', left: 'right', right: 'left',
 }
 
+/**
+ * Infers the best source and target sides for the pending drag line.
+ * Makes the curve organic: both ends react to cursor position instead of
+ * keeping the target side fixed at OPPOSITE[fromSide].
+ *
+ * - toSide: the side of the cursor "target" that faces the source (cursor
+ *   is treated as a floating point, so we pick the cardinal facing the source).
+ * - fromSide: if the cursor crosses behind the source port, flip it so the
+ *   curve doesn't fold back on itself.
+ */
+function inferDragSides(
+  from: Position,
+  initialFromSide: PortSide,
+  to: Position,
+): { fromSide: PortSide; toSide: PortSide } {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const absDx = Math.abs(dx)
+  const absDy = Math.abs(dy)
+
+  // Dominant axis determines the primary direction
+  let toSide: PortSide
+  if (absDx >= absDy) {
+    toSide = dx > 0 ? 'left' : 'right'
+  } else {
+    toSide = dy > 0 ? 'top' : 'bottom'
+  }
+
+  // Adapt fromSide: if cursor is behind the initial port direction, flip it
+  // so the curve leaves from the correct side and avoids ugly self-loops.
+  let fromSide = initialFromSide
+  const isBehind =
+    (initialFromSide === 'right'  && dx < -CARD_W * 0.4) ||
+    (initialFromSide === 'left'   && dx >  CARD_W * 0.4) ||
+    (initialFromSide === 'bottom' && dy < -CARD_H * 0.4) ||
+    (initialFromSide === 'top'    && dy >  CARD_H * 0.4)
+  if (isBehind) fromSide = toSide === 'left' ? 'left' : toSide === 'right' ? 'right' : toSide === 'top' ? 'top' : 'bottom'
+
+  // Avoid identical sides (would produce a flat line)
+  if (fromSide === toSide) fromSide = OPPOSITE[toSide]
+
+  return { fromSide, toSide }
+}
+
 function getPortPos(node: AnyNode, side: PortSide): Position {
   const { positionX: x, positionY: y } = node
   if (side === 'top')    return { x: x + CARD_W / 2, y }
@@ -240,9 +284,10 @@ export const ConnectionLayer = forwardRef<ConnectionLayerHandle, ConnectionLayer
       },
       moveDragLine(to) {
         if (!dragPathRef.current || !dragFromRef.current) return
+        const { fromSide, toSide } = inferDragSides(dragFromRef.current, dragSideRef.current, to)
         dragPathRef.current.setAttribute(
           'd',
-          calcBezierPath(dragFromRef.current, dragSideRef.current, to, OPPOSITE[dragSideRef.current]),
+          calcBezierPath(dragFromRef.current, fromSide, to, toSide),
         )
       },
       hideDragLine() {

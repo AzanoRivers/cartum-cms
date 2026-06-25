@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { playStartSound } from '@/lib/sounds'
 import type { Dictionary } from '@/locales/en'
 
 type ReadyClientProps = {
@@ -35,7 +36,7 @@ export function ReadyClient({ projectName, adminEmail, dict }: ReadyClientProps)
       </div>
 
       <button
-        onClick={() => router.push('/cms/board')}
+        onClick={() => { playStartSound(); router.push('/cms/board') }}
         className="w-full bg-primary hover:bg-primary/90 text-white font-mono text-sm py-2.5 rounded-md transition-colors"
       >
         {dict.cta} →

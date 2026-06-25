@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { ImageIcon, VideoIcon, Upload, Library, X, RefreshCw, Link, Check } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { optimizeImage } from '@/lib/media/optimize'
 import { uploadFileWithProgress } from '@/lib/media/upload'
 import { getUploadUrl, saveMediaRecord } from '@/lib/actions/media.actions'

@@ -74,15 +74,17 @@ interface SendParams {
 
 /** Send via a specific provider (bypasses active-provider resolution). */
 export async function sendEmailViaProvider(
-  params:   SendParams,
-  provider: EmailProvider,
+  params:       SendParams,
+  provider:     EmailProvider,
+  overrideFrom?: string,
 ): Promise<{ sent: boolean; error?: string }> {
   if (provider === 'ses') {
-    const [ses, from] = await Promise.all([
+    const [ses, resolvedFrom] = await Promise.all([
       getSesClient(params.projectId),
       getSesFrom(params.projectId),
     ])
-    if (!ses || !from) return { sent: false, error: 'AWS SES not configured.' }
+    const from = overrideFrom || resolvedFrom
+    if (!ses || !from) return { sent: false, error: 'AWS SES no está configurado. Verifica las credenciales.' }
     try {
       if (params.attachments?.length) {
         const { SendRawEmailCommand } = await import('@aws-sdk/client-ses')
@@ -113,11 +115,12 @@ export async function sendEmailViaProvider(
       return { sent: false, error: err instanceof Error ? err.message : 'SES send failed.' }
     }
   }
-  const [resend, from] = await Promise.all([
+  const [resend, resolvedFrom] = await Promise.all([
     getResendClient(params.projectId),
     getResendFrom(params.projectId),
   ])
-  if (!resend || !from) return { sent: false, error: 'Resend not configured.' }
+  const from = overrideFrom || resolvedFrom
+  if (!resend || !from) return { sent: false, error: 'Resend no está configurado. Verifica las credenciales.' }
   const result = await resend.emails.send({
     from, to: params.to, subject: params.subject, html: params.html,
     attachments: params.attachments?.map(a => ({ filename: a.filename, content: a.content })),
@@ -137,7 +140,7 @@ export async function sendEmail(params: SendParams): Promise<{ sent: boolean; er
       getSesClient(params.projectId),
       getSesFrom(params.projectId),
     ])
-    if (!ses || !from) return { sent: false, error: 'AWS SES not configured.' }
+    if (!ses || !from) return { sent: false, error: 'AWS SES no está configurado. Verifica las credenciales.' }
     try {
       await ses.send(new SendEmailCommand({
         Source: from,
@@ -149,7 +152,7 @@ export async function sendEmail(params: SendParams): Promise<{ sent: boolean; er
       }))
       return { sent: true }
     } catch (err) {
-      return { sent: false, error: err instanceof Error ? err.message : 'SES send failed.' }
+      return { sent: false, error: err instanceof Error ? err.message : 'Error al enviar con AWS SES.' }
     }
   }
 
@@ -158,7 +161,7 @@ export async function sendEmail(params: SendParams): Promise<{ sent: boolean; er
     getResendClient(params.projectId),
     getResendFrom(params.projectId),
   ])
-  if (!resend || !from) return { sent: false, error: 'Resend not configured.' }
+  if (!resend || !from) return { sent: false, error: 'Resend no está configurado. Verifica las credenciales.' }
   const result = await resend.emails.send({ from, to: params.to, subject: params.subject, html: params.html })
   if (result.error) return { sent: false, error: result.error.message }
   return { sent: true }

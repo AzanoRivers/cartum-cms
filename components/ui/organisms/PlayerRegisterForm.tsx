@@ -9,6 +9,7 @@ import { registerPlayer } from '@/lib/actions/auth.actions'
 import { generateSecurePassword } from '@/lib/utils/password'
 import { dictionaries } from '@/locales'
 import { useStrangerThingsSound } from '@/lib/hooks/useStrangerThingsSound'
+import { playStartSound } from '@/lib/sounds'
 import { THEMES } from '@/types/theme'
 import type { ThemeId } from '@/types/theme'
 
@@ -451,6 +452,7 @@ export function PlayerRegisterForm({ initialLocale = 'en' }: PlayerRegisterFormP
                       <button
                         type="submit"
                         disabled={isPending}
+                        onClick={() => { if (!isPending) playStartSound() }}
                         className="flex-1 rounded-md bg-primary px-4 py-2 md:py-2.5 font-mono text-sm md:text-base text-white hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-60"
                       >
                         {isPending ? d.submitting : d.submit}

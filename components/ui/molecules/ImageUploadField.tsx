@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { optimizeImage } from '@/lib/media/optimize'
 import { uploadFileWithProgress } from '@/lib/media/upload'
@@ -9,6 +9,8 @@ import { emitVpsWarningToast } from '@/lib/media/vps-toast'
 import { uploadViaServer, getUploadUrl, saveMediaRecord } from '@/lib/actions/media.actions'
 import { MediaLibraryPicker } from '@/components/ui/organisms/MediaLibraryPicker'
 import { Button } from '@/components/ui/atoms/Button'
+import { Tier2Badge } from '@/components/ui/atoms/Tier2Badge'
+import { useTier2Status } from '@/lib/hooks/useTier2Status'
 import type { MediaRecord } from '@/types/media'
 import {
   ALLOWED_IMAGE_TYPES,
@@ -34,6 +36,7 @@ export function ImageUploadField({
 }: ImageUploadFieldProps) {
   const d           = useUIStore((s) => s.cmsDict)
   const u           = d?.content.upload
+  const hasTier2    = useTier2Status()
   const fileRef     = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [progress,  setProgress]  = useState(0)
@@ -62,15 +65,33 @@ export function ImageUploadField({
       const { file: compressed, tier1Failed } = await optimizeImage(file)
       if (tier1Failed) toast.warning(u?.tier1ImageWarn ?? 'Image compression failed. Uploading original.')
 
+      const mimeType    = compressed.type || file.type
       const arrayBuffer = await compressed.arrayBuffer()
       const result = await uploadViaServer({
         file:     arrayBuffer,
-        mimeType: compressed.type || file.type,
+        mimeType,
         filename: file.name,
         nodeId,
       })
 
-      if (!result.success) throw new Error(u?.uploadError ?? 'Upload failed. Please try again.')
+      if (!result.success) {
+        if (result.error === 'TIER2_SUBSCRIPTION_REQUIRED') {
+          // No subscription — fall back to direct presigned-URL upload (tier1)
+          toast.warning(u?.tier2NoSubscription ?? 'Optimization unavailable. File uploaded without optimization.')
+          const urlResult = await getUploadUrl({ filename: file.name, mimeType, nodeId })
+          if (!urlResult.success) throw new Error(u?.uploadError ?? 'Upload failed. Please try again.')
+          await uploadFileWithProgress(compressed, urlResult.data.uploadUrl, mimeType, setProgress)
+          await saveMediaRecord({
+            key:       urlResult.data.key,
+            publicUrl: urlResult.data.publicUrl,
+            mimeType,
+            sizeBytes: compressed.size,
+            nodeId,
+          })
+          return urlResult.data.publicUrl
+        }
+        throw new Error(u?.uploadError ?? 'Upload failed. Please try again.')
+      }
 
       if (result.data.vpsWarning) {
         emitVpsWarningToast(result.data.vpsWarning, d!.content.upload, result.data.vpsPartialMeta)
@@ -183,6 +204,13 @@ export function ImageUploadField({
         onChange={handleFile}
         tabIndex={-1}
       />
+
+      {hasTier2 === false && u?.tier2Inactive && (
+        <Tier2Badge
+          label={u.tier2Inactive}
+          cta={u.tier2UpgradeCta ?? 'View subscription'}
+        />
+      )}
 
       {error && <p className="text-xs text-danger">{error}</p>}
 

@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { cva } from 'class-variance-authority'
 import { GripVertical, Library, Upload, X, Link, Plus, ArrowLeft, ImageIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { optimizeImage } from '@/lib/media/optimize'
 import { uploadFileWithProgress } from '@/lib/media/upload'
 import { getUploadUrl, saveMediaRecord } from '@/lib/actions/media.actions'

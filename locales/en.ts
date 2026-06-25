@@ -176,8 +176,9 @@
       ariaLabel:   'Select project',
     },
     noProject: {
-      title:    'No active project',
-      desc:     'You were removed from your project. Create a new board to continue using the CMS.',
+      title:    'No projects assigned',
+      warn:     'You have no projects assigned. You must create a new one to continue.',
+      desc:     'Create a new board to keep using the CMS. This step is required.',
       button:   'Create new board',
     },
     newProjectModal: {
@@ -1026,6 +1027,7 @@
       cancel:           'Cancel',
       save:             'Save',
       saving:           'Saving…',
+      saved:            'Data saved successfully.',
       typeChangeBlocked: 'This attribute already has cards. Delete all cards from this deck first to change the type.',
       typeChangeConfirmTitle:   'Change attribute type',
       typeChangeConfirmBody:    'THE VALUE SAVED IN THIS CARD WILL BE LOST',
@@ -1202,6 +1204,9 @@
         fileTooLarge:         'File exceeds the maximum allowed size.',
         tier1ImageWarn:       'Image was compressed before upload.',
         tier1VideoWarn:       'Video was compressed before upload.',
+        tier2NoSubscription:  'Optimization unavailable — subscription required. File uploaded without optimization.',
+        tier2Inactive:        'Tier 2 optimization inactive. Files will be uploaded without server-side optimization.',
+        tier2UpgradeCta:      'View subscription',
         vpsUnreachable:       'Optimization server could not be reached. Uploaded original.',
         vpsAuthError:         'Optimization server rejected the API key.',
         vpsAuthErrorDesc:     'Go to Settings → Media and update the VPS API key.',
@@ -1303,6 +1308,8 @@
         uploadCancelConfirmDesc:  'Closing will cancel active uploads and optimizations. Nothing will be saved.',
         uploadCancelConfirmYes:   'Yes, close',
         uploadCancelConfirmNo:    'Keep uploading',
+        tier2Inactive:    'Tier 2 optimization inactive. Files will be uploaded without server-side optimization.',
+        tier2UpgradeCta:  'View subscription',
       },
     },
     board: {
@@ -1957,16 +1964,16 @@
       messagePlaceholder:'Describe the issue, steps to reproduce, expected behavior…',
       imagesLabel:       'Screenshots (optional)',
       dropZoneText:      'Drag & drop images or click to browse',
-      dropZoneHint:      'JPG, PNG, WebP, GIF · max 3 MB each · up to 5 images',
+      dropZoneHint:      'JPG, PNG, WebP, GIF · max 2 MB each · up to 10 images',
       send:              'Send report',
       sending:           'Sending…',
       sent:              'Report sent. Thank you!',
       sendError:         'Could not send the report. Please try again.',
       allFieldsRequired: 'Subject, email and message are required.',
       messageTooLong:    'Message must be at most 800 characters.',
-      maxImagesError:    'You can attach up to 5 images.',
+      maxImagesError:    'You can attach up to 10 images.',
       invalidTypeError:  'Only JPG, PNG, WebP and GIF images are allowed.',
-      fileTooLargeError: 'Each image must be at most 3 MB.',
+      fileTooLargeError: 'Each image must be at most 2 MB.',
       rateLimited:       'You can only send 1 report per day.',
       nextAllowed:       'Next available:',
     },
@@ -2132,9 +2139,29 @@
       resetAllSuccess:     'All variables reset to .env defaults.',
     },
     subscription: {
-      title:       'Subscription',
-      description: 'Here you will manage your Cartum CMS subscription. AzanoLabs is currently supported solely by AzanoRivers and it\'s a tremendous effort. Your support is an incredible play!',
-      comingSoon:  'Coming soon',
+      title:             'Subscription',
+      description:       'AzanoLabs is supported solely by AzanoRivers. It\'s a tremendous effort. Your support is an incredible play!',
+      thanks:            'Gracias',
+      monthlyTitle:      'Monthly',
+      monthlyBadge:      'Pay as you go',
+      monthlyDesc:       'No commitment · One month at a time',
+      monthlyPrice:      '$3',
+      monthlyPer:        '/ month',
+      subTitle:          'Monthly Plan',
+      subBadge:          'Popular',
+      subDesc:           'Auto-renews · Cancel any time',
+      subPrice:          '$2.50',
+      subPer:            '/ month',
+      subSave:           'Save $6 / year',
+      annualTitle:       'Annual',
+      annualBadge:       'Best value',
+      annualDesc:        'One payment · Full year',
+      annualPrice:       '$24',
+      annualPer:         '/ year',
+      annualPerMonth:    '$2 / month',
+      annualSave:        '2 months FREE',
+      startBtn:          'Get started',
+      wip:               'Feature under construction',
     },
     cartumProjects: {
       title:          'Cartum Projects',
@@ -2196,6 +2223,8 @@
       testToLabel:       'Destination email for test',
       testToPlaceholder: 'email@example.com',
       testToRequired:    'Enter a destination email to send the test.',
+      rateLimited:       'Too many tests. Limit: 3 per 5 minutes.',
+      retryIn:           'Retry in',
       storageSection:         'Storage Provider',
       storageDesc:            'Select the default storage provider for new media uploads across all projects without a local override.',
       storageNotConfiguredNote: 'No storage provider is configured globally. Set credentials in Settings → Variables first.',
@@ -2331,7 +2360,7 @@ export type Dictionary = {
   cms: {
     topBar: { account: string; logOut: string; userMenuAriaLabel: string; freeTier: string; trialDaysLeft: string; trialTooltip: string }
     projectSelector: { newProject: string; ariaLabel: string }
-    noProject: { title: string; desc: string; button: string }
+    noProject: { title: string; warn: string; desc: string; button: string }
     newProjectModal: {
       title: string; nameLabel: string; namePlaceholder: string
       descriptionLabel: string; descriptionPlaceholder: string
@@ -2646,7 +2675,7 @@ export type Dictionary = {
     fieldTypePicker: { text: string; number: string; boolean: string; image: string; video: string; relation: string; gallery: string }
     fieldEdit: {
       ariaLabel: string; title: string; name: string; requiredToggle: string
-      fieldType: string; cancel: string; save: string; saving: string; typeChangeBlocked: string
+      fieldType: string; cancel: string; save: string; saving: string; saved: string; typeChangeBlocked: string
       typeChangeConfirmTitle: string; typeChangeConfirmBody: string; typeChangeConfirmSubtext: string; typeChangeConfirm: string
       text:    { multiline: string; maxLength: string; maxLengthPlaceholder: string; defaultValueLabel: string; defaultValuePlaceholder: string; richTextBold: string; richTextBoldTip: string; richTextItalic: string; richTextItalicTip: string; richTextTitle: string; richTextTitleTip: string; richTextAlignLeft: string; richTextAlignCenter: string; richTextAlignRight: string; richTextColor: string; richTextColorTip: string; richTextLink: string; richTextLinkTip: string; richTextLinkTextLabel: string; richTextLinkUrlLabel: string; richTextLinkInsert: string; richTextLinkCancel: string; richTextHtml: string; richTextHtmlTip: string; richTextHtmlCodeLabel: string; richTextHtmlInsert: string; richTextHtmlCancel: string; richTextClear: string; richTextClearTip: string }
       number:  { subtype: string; subtypeInt: string; subtypeFloat: string; valueModeLabel: string; valueModeFixed: string; valueModeRange: string; fixedValue: string; fixedValuePlaceholder: string; min: string; max: string; minPlaceholder: string; maxPlaceholder: string; rangeError: string }
@@ -2688,7 +2717,8 @@ export type Dictionary = {
         dragOrClick: string; uploading: string; change: string; remove: string
         chooseFromLibrary: string; uploadNew: string
         uploadSuccess: string; uploadError: string; invalidType: string; fileTooLarge: string
-        tier1ImageWarn: string; tier1VideoWarn: string
+        tier1ImageWarn: string; tier1VideoWarn: string; tier2NoSubscription: string
+        tier2Inactive: string; tier2UpgradeCta: string
         vpsUnreachable: string; vpsAuthError: string; vpsAuthErrorDesc: string
         vpsValidationWarn: string; vpsTimeout: string; vpsPartial: string
         videoProcessing: string
@@ -2728,6 +2758,7 @@ export type Dictionary = {
         imageUploadWarning: string
         uploadCancelConfirmTitle: string; uploadCancelConfirmDesc: string
         uploadCancelConfirmYes: string; uploadCancelConfirmNo: string
+        tier2Inactive: string; tier2UpgradeCta: string
       }
     }
     board: {
@@ -2778,6 +2809,7 @@ export type Dictionary = {
       setAsDefault?: string; defaultBadge?: string
       testEmail?: string; testing?: string; testOk?: string; testFail?: string
       testToLabel?: string; testToPlaceholder?: string; testToRequired?: string
+      rateLimited?: string; retryIn?: string
       sesFromEmailLabel?: string; sesFromEmailWarning?: string
       resendFromEmailLabel?: string; resendFromEmailWarning?: string
       testSectionTitle?: string
@@ -3012,9 +3044,11 @@ export type Dictionary = {
       }
     }
     subscription: {
-      title: string
-      description: string
-      comingSoon: string
+      title: string; description: string; thanks: string
+      monthlyTitle: string; monthlyBadge: string; monthlyDesc: string; monthlyPrice: string; monthlyPer: string
+      subTitle: string; subBadge: string; subDesc: string; subPrice: string; subPer: string; subSave: string
+      annualTitle: string; annualBadge: string; annualDesc: string; annualPrice: string; annualPer: string; annualPerMonth: string; annualSave: string
+      startBtn: string; wip: string
     }
     variables: {
       title: string; subtitle: string

@@ -48,6 +48,9 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
   }
   const cartumSuscriptor     = session.user.cartumSuscriptor ?? true
   const cartumSuscriptorTime = session.user.cartumSuscriptorTime ?? 0
+  const TRIAL_SECONDS        = 7 * 86_400
+  const hasTier2             = isSuperAdmin
+    || (cartumSuscriptor && Math.floor(Date.now() / 1000) < cartumSuscriptorTime + TRIAL_SECONDS)
 
   const [sectionPermissions, isProjectAdmin, schemaPermissions, theme, allProjects] = await Promise.all([
     isSuperAdmin
@@ -94,7 +97,7 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
     return (
       <>
         <ThemeSync theme={theme} />
-        <CmsDictionarySetter dict={cmsDict} schemaPermissions={schemaPermissions} />
+        <CmsDictionarySetter dict={cmsDict} schemaPermissions={schemaPermissions} hasTier2={hasTier2} />
         <GlobalLoader />
         {noProject && <NoProjectModal d={dict.cms.noProject} />}
         <MobileLayout
@@ -119,7 +122,7 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
   return (
     <>
       <ThemeSync theme={theme} />
-      <CmsDictionarySetter dict={cmsDict} schemaPermissions={schemaPermissions} />
+      <CmsDictionarySetter dict={cmsDict} schemaPermissions={schemaPermissions} hasTier2={hasTier2} />
       <GlobalLoader />
       {noProject && <NoProjectModal d={dict.cms.noProject} />}
       <DesktopLayout

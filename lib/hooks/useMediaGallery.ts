@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { uploadFileWithProgress } from '@/lib/media/upload'
 import { optimizeImage } from '@/lib/media/optimize'
 import { getUploadUrl, saveMediaRecord, uploadBlobDirect, uploadVideoBlobDirect, listMediaAssetsPaged, getMediaFileNames } from '@/lib/actions/media.actions'

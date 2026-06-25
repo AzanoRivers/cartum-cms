@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Search, Upload } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { useMediaGallery } from '@/lib/hooks/useMediaGallery'
 import { deleteMediaRecord, bulkDeleteMediaRecords, getMediaStorageSummary } from '@/lib/actions/media.actions'
 import { MediaGalleryTabs }      from '@/components/ui/molecules/MediaGalleryTabs'
@@ -14,6 +14,8 @@ import { MediaPreviewModal }     from '@/components/ui/organisms/MediaPreviewMod
 import { MediaBulkDeleteModal }  from '@/components/ui/organisms/MediaBulkDeleteModal'
 import { VideoFallbackModal }    from '@/components/ui/organisms/VideoFallbackModal'
 import { VHSTransition }         from '@/components/ui/transitions/VHSTransition'
+import { Tier2Badge }            from '@/components/ui/atoms/Tier2Badge'
+import { useTier2Status }        from '@/lib/hooks/useTier2Status'
 import type { CmsDictionary }    from '@/locales/en'
 import type { MediaRecord, MediaStorageSummary } from '@/types/media'
 import { BLOB_STORAGE_QUOTA_BYTES } from '@/types/media'
@@ -108,6 +110,7 @@ export type MediaGalleryPageProps = {
 
 export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = false, storageSummary: initialSummary, canUpload = true, canDelete = true, galleryPerms }: MediaGalleryPageProps) {
   const g = d.content.mediaGallery
+  const hasTier2 = useTier2Status()
   const [storageSummary, setStorageSummary] = useState(initialSummary)
 
   const refreshSummary = useCallback(async () => {
@@ -296,6 +299,14 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
           </button>
         )}
       </div>
+
+      {/* Tier 2 inactive badge */}
+      {hasTier2 === false && (
+        <Tier2Badge
+          label={g.tier2Inactive}
+          cta={g.tier2UpgradeCta}
+        />
+      )}
 
       {/* Upload modal */}
       <MediaUploadModal

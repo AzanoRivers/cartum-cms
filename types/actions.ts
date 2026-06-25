@@ -1,3 +1,3 @@
 export type ActionResult<T = void> =
   | (T extends void ? { success: true; data?: undefined } : { success: true; data: T })
-  | { success: false; error: string }
+  | { success: false; error: string; nextAllowedAt?: string }

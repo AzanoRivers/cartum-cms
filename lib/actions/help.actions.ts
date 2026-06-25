@@ -1,7 +1,8 @@
 'use server'
 
 import { auth } from '@/auth'
-import { getSetting, setSetting } from '@/lib/settings/get-setting'
+import { consumeRateLimit, getRateLimitStatus } from '@/lib/actions/rate-limit.actions'
+import { RATE_LIMITS } from '@/lib/rate-limits'
 
 export interface HelpAttachment {
   filename: string
@@ -16,9 +17,9 @@ export interface HelpFormInput {
   attachments: HelpAttachment[]
 }
 
-const RATE_LIMIT_HOURS = 24
-const MAX_ATTACHMENTS  = 5
-const MAX_CHARS        = 800
+const MAX_ATTACHMENTS = 10
+const MAX_CHARS       = 800
+const RL              = RATE_LIMITS.HELP_REPORT
 
 export async function sendHelpReport(
   input: HelpFormInput,
@@ -26,32 +27,24 @@ export async function sendHelpReport(
   const session = await auth()
   if (!session?.user?.id) return { success: false, error: 'UNAUTHORIZED' }
 
-  // Validate input
   if (!input.subject?.trim()) return { success: false, error: 'Subject is required.' }
   if (!input.email?.trim())   return { success: false, error: 'Email is required.' }
   if (!input.message?.trim()) return { success: false, error: 'Message is required.' }
   if (input.message.length > MAX_CHARS) return { success: false, error: `Message must be at most ${MAX_CHARS} characters.` }
   if (input.attachments.length > MAX_ATTACHMENTS) return { success: false, error: `Maximum ${MAX_ATTACHMENTS} images allowed.` }
 
-  // Rate limit — 1 send per user per 24h
-  const userId      = session.user.id
-  const accountEmail = session.user.email ?? '(no email in session)'
-  const rateKey   = `help_rate:${userId}`
-  const lastSent  = await getSetting(rateKey)
-  if (lastSent) {
-    const lastMs   = parseInt(lastSent, 10)
-    const nowMs    = Date.now()
-    const diffHrs  = (nowMs - lastMs) / (1000 * 60 * 60)
-    if (diffHrs < RATE_LIMIT_HOURS) {
-      const nextAllowedAt = new Date(lastMs + RATE_LIMIT_HOURS * 60 * 60 * 1000).toISOString()
-      return { success: false, error: 'RATE_LIMITED', nextAllowedAt }
-    }
+  // Rate limit check + consume
+  const rl = await consumeRateLimit(RL.key, RL.windowSecs, RL.maxRequests)
+  if (!rl.allowed) {
+    return { success: false, error: 'RATE_LIMITED', nextAllowedAt: rl.nextAllowedAt }
   }
 
   const helpEmail = process.env.HELP_EMAIL_AZANO
   if (!helpEmail) return { success: false, error: 'Help email not configured.' }
 
-  // Build HTML body
+  const accountEmail = session.user.email ?? '(no email in session)'
+  const userId       = session.user.id
+
   const html = `
     <div style="font-family:monospace;max-width:600px;margin:0 auto;padding:24px;background:#0a0a0f;color:#e2e8f0;border-radius:8px;">
       <h2 style="color:#6366f1;margin-bottom:16px;">📬 Cartum CMS — Help Report</h2>
@@ -69,37 +62,23 @@ ${input.message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
     </div>
   `
 
-  // Send via active CMS default provider
   try {
     const { sendEmailViaProvider, resolveActiveProvider } = await import('@/lib/email/mailer')
-    const activeProvider = await resolveActiveProvider(null) // global default
+    const activeProvider = await resolveActiveProvider(null)
     const result = await sendEmailViaProvider(
       { to: helpEmail, subject: `[Cartum Help] ${input.subject}`, html, attachments: input.attachments },
       activeProvider as 'resend' | 'ses',
     )
-
     if (!result.sent) return { success: false, error: result.error ?? 'Failed to send.' }
 
-    // Save rate limit timestamp
-    await setSetting(rateKey, String(Date.now()), userId)
-    return { success: true }
+    const nextAllowedAt = new Date(Date.now() + RL.windowSecs * 1000).toISOString()
+    return { success: true, nextAllowedAt }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error.' }
   }
 }
 
 export async function getHelpRateStatus(): Promise<{ canSend: boolean; nextAllowedAt?: string }> {
-  const session = await auth()
-  if (!session?.user?.id) return { canSend: false }
-
-  const rateKey  = `help_rate:${session.user.id}`
-  const lastSent = await getSetting(rateKey)
-  if (!lastSent) return { canSend: true }
-
-  const lastMs  = parseInt(lastSent, 10)
-  const diffHrs = (Date.now() - lastMs) / (1000 * 60 * 60)
-  if (diffHrs >= RATE_LIMIT_HOURS) return { canSend: true }
-
-  const nextAllowedAt = new Date(lastMs + RATE_LIMIT_HOURS * 60 * 60 * 1000).toISOString()
-  return { canSend: false, nextAllowedAt }
+  const status = await getRateLimitStatus(RL.key, RL.windowSecs, RL.maxRequests)
+  return { canSend: status.canProceed, nextAllowedAt: status.nextAllowedAt }
 }

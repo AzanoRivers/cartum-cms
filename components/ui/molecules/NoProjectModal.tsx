@@ -38,8 +38,11 @@ export function NoProjectModal({ d }: Props) {
           >
             <div className="h-0.5 w-full bg-warning/70" />
             <div className="px-6 py-6 space-y-5">
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <h2 className="font-mono text-sm font-semibold text-text">{d.title}</h2>
+                <div className="rounded-md border border-warning/30 bg-warning/8 px-3 py-2">
+                  <p className="font-mono text-xs text-warning/90 leading-relaxed">⚠ {d.warn}</p>
+                </div>
                 <p className="font-mono text-xs text-muted leading-relaxed">{d.desc}</p>
               </div>
 

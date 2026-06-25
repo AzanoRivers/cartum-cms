@@ -5,9 +5,9 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { signIn } from '@/auth'
 import { auth } from '@/auth'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, ne, and, or } from 'drizzle-orm'
 import { db } from '@/db'
-import { project } from '@/db/schema'
+import { project, projectMemberships, roles } from '@/db/schema'
 import { invitationsService } from '@/lib/services/invitations.service'
 import { projectMembershipsRepository } from '@/db/repositories/project-memberships.repository'
 import { projectInvitationsRepository } from '@/db/repositories/project-invitations.repository'
@@ -44,8 +44,30 @@ export async function getPendingInvitations() {
 }
 
 export async function listRolesForInvite() {
-  const { roles } = await import('@/db/schema')
-  return db.select({ id: roles.id, name: roles.name }).from(roles)
+  const projectId = await requireProjectId()
+
+  // Roles currently in use by this project's members
+  const usedRoles = await db
+    .select({ roleId: projectMemberships.roleId })
+    .from(projectMemberships)
+    .where(eq(projectMemberships.projectId, projectId))
+  const projectRoleIds = [...new Set(usedRoles.map((r) => r.roleId))]
+
+  // Built-in assignable roles (no restricted — that's super_admin only)
+  const BUILT_IN = ['admin', 'editor', 'viewer'] as const
+
+  return db
+    .select({ id: roles.id, name: roles.name })
+    .from(roles)
+    .where(
+      and(
+        ne(roles.name, 'restricted'),
+        projectRoleIds.length > 0
+          ? or(inArray(roles.name, [...BUILT_IN]), inArray(roles.id, projectRoleIds))
+          : inArray(roles.name, [...BUILT_IN]),
+      ),
+    )
+    .orderBy(roles.name)
 }
 
 export async function getMyAdminProjects() {
