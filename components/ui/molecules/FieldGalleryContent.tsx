@@ -370,18 +370,8 @@ export function FieldGalleryContent({
       const finalExt  = finalMime === 'image/webp' ? 'webp' : (file.name.split('.').pop() ?? 'bin')
       const finalName = `${baseName}.${finalExt}`
 
-      // Tier 2: VPS proxy (best-effort — no bloquea si falla)
+      // Tier 2: direct VPS call — only when a session is available (bytes never pass through Vercel)
       let finalBlob: Blob = opt
-      try {
-        const form = new FormData()
-        form.append('file', opt, file.name)
-        const proxyRes = await fetch('/api/internal/media/compress', { method: 'POST', body: form })
-        const ct = proxyRes.headers.get('Content-Type') ?? ''
-        const skipped = proxyRes.headers.get('X-Vps-Skipped')
-        if (!skipped && ct.startsWith('image/')) {
-          finalBlob = await proxyRes.blob()
-        }
-      } catch { /* silent fallback to Tier 1 */ }
 
       patchSlot({ phase: 'uploading', progress: 0 })
 

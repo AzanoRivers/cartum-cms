@@ -497,8 +497,7 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
   //
   // Image flow (bytes NEVER stored via Vercel):
   //   1. Tier 1: browser-image-compression (client, no network)
-  //   2. Tier 2: /api/internal/media/compress → thin proxy to Optimus VPS
-  //              Vercel only touches bytes for optimization, NOT for storage.
+  //   2. Tier 2: browser → VPS directly (only when session available — bytes never pass through Vercel)
   //   3. getUploadUrl  → presigned R2 URL (server action, tiny — no bytes)
   //   4. PUT to R2 directly from browser via XHR (presigned URL)
   //   5. saveMediaRecord → metadata only (server action, no bytes)
@@ -530,62 +529,52 @@ export function useMediaGallery(config?: UseMediaGalleryConfig) {
       // ── Tier 1: client-side compression ──
       const { file: tier1File } = await optimizeImage(file)
 
-      // ── Tier 2: Optimus proxy ──
+      // ── Tier 2: direct VPS call (only when session available — bytes never pass through Vercel) ──
       let finalBlob: Blob   = tier1File
       let finalMime: string = tier1File.type || file.type
       let vpsWarning: VpsWarning | null = null
 
-      try {
-        const form = new FormData()
-        // VPS endpoint expects "files" (list field), whether called directly or via proxy
-        form.append('files', tier1File, file.name)
+      const imgVpsConfig = getVpsConfig()
+      if (imgVpsConfig) {
+        try {
+          const form = new FormData()
+          form.append('files', tier1File, file.name)
 
-        // 30s timeout — Optimus can be slow but shouldn't exceed this for single images
-        const controller = new AbortController()
-        const timeoutId  = setTimeout(() => controller.abort(), 30_000)
+          // 30s timeout — Optimus can be slow but shouldn't exceed this for single images
+          const controller = new AbortController()
+          const timeoutId  = setTimeout(() => controller.abort(), 30_000)
 
-        // Use VPS directly when a session is available (avoids Vercel bandwidth)
-        const imgVpsConfig    = getVpsConfig()
-        const compressUrl     = imgVpsConfig
-          ? `${imgVpsConfig.url}/api/v1/media/images/compress?out=webp`
-          : '/api/internal/media/compress'
-        const compressHeaders: HeadersInit = imgVpsConfig
-          ? { 'X-Session-Token': imgVpsConfig.token }
-          : {}
+          const vpsRes = await fetch(
+            `${imgVpsConfig.url}/api/v1/media/images/compress?out=webp`,
+            {
+              method:  'POST',
+              headers: { 'X-Session-Token': imgVpsConfig.token },
+              body:    form,
+              signal:  controller.signal,
+            }
+          ).finally(() => clearTimeout(timeoutId))
 
-        const proxyRes = await fetch(compressUrl, {
-          method:  'POST',
-          headers: compressHeaders,
-          body:    form,
-          signal:  controller.signal,
-        }).finally(() => clearTimeout(timeoutId))
+          const ct      = vpsRes.headers.get('Content-Type') ?? ''
+          let warnHdr: VpsWarning | null = null
 
-        // Vercel proxy translates VPS errors to X-Vps-Warning headers.
-        // For direct VPS calls, map HTTP status codes ourselves.
-        const skipped = proxyRes.headers.get('X-Vps-Skipped')
-        const ct      = proxyRes.headers.get('Content-Type') ?? ''
-        let warnHdr   = proxyRes.headers.get('X-Vps-Warning') as VpsWarning | null
-
-        if (!warnHdr && imgVpsConfig && !proxyRes.ok && proxyRes.status !== 206) {
-          const statusMap: Partial<Record<number, VpsWarning>> = {
-            401: 'auth', 408: 'timeout', 422: 'validation',
+          if (!vpsRes.ok && vpsRes.status !== 206) {
+            const statusMap: Partial<Record<number, VpsWarning>> = {
+              401: 'auth', 408: 'timeout', 422: 'validation',
+            }
+            warnHdr = statusMap[vpsRes.status] ?? 'unreachable'
           }
-          warnHdr = statusMap[proxyRes.status] ?? 'unreachable'
-        }
 
-        if (!skipped && (proxyRes.ok || proxyRes.status === 206) && ct.startsWith('image/')) {
-          // Optimus returned optimized bytes
-          finalBlob = await proxyRes.blob()
-          finalMime = 'image/webp'
-          if (proxyRes.status === 206) vpsWarning = 'partial'
-          else if (warnHdr) vpsWarning = warnHdr
-        } else if (warnHdr) {
-          // Optimus returned a warning, use Tier 1 result as-is
-          vpsWarning = warnHdr
+          if ((vpsRes.ok || vpsRes.status === 206) && ct.startsWith('image/')) {
+            finalBlob = await vpsRes.blob()
+            finalMime = 'image/webp'
+            if (vpsRes.status === 206) vpsWarning = 'partial'
+            else if (warnHdr) vpsWarning = warnHdr
+          } else if (warnHdr) {
+            vpsWarning = warnHdr
+          }
+        } catch {
+          // VPS unreachable — use Tier 1 result silently
         }
-        // skipped or unrecognized → use Tier 1 result silently
-      } catch {
-        // Network error reaching proxy — use Tier 1 result silently
       }
 
       // ── Storage upload ──
