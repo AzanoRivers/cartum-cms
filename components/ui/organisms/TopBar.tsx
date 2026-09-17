@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { BreadcrumbBar } from '@/components/ui/molecules/BreadcrumbBar'
 import { ProjectSelector } from '@/components/ui/molecules/ProjectSelector'
 import { CreateProjectModal } from '@/components/ui/molecules/CreateProjectModal'
@@ -32,22 +33,25 @@ export function TopBar({ currentProject, projects, userInitials, isSuperAdmin, c
 
   const trialBadge = (() => {
     if (isSuperAdmin) return (
-      <span className="flex items-center rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5">
-        <span className="cartum-neon-rainbow font-mono text-[10px] font-semibold tracking-wide">
-          super_admin
+      <Tooltip content={d?.topBar.superAdminTooltip ?? 'Full access to every project on this instance'} side="bottom-end">
+        <span className="flex items-center rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 cursor-default">
+          <span className="cartum-neon-rainbow font-mono text-[10px] font-semibold tracking-wide">
+            <span className="hidden md:inline">SuperAdmin</span>
+            <span className="md:hidden">Super</span>
+          </span>
         </span>
-      </span>
+      </Tooltip>
     )
     const daysLeft = cartumSuscriptor
       ? Math.max(0, Math.floor((cartumSuscriptorTime + TRIAL_SECONDS - Date.now() / 1000) / 86_400))
       : 0
     const tooltipText = d?.topBar.trialTooltip ?? 'CartumCMS subscription time'
     if (daysLeft > 0) {
-      const label = (d?.topBar.trialDaysLeft ?? '{n}d left').replace('{n}', String(daysLeft))
+      const label = (d?.topBar.trialDaysLeft ?? '{n} Days').replace('{n}', String(daysLeft))
       return (
         <Tooltip content={tooltipText} side="bottom">
           <span className="flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 font-mono text-[10px] text-warning cursor-default">
-            ⏱ <span className="hidden md:inline">{label}</span><span className="md:hidden">{daysLeft}d</span>
+            ⏱ {label}
           </span>
         </Tooltip>
       )
@@ -55,7 +59,7 @@ export function TopBar({ currentProject, projects, userInitials, isSuperAdmin, c
     return (
       <Tooltip content={tooltipText} side="bottom">
         <span className="flex items-center rounded-full border border-muted/30 bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-muted cursor-default">
-          {d?.topBar.freeTier ?? 'Free Tier'}
+          {d?.topBar.freeTier ?? 'Tier'}
         </span>
       </Tooltip>
     )
@@ -81,13 +85,19 @@ export function TopBar({ currentProject, projects, userInitials, isSuperAdmin, c
       <header className="relative z-40 flex h-10 items-center justify-between border-b border-border bg-surface px-4 shrink-0">
         {/* Left: logo + project selector */}
         <div className="flex items-center gap-2 min-w-0">
-          <Image
-            src="/images/brand/icon.svg"
-            alt="Cartum"
-            width={18}
-            height={18}
-            className="shrink-0"
-          />
+          <Link
+            href="/cms/board"
+            aria-label={d?.topBar.dashboardAriaLabel ?? 'Go to dashboard'}
+            className="shrink-0 opacity-90 transition-opacity hover:opacity-100"
+          >
+            <Image
+              src="/images/brand/icon.svg"
+              alt="Cartum"
+              width={18}
+              height={18}
+              className="shrink-0"
+            />
+          </Link>
           <ProjectSelector
             currentProject={currentProject}
             projects={projects}

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import { toast } from '@/lib/toast'
-import { playStartSound } from '@/lib/sounds'
+import { useUIStore } from '@/lib/stores/uiStore'
+import { PENDING_WELCOME_KEY } from '@/components/ui/atoms/PostLoginWelcome'
 import { CaptchaChallenge } from '@/components/ui/molecules/CaptchaChallenge'
 import type { Dictionary } from '@/locales/en'
 
@@ -28,6 +29,7 @@ function getMainDomain(hostname: string): string | null {
 
 export function LoginForm({ dict, initialError, registrationEnabled }: LoginFormProps) {
   const router = useRouter()
+  const setGlobalLoading = useUIStore((s) => s.setGlobalLoading)
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPwd, setShowPwd]   = useState(false)
@@ -100,9 +102,8 @@ export function LoginForm({ dict, initialError, registrationEnabled }: LoginForm
       redirect: false,
     })
 
-    setLoading(false)
-
     if (!result || result.error) {
+      setLoading(false)
       if (result?.error === 'account_disabled') {
         toast.error(dict.accountDisabled)
         refreshCaptcha()
@@ -113,8 +114,13 @@ export function LoginForm({ dict, initialError, registrationEnabled }: LoginForm
       return
     }
 
-    playStartSound()
-    toast.success(dict.loginSuccess)
+    // Keep the button in loading state and the layout's global loader on
+    // until the dashboard has actually mounted. PostLoginWelcome (mounted
+    // in the CMS layout) turns it off and fires the toast/sound from there.
+    try {
+      sessionStorage.setItem(PENDING_WELCOME_KEY, dict.loginSuccess)
+    } catch { /* sandboxed */ }
+    setGlobalLoading(true, dict.submitting)
     router.push('/cms/board')
   }
 

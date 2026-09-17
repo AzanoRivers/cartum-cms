@@ -167,9 +167,11 @@
       account:           'Account',
       logOut:            'Log out',
       userMenuAriaLabel: 'User menu',
-      freeTier:          'Free Tier',
-      trialDaysLeft:     '{n}d left',
+      dashboardAriaLabel:'Go to dashboard',
+      freeTier:          'Free',
+      trialDaysLeft:     '{n} Days',
       trialTooltip:      'CartumCMS subscription time',
+      superAdminTooltip: 'Full access to every project on this instance',
     },
     projectSelector: {
       newProject:  'New board',
@@ -239,14 +241,15 @@
       disabled:            'Registration is currently closed.',
     },
     dock: {
-      settings:      'Settings',
-      home:          'Home',
-      content:       'Content',
-      create:        'Create deck',
-      backToBuilder: 'Back to Builder',
-      help:          'Help & Shortcuts',
-      collapse:      'Collapse dock',
-      expand:        'Expand dock',
+      settings:          'Settings',
+      home:              'Home',
+      content:           'Content',
+      create:            'Create deck',
+      createInContainer: 'Create deck or card',
+      backToBuilder:     'Back to Builder',
+      help:              'Help & Shortcuts',
+      collapse:          'Collapse dock',
+      expand:            'Expand dock',
     },
     help: {
       title:              'Help',
@@ -1315,10 +1318,11 @@
     board: {
       title: 'Board',
       canvasMenu: {
-        back:       'Go back',
-        forward:    'Go forward',
-        fitAll:     'Center decks',
-        createDeck: 'New deck here',
+        back:             'Go back',
+        forward:          'Go forward',
+        fitAll:           'Center decks',
+        createDeck:       'New deck here',
+        createDeckOrCard: 'New deck or card here',
       },
       contextMenu: {
         rename:     'Rename',
@@ -1390,8 +1394,10 @@
       defaults:        'Defaults',
       superDb:         'Super DB',
     },
-    panelTitle: 'SETTINGS',
-    loading:    'Loading…',
+    panelTitle:  'SETTINGS',
+    loading:     'Loading…',
+    expandNav:   'Show sections',
+    collapseNav: 'Hide sections',
     appearance: {
       title:      'Appearance',
       themeLabel: 'Every table has its personality. Pick yours!',
@@ -2161,7 +2167,10 @@
       annualPerMonth:    '$2 / month',
       annualSave:        '2 months FREE',
       startBtn:          'Get started',
-      wip:               'Feature under construction',
+      alreadySubTitle:   'Already subscribed?',
+      alreadySubHint:    'Reload this page, or click the button below:',
+      reloadBtn:         'Reload',
+      reloadWip:         'Feature under construction',
     },
     cartumProjects: {
       title:          'Cartum Projects',
@@ -2358,7 +2367,7 @@ export type Dictionary = {
     }
   }
   cms: {
-    topBar: { account: string; logOut: string; userMenuAriaLabel: string; freeTier: string; trialDaysLeft: string; trialTooltip: string }
+    topBar: { account: string; logOut: string; userMenuAriaLabel: string; dashboardAriaLabel: string; freeTier: string; trialDaysLeft: string; trialTooltip: string; superAdminTooltip: string }
     projectSelector: { newProject: string; ariaLabel: string }
     noProject: { title: string; warn: string; desc: string; button: string }
     newProjectModal: {
@@ -2383,7 +2392,7 @@ export type Dictionary = {
       showPassword: string; hidePassword: string
       alreadyHaveAccount: string; signIn: string; disabled: string
     }
-    dock:   { settings: string; home: string; content: string; create: string; backToBuilder: string; help: string; collapse: string; expand: string }
+    dock:   { settings: string; home: string; content: string; create: string; createInContainer: string; backToBuilder: string; help: string; collapse: string; expand: string }
     help: {
       title: string; shortcutsTitle: string; gesturesTitle: string; boardTitle: string; close: string
       categoryNav: string; categoryPanels: string; categoryGestures: string
@@ -2763,7 +2772,7 @@ export type Dictionary = {
     }
     board: {
       title: string
-      canvasMenu: { back: string; forward: string; fitAll: string; createDeck?: string }
+      canvasMenu: { back: string; forward: string; fitAll: string; createDeck?: string; createDeckOrCard?: string }
       contextMenu: { rename: string; duplicate: string; deleteNode: string; back?: string; forward?: string; fitAll?: string }
       deleteDialog: {
         title: string; safeMessage: string; warnMessage: string; dangerMessage: string
@@ -2784,8 +2793,10 @@ export type Dictionary = {
     notFound: { title: string; message: string; back: string }
   }
   settings: {
-    panelTitle: string
-    loading:    string
+    panelTitle:  string
+    loading:     string
+    expandNav:   string
+    collapseNav: string
     nav: {
       account: string; appearance: string; project: string; subscription: string; storage: string; email: string
       api: string; members: string; users: string; roles: string; info: string; db: string; webMigration: string
@@ -3048,7 +3059,8 @@ export type Dictionary = {
       monthlyTitle: string; monthlyBadge: string; monthlyDesc: string; monthlyPrice: string; monthlyPer: string
       subTitle: string; subBadge: string; subDesc: string; subPrice: string; subPer: string; subSave: string
       annualTitle: string; annualBadge: string; annualDesc: string; annualPrice: string; annualPer: string; annualPerMonth: string; annualSave: string
-      startBtn: string; wip: string
+      startBtn: string
+      alreadySubTitle: string; alreadySubHint: string; reloadBtn: string; reloadWip: string
     }
     variables: {
       title: string; subtitle: string

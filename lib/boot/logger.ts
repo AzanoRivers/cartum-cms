@@ -1,3 +1,5 @@
+import { clearSpinnerLine } from '@/lib/boot/spinner'
+
 // ANSI color codes — no external dependencies
 const C = {
   reset: '\x1b[0m',
@@ -10,14 +12,17 @@ const C = {
 } as const
 
 export function header(text: string): void {
+  clearSpinnerLine()
   process.stdout.write(`\n${C.bold}${C.cyan}▶ ${text}${C.reset}\n`)
 }
 
 export function ok(message: string): void {
+  clearSpinnerLine()
   process.stdout.write(`  ${C.green}✓${C.reset}  ${message}\n`)
 }
 
 export function warn(code: string, message: string, hint?: string): void {
+  clearSpinnerLine()
   process.stdout.write(`  ${C.yellow}⚠${C.reset}  ${C.yellow}[${code}]${C.reset} ${message}\n`)
   if (hint) {
     process.stdout.write(`     ${C.gray}→ ${hint}${C.reset}\n`)
@@ -25,6 +30,7 @@ export function warn(code: string, message: string, hint?: string): void {
 }
 
 export function info(code: string, message: string, hint?: string): void {
+  clearSpinnerLine()
   process.stdout.write(`  ${C.cyan}ℹ${C.reset}  ${C.cyan}[${code}]${C.reset} ${message}\n`)
   if (hint) {
     process.stdout.write(`     ${C.gray}→ ${hint}${C.reset}\n`)
@@ -32,6 +38,7 @@ export function info(code: string, message: string, hint?: string): void {
 }
 
 export function fatal(code: string, message: string, hint?: string): void {
+  clearSpinnerLine()
   process.stdout.write(`  ${C.red}✖${C.reset}  ${C.red}[${code}]${C.reset} ${message}\n`)
   if (hint) {
     process.stdout.write(`     ${C.gray}→ ${hint}${C.reset}\n`)
@@ -40,6 +47,7 @@ export function fatal(code: string, message: string, hint?: string): void {
 }
 
 export function devUrl(url: string): void {
+  clearSpinnerLine()
   const line = `  ➜  Local:  ${url}`
   process.stdout.write(
     `\n${C.cyan}${'─'.repeat(52)}${C.reset}\n` +

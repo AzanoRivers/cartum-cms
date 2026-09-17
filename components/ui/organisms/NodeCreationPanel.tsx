@@ -122,10 +122,6 @@ export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
     return true
   }
 
-  function handleNameBlur() {
-    validateName(name)
-  }
-
   function handleSubmit() {
     if (!validateName(name)) return
     const trimmed = name.trim()
@@ -230,8 +226,7 @@ export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
             <Input
               label={d?.creation.nodeName ?? 'Node name'}
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={handleNameBlur}
+              onChange={(e) => { setName(e.target.value); if (nameError) setNameError(null) }}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
               placeholder={d?.creation.placeholder ?? 'e.g. blog_posts'}
               error={nameError ?? undefined}

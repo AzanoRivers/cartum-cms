@@ -1,4 +1,5 @@
 import { header, ok, warn, info, fatal, devUrl } from '@/lib/boot/logger'
+import { startSpinner, stopSpinner } from '@/lib/boot/spinner'
 
 const VALID_PROVIDERS = ['neon', 'supabase'] as const
 type DbProvider = (typeof VALID_PROVIDERS)[number]
@@ -53,11 +54,13 @@ export async function runBootValidation(): Promise<void> {
   }
 
   // ── 5. Database connection ─────────────────────────────────────────────────
+  startSpinner()
   try {
     const { checkDatabaseConnection } = await import('@/db/adapters/check-connection')
     await checkDatabaseConnection()
     ok('Database connection — OK')
   } catch {
+    stopSpinner()
     fatal('CARTUM_E002', 'Could not establish a connection to the database.', 'Verify DATABASE_URL and that the database is reachable.')
     process.stdout.write('\n')
     process.exit(1)
@@ -76,6 +79,7 @@ export async function runBootValidation(): Promise<void> {
       ok('Schema integrity — OK')
     }
   } catch {
+    stopSpinner()
     fatal('CARTUM_E005', 'Auto-migration failed.', 'Check DATABASE_URL and run: pnpm db:migrate')
     process.stdout.write('\n')
     process.exit(1)
@@ -147,6 +151,7 @@ export async function runBootValidation(): Promise<void> {
     info('CARTUM_E010', 'Setup state unknown. Will redirect to /setup if needed.')
   }
 
+  stopSpinner()
   process.stdout.write('\n')
 
   if (process.env.NODE_ENV === 'development') {

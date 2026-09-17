@@ -150,6 +150,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
   const openFieldEdit       = useUIStore((s) => s.openFieldEdit)
   const openCreationPanel   = useUIStore((s) => s.openCreationPanel)
   const schemaPermissions   = useUIStore((s) => s.schemaPermissions)
+  const parentId            = useUIStore((s) => s.parentId)
   const d                   = useUIStore((s) => s.cmsDict)
 
   const {
@@ -923,6 +924,7 @@ export function InfiniteCanvas({ initialNodes, connections = [], isStorageConfig
             setCanvasMenu(null)
           }}
           canCreate={schemaPermissions.canCreate}
+          canCreateCard={parentId !== null}
           d={d?.board.canvasMenu as CanvasContextMenuDict | undefined}
         />
       )}

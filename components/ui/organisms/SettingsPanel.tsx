@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 // Note: useState still used in DialogContent
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import {
+  PanelLeftClose, PanelLeftOpen,
+  LayoutGrid, CreditCard, Palette, UserCircle, Mail, HardDrive,
+  UserCog, ShieldCheck, KeyRound, Database, Globe, Info,
+  UsersRound, FolderKanban, Variable, Settings2, HelpCircle, DatabaseZap,
+  type LucideIcon,
+} from 'lucide-react'
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { VHSTransition } from '@/components/ui/transitions/VHSTransition'
@@ -38,6 +45,27 @@ export type SettingsPanelProps = {
 }
 
 const SUPER_ONLY_KEYS: SectionKey[] = ['defaults', 'cartumProjects', 'users', 'variables', 'superDb']
+
+const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
+  project:        LayoutGrid,
+  subscription:   CreditCard,
+  appearance:     Palette,
+  account:        UserCircle,
+  email:          Mail,
+  storage:        HardDrive,
+  members:        UsersRound,
+  roles:          ShieldCheck,
+  api:            KeyRound,
+  db:             Database,
+  webMigration:   Globe,
+  help:           HelpCircle,
+  info:           Info,
+  cartumProjects: FolderKanban,
+  users:          UserCog,
+  variables:      Variable,
+  defaults:       Settings2,
+  superDb:        DatabaseZap,
+}
 
 const ALL_SECTIONS: Array<{ key: SectionKey }> = [
   { key: 'project'         },
@@ -136,7 +164,7 @@ export function SettingsPanel({
         <AccountSection currentEmail={userEmail} d={d.account} canActions={canActions('account')} />
       )}
       {activeSection === 'subscription' && (
-        <SubscriptionSection d={d.subscription} />
+        <SubscriptionSection d={d.subscription} userEmail={userEmail} />
       )}
       {activeSection === 'appearance' && (
         <AppearanceSection d={d.appearance} canActions={canActions('appearance')} />
@@ -231,7 +259,7 @@ export function SettingsPanel({
         onClick={requestClose}
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none pb-14 sm:pb-0">
-        <VHSTransition duration="fast" trigger={open} className="w-full max-w-4xl h-[82vh]">
+        <VHSTransition duration="fast" trigger={open} className="w-full max-w-[60rem] h-[82vh]">
           <DialogContent
             panelRef={panelRef}
             visibleSections={visibleSections}
@@ -318,12 +346,16 @@ function SheetContent({ visibleSections, activeSection, openSettings, d, section
               <button
                 onClick={() => openSettings(key)}
                 className={[
-                  'whitespace-nowrap rounded-md px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer',
+                  'flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer',
                   activeSection === key
                     ? 'bg-select/15 text-select border border-select/20'
                     : 'text-muted hover:text-text hover:bg-surface-2',
                 ].join(' ')}
               >
+                {(() => {
+                  const SectionIcon = SECTION_ICONS[key]
+                  return <SectionIcon size={13} className="shrink-0 opacity-70" />
+                })()}
                 {d.nav[key as keyof typeof d.nav] ?? key}
               </button>
             </div>
@@ -351,10 +383,34 @@ type DialogContentProps = {
   sectionsContent: ReactNode
 }
 
+const NAV_OPEN_STORAGE_KEY = 'cartum:settingsNavOpen'
+const NAV_OPEN_DEFAULT_BREAKPOINT = 768 // Tailwind's `md` — narrower defaults to collapsed
+
+function readStoredNavOpen(): boolean {
+  if (typeof window === 'undefined') return true
+  try {
+    const stored = window.localStorage.getItem(NAV_OPEN_STORAGE_KEY)
+    if (stored !== null) return stored === '1'
+  } catch {
+    return true
+  }
+  // No explicit preference saved yet — default collapsed on narrow screens.
+  return window.innerWidth >= NAV_OPEN_DEFAULT_BREAKPOINT
+}
+
 function DialogContent({
   panelRef, visibleSections, activeSection, openSettings, closeSettings, d, sectionsContent,
 }: DialogContentProps) {
-  const [navOpen, setNavOpen] = useState(true)
+  const [navOpen, setNavOpenState] = useState(readStoredNavOpen)
+
+  function setNavOpen(value: boolean) {
+    setNavOpenState(value)
+    try {
+      window.localStorage.setItem(NAV_OPEN_STORAGE_KEY, value ? '1' : '0')
+    } catch {
+      // per-viewer convenience only — safe to ignore (private mode, blocked storage, etc.)
+    }
+  }
 
   return (
     <div
@@ -369,82 +425,88 @@ function DialogContent({
       <div
         className="relative h-full shrink-0 border-r border-border overflow-hidden"
         style={{
-          width: navOpen ? '10.5rem' : '2.5rem',
+          width: navOpen ? '11.5rem' : '2.5rem',
           transition: navOpen
             ? 'width 320ms var(--ease-spring)'
             : 'width 200ms var(--ease-in-expo)',
         }}
       >
-        {/* Expanded content — slides+fades in after width opens */}
-        <div
-          className="absolute inset-0 flex flex-col"
-          style={{
-            opacity:   navOpen ? 1 : 0,
-            transform: navOpen ? 'translateX(0)' : 'translateX(-6px)',
-            transition: navOpen
-              ? 'opacity 180ms var(--ease-out-expo) 140ms, transform 180ms var(--ease-out-expo) 140ms'
-              : 'opacity 90ms var(--ease-in-expo), transform 90ms var(--ease-in-expo)',
-            pointerEvents: navOpen ? 'auto' : 'none',
-          }}
-        >
-          {/* Sticky header — stays fixed while nav list scrolls */}
-          <div className="shrink-0 flex items-center justify-between px-3 pt-3 pb-2 border-b border-border/20 bg-surface">
-            <p className="font-mono text-xs text-muted uppercase tracking-widest">
-              {d.panelTitle}
-            </p>
-            <button
-              onClick={() => setNavOpen(false)}
-              className="text-muted hover:text-text transition-colors cursor-pointer"
-              aria-label="Collapse navigation"
-            >
-              <PanelLeftClose size={18} />
-            </button>
-          </div>
-
-          {/* Scrollable nav list */}
-          <div className="flex-1 overflow-y-auto p-3 pt-2 space-y-0.5">
-          {visibleSections.map(({ key }, i) => (
-            <div key={key} className={i < visibleSections.length - 1 ? 'border-b border-border/20' : ''}>
-              {key === 'cartumProjects' && (
-                <div className="flex items-center gap-1.5 px-2 py-2">
-                  <div className="flex-1 h-px bg-warning/25" />
-                  <span className="font-mono text-[9px] text-warning/50 uppercase tracking-widest select-none">super_admin</span>
-                  <div className="flex-1 h-px bg-warning/25" />
-                </div>
-              )}
-
-              <button
-                onClick={() => openSettings(key)}
-                className={[
-                  'w-full text-left px-2 py-1.5 rounded-md font-mono text-xs transition-colors cursor-pointer',
-                  activeSection === key
-                    ? 'bg-select/15 text-select border border-select/20'
-                    : 'text-muted hover:text-text hover:bg-surface-2',
-                ].join(' ')}
+        {navOpen ? (
+          /* Expanded content */
+          <div className="flex h-full flex-col">
+            {/* Sticky header — stays fixed while nav list scrolls */}
+            <div className="shrink-0 flex items-center justify-between px-3 pt-3 pb-2 border-b border-border/20 bg-surface">
+              <p className="font-mono text-xs text-muted uppercase tracking-widest">
+                {d.panelTitle}
+              </p>
+              <IconTooltipButton
+                label={d.collapseNav}
+                onClick={() => setNavOpen(false)}
+                className="text-muted hover:text-text transition-colors cursor-pointer"
               >
-                {d.nav[key as keyof typeof d.nav] ?? key}
-              </button>
+                <PanelLeftClose size={18} />
+              </IconTooltipButton>
             </div>
-          ))}
-          </div>{/* end scrollable nav list */}
-        </div>{/* end expanded content */}
 
-        {/* Collapsed bar — entire strip is clickable to expand */}
-        <button
-          onClick={() => setNavOpen(true)}
-          aria-label="Expand navigation"
-          className="absolute inset-0 flex flex-col items-center pt-3 gap-3 cursor-pointer hover:bg-surface-2/40 transition-colors"
-          style={{
-            opacity: navOpen ? 0 : 1,
-            transition: navOpen
-              ? 'opacity 80ms var(--ease-in-expo)'
-              : 'opacity 160ms var(--ease-out-expo) 170ms',
-            pointerEvents: navOpen ? 'none' : 'auto',
-          }}
-        >
-          <PanelLeftOpen size={18} className="text-muted" />
-          <span className="h-1.5 w-1.5 rounded-full bg-select" />
-        </button>
+            {/* Scrollable nav list */}
+            <div className="flex-1 overflow-y-auto p-3 pt-2 space-y-0.5">
+            {visibleSections.map(({ key }, i) => (
+              <div key={key} className={i < visibleSections.length - 1 ? 'border-b border-border/20' : ''}>
+                {key === 'cartumProjects' && (
+                  <div className="flex items-center gap-1.5 px-2 py-2">
+                    <div className="flex-1 h-px bg-warning/25" />
+                    <span className="font-mono text-[9px] text-warning/50 uppercase tracking-widest select-none">super_admin</span>
+                    <div className="flex-1 h-px bg-warning/25" />
+                  </div>
+                )}
+
+                <button
+                  onClick={() => openSettings(key)}
+                  className={[
+                    'w-full flex items-center gap-1.5 text-left px-2 py-1.5 rounded-md font-mono text-xs transition-colors cursor-pointer',
+                    activeSection === key
+                      ? 'bg-select/15 text-select border border-select/20'
+                      : 'text-muted hover:text-text hover:bg-surface-2',
+                  ].join(' ')}
+                >
+                  {(() => {
+                    const SectionIcon = SECTION_ICONS[key]
+                    return <SectionIcon size={13} className="shrink-0 opacity-70" />
+                  })()}
+                  <span className="truncate">{d.nav[key as keyof typeof d.nav] ?? key}</span>
+                </button>
+              </div>
+            ))}
+            </div>{/* end scrollable nav list */}
+          </div>
+        ) : (
+          /* Collapsed bar — icon-only nav, click an icon to jump to that section */
+          <div className="flex h-full flex-col items-center pt-3 gap-1 overflow-y-auto no-scrollbar">
+            <IconTooltipButton
+              label={d.expandNav}
+              onClick={() => setNavOpen(true)}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted hover:text-text hover:bg-surface-2 transition-colors cursor-pointer"
+            >
+              <PanelLeftOpen size={16} />
+            </IconTooltipButton>
+
+            <div className="mt-1 flex w-full flex-1 flex-col items-center gap-1">
+              {visibleSections.map(({ key }) => {
+                const SectionIcon = SECTION_ICONS[key]
+                const label = d.nav[key as keyof typeof d.nav] ?? key
+                return (
+                  <CollapsedNavIcon
+                    key={key}
+                    icon={SectionIcon}
+                    label={label}
+                    active={activeSection === key}
+                    onClick={() => openSettings(key)}
+                  />
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right: section content */}
@@ -461,5 +523,88 @@ function DialogContent({
         ✕
       </button>
     </div>
+  )
+}
+
+// ── IconTooltipButton ──────────────────────────────────────────────────────────
+// The collapsed nav strip (and the collapse/expand toggle inside it) clips
+// regular absolute-positioned tooltips — it's nested inside
+// `overflow-hidden`/`overflow-y-auto` ancestors — so this portals the label
+// straight to <body>, positioned from the button's own rect.
+
+type IconTooltipButtonProps = {
+  label:     string
+  onClick:   () => void
+  className: string
+  children:  ReactNode
+}
+
+function IconTooltipButton({ label, onClick, className, children }: IconTooltipButtonProps) {
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  const show = () => {
+    const rect = btnRef.current?.getBoundingClientRect()
+    if (rect) setCoords({ top: rect.top + rect.height / 2, left: rect.right + 8 })
+  }
+  const hide = () => setCoords(null)
+
+  // The dialog's focus trap auto-focuses the first focusable button as soon as
+  // it opens — a plain programmatic `.focus()`, which browsers don't mark as
+  // `:focus-visible`. Gating on that keeps the tooltip from flashing on open
+  // while still showing it for real keyboard (Tab) navigation.
+  const onFocus = (e: React.FocusEvent<HTMLButtonElement>) => {
+    if (e.currentTarget.matches(':focus-visible')) show()
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={onClick}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={onFocus}
+        onBlur={hide}
+        aria-label={label}
+        className={className}
+      >
+        {children}
+      </button>
+      {coords && typeof document !== 'undefined' && createPortal(
+        <span
+          role="tooltip"
+          className="fixed z-[80] -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 font-mono text-xs text-text shadow-lg pointer-events-none"
+          style={{ top: coords.top, left: coords.left }}
+        >
+          {label}
+        </span>,
+        document.body,
+      )}
+    </>
+  )
+}
+
+type CollapsedNavIconProps = {
+  icon:    LucideIcon
+  label:   string
+  active:  boolean
+  onClick: () => void
+}
+
+function CollapsedNavIcon({ icon: Icon, label, active, onClick }: CollapsedNavIconProps) {
+  return (
+    <IconTooltipButton
+      label={label}
+      onClick={onClick}
+      className={[
+        'flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors cursor-pointer',
+        active
+          ? 'bg-select/15 text-select border border-select/20'
+          : 'text-muted hover:text-text hover:bg-surface-2',
+      ].join(' ')}
+    >
+      <Icon size={14} className="opacity-80" />
+    </IconTooltipButton>
   )
 }

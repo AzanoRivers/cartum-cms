@@ -5,10 +5,19 @@ import { Sparkles, Zap, CalendarDays, Infinity } from 'lucide-react'
 import type { Dictionary } from '@/locales/en'
 
 export type SubscriptionSectionProps = {
-  d: Dictionary['settings']['subscription']
+  d:         Dictionary['settings']['subscription']
+  userEmail: string
 }
 
 type PlanKey = 'monthly' | 'sub' | 'annual'
+
+// Tier numbers expected by the support/order link's `tier` query param, in
+// plan order: no-commitment monthly, subscription, annual.
+const TIER_BY_PLAN: Record<PlanKey, number> = {
+  monthly: 1,
+  sub:     2,
+  annual:  3,
+}
 
 interface Plan {
   key:       PlanKey
@@ -23,10 +32,18 @@ interface Plan {
   save?:     string
 }
 
-export function SubscriptionSection({ d }: SubscriptionSectionProps) {
-  const [selected,      setSelected]      = useState<PlanKey>('annual')
-  const [glitchVisible, setGlitchVisible] = useState(false)
-  const [glitchKey,     setGlitchKey]     = useState(0)
+function toBase64Url(input: string): string {
+  try {
+    return window.btoa(unescape(encodeURIComponent(input)))
+  } catch {
+    return ''
+  }
+}
+
+export function SubscriptionSection({ d, userEmail }: SubscriptionSectionProps) {
+  const [selected, setSelected] = useState<PlanKey>('annual')
+  const [reloadGlitchVisible, setReloadGlitchVisible] = useState(false)
+  const [reloadGlitchKey,     setReloadGlitchKey]     = useState(0)
 
   const plans: Plan[] = [
     {
@@ -65,15 +82,21 @@ export function SubscriptionSection({ d }: SubscriptionSectionProps) {
   ]
 
   function handleStart() {
-    setGlitchKey((k) => k + 1)
-    setGlitchVisible(true)
+    const tier = TIER_BY_PLAN[selected]
+    const user = encodeURIComponent(toBase64Url(userEmail))
+    window.open(`https://support.azanolabs.com/?pr=cartumcms&tier=${tier}&user=${user}`, '_blank', 'noopener,noreferrer')
+  }
+
+  function handleReload() {
+    setReloadGlitchKey((k) => k + 1)
+    setReloadGlitchVisible(true)
   }
 
   useEffect(() => {
-    if (!glitchVisible) return
-    const t = setTimeout(() => setGlitchVisible(false), 3100)
+    if (!reloadGlitchVisible) return
+    const t = setTimeout(() => setReloadGlitchVisible(false), 3100)
     return () => clearTimeout(t)
-  }, [glitchVisible, glitchKey])
+  }, [reloadGlitchVisible, reloadGlitchKey])
 
   return (
     <div className="space-y-6">
@@ -94,7 +117,7 @@ export function SubscriptionSection({ d }: SubscriptionSectionProps) {
       </div>
 
       {/* "Gracias :)!" */}
-      <div className="flex flex-col items-center gap-1 py-2">
+      <div className="flex flex-col items-center gap-1 -mt-2">
         <p className="font-mono text-[28px] font-bold leading-none tracking-tight select-none">
           <span className="cartum-neon-rainbow">{d.thanks} :)!</span>
         </p>
@@ -115,20 +138,34 @@ export function SubscriptionSection({ d }: SubscriptionSectionProps) {
         ))}
       </div>
 
-      {/* CTA */}
-      <div className="relative flex flex-col items-center pt-1">
-        {glitchVisible && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3">
+      {/* Already subscribed? reload hint */}
+      <div className="relative flex flex-col items-center gap-2 rounded-full border border-border bg-surface-2/50 px-4 py-2.5 sm:flex-row sm:justify-center sm:gap-3">
+        {reloadGlitchVisible && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-10">
             <div
-              key={glitchKey}
-              data-text={`⚠ ${d.wip}`}
+              key={reloadGlitchKey}
+              data-text={`⚠ ${d.reloadWip}`}
               className="glitch-vhs-msg font-mono text-xs border border-warning/40 bg-surface text-warning px-4 py-2 rounded-md tracking-wide whitespace-nowrap"
             >
-              ⚠ {d.wip}
+              ⚠ {d.reloadWip}
             </div>
           </div>
         )}
+        <p className="font-mono text-[11px] leading-snug text-muted text-center sm:text-left">
+          <span className="text-text font-semibold">{d.alreadySubTitle}</span>{' '}
+          {d.alreadySubHint}
+        </p>
+        <button
+          type="button"
+          onClick={handleReload}
+          className="shrink-0 rounded-md border border-border px-3 py-1.5 font-mono text-[11px] font-semibold text-text hover:bg-surface-2 transition-colors cursor-pointer"
+        >
+          {d.reloadBtn}
+        </button>
+      </div>
 
+      {/* CTA */}
+      <div className="relative flex flex-col items-center -mt-2">
         <button
           type="button"
           onClick={handleStart}

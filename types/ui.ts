@@ -3,7 +3,7 @@
 export type ButtonVariant = 'primary' | 'ghost' | 'danger' | 'outline'
 export type SizeVariant = 'sm' | 'md' | 'lg'
 export type AlertType = 'success' | 'error' | 'warning' | 'info'
-export type TooltipSide = 'top' | 'bottom' | 'left' | 'right'
+export type TooltipSide = 'top' | 'bottom' | 'left' | 'right' | 'bottom-end'
 
 // Button
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon'

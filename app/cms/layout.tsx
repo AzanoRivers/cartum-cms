@@ -8,6 +8,7 @@ import { DesktopLayout } from '@/components/ui/layouts/DesktopLayout'
 import { MobileLayout } from '@/components/ui/layouts/MobileLayout'
 import { CmsDictionarySetter } from '@/components/ui/molecules/CmsDictionarySetter'
 import { GlobalLoader } from '@/components/ui/atoms/GlobalLoader'
+import { PostLoginWelcome } from '@/components/ui/atoms/PostLoginWelcome'
 import { ThemeSync } from '@/components/ui/atoms/ThemeSync'
 import { rolesService } from '@/lib/services/roles.service'
 import { projectMembershipsRepository } from '@/db/repositories/project-memberships.repository'
@@ -99,6 +100,7 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
         <ThemeSync theme={theme} />
         <CmsDictionarySetter dict={cmsDict} schemaPermissions={schemaPermissions} hasTier2={hasTier2} />
         <GlobalLoader />
+        <PostLoginWelcome />
         {noProject && <NoProjectModal d={dict.cms.noProject} />}
         <MobileLayout
           currentProject={currentProject}
@@ -124,6 +126,7 @@ export default async function CMSLayout({ children }: { children: React.ReactNod
       <ThemeSync theme={theme} />
       <CmsDictionarySetter dict={cmsDict} schemaPermissions={schemaPermissions} hasTier2={hasTier2} />
       <GlobalLoader />
+      <PostLoginWelcome />
       {noProject && <NoProjectModal d={dict.cms.noProject} />}
       <DesktopLayout
         currentProject={currentProject}

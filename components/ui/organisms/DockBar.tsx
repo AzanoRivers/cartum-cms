@@ -1,9 +1,11 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, type SetStateAction } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { DockIcon } from '@/components/ui/molecules/DockIcon'
 import { useUIStore } from '@/lib/stores/uiStore'
+
+const DOCK_COLLAPSED_STORAGE_KEY = 'cartum:dockCollapsed'
 
 export function DockBar() {
   const router = useRouter()
@@ -14,10 +16,38 @@ export function DockBar() {
   const setGlobalLoading   = useUIStore((s) => s.setGlobalLoading)
   const d                  = useUIStore((s) => s.cmsDict)
   const schemaPermissions  = useUIStore((s) => s.schemaPermissions)
+  const parentId           = useUIStore((s) => s.parentId)
 
   const createBtnRef    = useRef<HTMLSpanElement>(null)
   const iconsSectionRef = useRef<HTMLDivElement>(null)
-  const [collapsed,   setCollapsed]   = useState(false)
+  // Always starts collapsed — matches what the server renders (no access to
+  // localStorage), so there's no hydration mismatch, and it doubles as the
+  // "loading" appearance while the dashboard boots.
+  const [collapsed, setCollapsedState] = useState(true)
+
+  // Once mounted, restore the saved preference. If it was left open, this
+  // flips `collapsed` to false and plays the normal expand animation.
+  useEffect(() => {
+    let stored: string | null = null
+    try {
+      stored = window.localStorage.getItem(DOCK_COLLAPSED_STORAGE_KEY)
+    } catch {
+      stored = null
+    }
+    if (stored !== '1') setCollapsedState(false)
+  }, [])
+
+  function setCollapsed(update: SetStateAction<boolean>) {
+    setCollapsedState((prev) => {
+      const next = typeof update === 'function' ? (update as (c: boolean) => boolean)(prev) : update
+      try {
+        window.localStorage.setItem(DOCK_COLLAPSED_STORAGE_KEY, next ? '1' : '0')
+      } catch {
+        // per-viewer convenience only — safe to ignore (private mode, blocked storage, etc.)
+      }
+      return next
+    })
+  }
   // Half the icons section width — used to shift the nav right when collapsed
   // so the toggle button stays in its expanded position (not jumping to center).
   // Defaults to 110px (approx for a full dock); updated on first render.
@@ -84,7 +114,7 @@ export function DockBar() {
           <span ref={createBtnRef}>
             <DockIcon
               icon="Plus"
-              tooltip={d?.dock.create ?? 'Create node'}
+              tooltip={parentId !== null ? (d?.dock.createInContainer ?? 'Create deck or card') : (d?.dock.create ?? 'Create deck')}
               onClick={() => openCreationPanel(createBtnRef.current ?? undefined)}
             />
           </span>

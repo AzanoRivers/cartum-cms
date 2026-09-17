@@ -11,19 +11,22 @@ export type CanvasContextMenuState = {
 }
 
 export type CanvasContextMenuDict = {
-  back:        string
-  forward:     string
-  fitAll:      string
-  createDeck?: string
+  back:              string
+  forward:           string
+  fitAll:            string
+  createDeck?:       string
+  createDeckOrCard?: string
 }
 
 export type CanvasContextMenuProps = {
-  menu:           CanvasContextMenuState
-  onFitAll:       () => void
-  onClose:        () => void
-  onCreateHere:   (canvasPos: { x: number; y: number }) => void
-  canCreate?:     boolean
-  d?:             CanvasContextMenuDict
+  menu:            CanvasContextMenuState
+  onFitAll:        () => void
+  onClose:         () => void
+  onCreateHere:    (canvasPos: { x: number; y: number }) => void
+  canCreate?:      boolean
+  /** true when inside a deck, so creating here can also make a card */
+  canCreateCard?:  boolean
+  d?:              CanvasContextMenuDict
 }
 
 const FALLBACK: CanvasContextMenuDict = {
@@ -33,7 +36,7 @@ const FALLBACK: CanvasContextMenuDict = {
   createDeck: 'New deck here',
 }
 
-export function CanvasContextMenu({ menu, onFitAll, onClose, onCreateHere, canCreate = true, d }: CanvasContextMenuProps) {
+export function CanvasContextMenu({ menu, onFitAll, onClose, onCreateHere, canCreate = true, canCreateCard = false, d }: CanvasContextMenuProps) {
   const ref    = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -60,6 +63,7 @@ export function CanvasContextMenu({ menu, onFitAll, onClose, onCreateHere, canCr
   const top  = Math.min(menu.y, vh - MENU_H - 8)
 
   const label = { ...FALLBACK, ...d }
+  const createLabel = canCreateCard ? (label.createDeckOrCard ?? label.createDeck) : label.createDeck
 
   return (
     <div
@@ -79,7 +83,7 @@ export function CanvasContextMenu({ menu, onFitAll, onClose, onCreateHere, canCr
               className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-mono text-primary hover:bg-primary/10 transition-colors cursor-pointer"
             >
               <Plus size={14} className="text-primary" />
-              {label.createDeck}
+              {createLabel}
             </button>
             <div className="my-1 border-t border-border/60" />
           </>

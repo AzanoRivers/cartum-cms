@@ -17,17 +17,6 @@ export function BrandFooter() {
         </span>
 
         <a
-          href="https://azanorivers.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="brand-link group font-mono text-[11px] md:text-xs tracking-wide text-muted transition-colors duration-300 hover:text-accent"
-        >
-          <span className="brand-glow">AzanoRivers</span>
-        </a>
-
-        <span className="font-mono text-[11px] md:text-xs text-muted/50 select-none">·</span>
-
-        <a
           href="https://azanolabs.com"
           target="_blank"
           rel="noopener noreferrer"
