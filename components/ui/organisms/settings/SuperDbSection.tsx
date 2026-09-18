@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from 'react'
 import { Download, Upload, Trash2, Archive } from 'lucide-react'
 import { Spinner } from '@/components/ui/atoms/Spinner'
 import { DangerResetDialog } from '@/components/ui/molecules/DangerResetDialog'
-import { exportDatabaseAction, importDatabaseAction, resetCmsAction } from '@/lib/actions/db.actions'
+import { exportDatabaseAction, importDatabaseAction, importDatabaseWithMediaAction, resetCmsAction } from '@/lib/actions/db.actions'
 import { DocLink } from '@/components/ui/atoms/DocLink'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { toast } from '@/lib/toast'
@@ -84,25 +84,73 @@ export function SuperDbSection({ d, canActions = true }: SuperDbSectionProps) {
   }
 
   // ── Full import ─────────────────────────────────────────────────────────────
+  // Accepts either a plain .json export or a .zip "with media" export. The
+  // zip is unpacked here in the browser; each extracted file is sent along
+  // with the JSON so the server can re-upload it to THIS instance's storage
+  // (its old bucket/account from export time may no longer exist) before
+  // restoring the backup.
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!canActions) return
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
 
+    const isZip = file.name.toLowerCase().endsWith('.zip') || file.type === 'application/zip'
+
     startImport(async () => {
-      let parsed: unknown
       try {
-        const text = await file.text()
-        parsed = JSON.parse(text)
+        if (isZip) {
+          const { unzipSync, strFromU8 } = await import('fflate')
+          const buf     = new Uint8Array(await file.arrayBuffer())
+          const entries = unzipSync(buf)
+
+          const dbEntry = entries['database.json']
+          if (!dbEntry) { toast.error(d.importError); return }
+
+          const databaseText = strFromU8(dbEntry)
+          const backup = JSON.parse(databaseText) as {
+            media?: Array<{ id: string; key: string; mimeType: string }>
+          }
+
+          const formData = new FormData()
+          formData.set('database', databaseText)
+
+          for (const m of backup.media ?? []) {
+            const folder   = m.mimeType?.startsWith('video/') ? 'videos' : 'images'
+            const filename = m.key?.split('/').pop() ?? m.id
+            const bytes    = entries[`${folder}/${filename}`]
+            if (bytes) {
+              formData.set(`file:${m.id}`, new Blob([bytes], { type: m.mimeType }), filename)
+            }
+          }
+
+          const res = await importDatabaseWithMediaAction(formData)
+          if (!res.success) { toast.error(d.importError); return }
+          if (res.data.mediaFailed > 0) {
+            toast.warning(
+              d.importMediaFailWarn
+                .replace('{reuploaded}', String(res.data.mediaReuploaded))
+                .replace('{failed}',     String(res.data.mediaFailed)),
+            )
+          } else {
+            toast.success(d.importSuccess)
+          }
+        } else {
+          const text   = await file.text()
+          const parsed = JSON.parse(text)
+          const res    = await importDatabaseAction(parsed)
+          if (!res.success) { toast.error(d.importError); return }
+          toast.success(d.importSuccess)
+        }
       } catch {
         toast.error(d.importError)
         return
       }
 
-      const res = await importDatabaseAction(parsed)
-      if (!res.success) { toast.error(d.importError); return }
-      toast.success(d.importSuccess)
+      // The restore may have replaced users/roles/projects entirely —
+      // reload so the session and middleware re-evaluate from scratch
+      // instead of continuing on a now-possibly-stale session.
+      window.location.reload()
     })
   }
 
@@ -164,6 +212,13 @@ export function SuperDbSection({ d, canActions = true }: SuperDbSectionProps) {
             </p>
           </div>
         </div>
+
+        <div className="rounded-md border border-warning/20 bg-warning/5 px-3 py-2">
+          <p className="font-mono text-xs text-warning/80 leading-relaxed">
+            ⚠ {d.exportSecretsWarn}
+          </p>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -211,7 +266,7 @@ export function SuperDbSection({ d, canActions = true }: SuperDbSectionProps) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".json"
+          accept=".json,.zip"
           className="sr-only"
           onChange={handleFileChange}
           aria-label={d.importButton}

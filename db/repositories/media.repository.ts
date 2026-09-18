@@ -73,6 +73,52 @@ export const mediaRepository = {
     return rows.map(toMediaRecord)
   },
 
+  /**
+   * Media rows tied to any of `nodeIds` or `recordIds` (both scoped to
+   * `projectId`). Used to find media that would otherwise be silently
+   * orphaned (nodeId/recordId → SET NULL, file left in storage forever)
+   * when a node subtree is cascade-deleted.
+   */
+  async findByNodeOrRecordIds(nodeIds: string[], recordIds: string[], projectId: string): Promise<MediaRecord[]> {
+    if (nodeIds.length === 0 && recordIds.length === 0) return []
+    const conditions = []
+    if (nodeIds.length   > 0) conditions.push(inArray(media.nodeId, nodeIds))
+    if (recordIds.length > 0) conditions.push(inArray(media.recordId, recordIds))
+    const rows = await db
+      .select()
+      .from(media)
+      .where(and(eq(media.projectId, projectId), or(...conditions)))
+    return rows.map(toMediaRecord)
+  },
+
+  /** Best-effort bulk purge: deletes storage files then the DB rows. Scoped to `projectId`. */
+  async purgeMany(ids: string[], projectId: string): Promise<{ deleted: number; failed: number }> {
+    if (ids.length === 0) return { deleted: 0, failed: 0 }
+    const rows = await db.select().from(media).where(and(inArray(media.id, ids), eq(media.projectId, projectId)))
+
+    let deleted = 0
+    let failed  = 0
+    await Promise.all(rows.map(async (row) => {
+      try {
+        if (row.storageProvider === 'blob') {
+          await blobDelete(row.publicUrl)
+        } else {
+          const { client, bucket } = await getR2Client()
+          await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: row.key }))
+        }
+        deleted++
+      } catch {
+        failed++
+      }
+    }))
+
+    if (rows.length > 0) {
+      await db.delete(media).where(and(inArray(media.id, rows.map((r) => r.id)), eq(media.projectId, projectId)))
+    }
+
+    return { deleted, failed }
+  },
+
   async listPaginated(input: ListMediaAssetsInput & { projectId: string }): Promise<MediaAssetsPage> {
     const limit      = Math.min(input.limit ?? 24, 48)
     const typePrefix = input.filter === 'image' ? 'image/%' : 'video/%'

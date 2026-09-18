@@ -47,151 +47,100 @@ function dedup<T extends { id: string }>(items: T[]): T[] {
 }
 
 /**
- * BFS over 1:1 relations from `startId`, returning all reachable node IDs
- * (excluding `startId` itself and anything already in `visited`).
+ * Own-direct content of a single node: fields and containers whose parentId
+ * is exactly this node. No inheritance, no relations, no recursion — a single
+ * flat lookup. This is the only "unit" ever borrowed by another node, whether
+ * via structural parent→child inheritance or via a relation.
  */
-function traverse1to1Chain(
-  startId:  string,
-  ctx:      ResolverContext,
-  visited:  Set<string>,
-): Set<string> {
-  const result = new Set<string>()
-  const seen   = new Set<string>([startId, ...visited])
-  const queue  = [startId]
+function ownDirect(nodeId: string, ctx: ResolverContext): ResolvedNodeContent {
+  const fields: ResolvedField[] = ctx.allFields
+    .filter((f) => f.nodes.parentId === nodeId)
+    .map((f) => mapToResolvedField(f, ctx.containerSlugMap))
 
-  while (queue.length > 0) {
-    const current = queue.pop()!
-    for (const rel of ctx.allRelations) {
-      if (rel.relationType !== '1:1') continue
-      if (rel.sourceNodeId !== current && rel.targetNodeId !== current) continue
-      const otherId = rel.sourceNodeId === current ? rel.targetNodeId : rel.sourceNodeId
-      if (!seen.has(otherId)) {
-        seen.add(otherId)
-        result.add(otherId)
-        queue.push(otherId)
-      }
-    }
-  }
+  const containers: ResolvedContainer[] = ctx.allNodes
+    .filter((n) => n.parentId === nodeId && n.type === 'container')
+    .map((n) => ({ id: n.id, name: n.name, edit: n.updatedAt }))
 
-  return result
+  return { fields, containers }
 }
 
 // ── Core resolver ─────────────────────────────────────────────────────────────
 
 /**
- * Resolves the complete inherited schema for a node:
+ * Resolves the schema a node exposes through the public API: its own cards
+ * (fields) plus cards borrowed through exactly one hop of inheritance —
+ * never more. This keeps every response bounded: a single API call can never
+ * cascade into an unbounded chain of nested decks or transitively-inherited
+ * fields.
  *
- * - mode 'own-direct': returns only the node's own fields and containers
- *   (no inheritance, no relations). Used internally when a peer queries this
- *   node via 1:1 or 1:n.
+ * Two independent borrowing channels, both single-hop and non-recursive:
  *
- * - mode 'full' (default): applies all inheritance rules:
- *   1. Structural parent→child (one level, own-direct of parent)
- *   2. 1:1 bidirectional (own-direct of each peer)
- *   3. 1:n unidirectional (own-direct of source injected into target + 1:1 chain)
- *   4. n:m bidirectional (full resolved of each side)
+ * 1. Structural parent → child: a nested deck sees its direct parent's own
+ *    cards AND own sub-decks (siblings), excluding itself. Mirrors the
+ *    board's visual nesting — "one level up", never the grandparent.
  *
- * `visitedIds` prevents infinite recursion on circular graphs.
- * Always pass a fresh `new Set()` from the call site for each independent branch.
+ * 2. Relations (1:1 / 1:n / n:m): a deck sees the OTHER side's own-direct
+ *    CARDS ONLY — never its decks, never anything that side itself borrowed
+ *    from a relation or from its own parent. This is the deliberate fix for
+ *    the ambiguity a transitive "decks + cards" relation would create (if a
+ *    relation propagated decks too, those decks' own children would then
+ *    need propagating as well, with no natural stopping point). Relations
+ *    are a data join between two tables, not a merge of two schemas — they
+ *    never hand over the other table's children.
+ *
+ * `decks`/`containers` in the response are ALWAYS shallow references
+ * (id/name/edit only). A consumer fetches a nested or related deck's own
+ * schema with a separate call — never inline, never cascading.
  */
 export function resolveNodeSchema(
-  nodeId:     string,
-  ctx:        ResolverContext,
-  visitedIds: Set<string> = new Set(),
-  mode:       'full' | 'own-direct' = 'full',
+  nodeId: string,
+  ctx:    ResolverContext,
 ): ResolvedNodeContent {
-  // ── Anti-cycle ────────────────────────────────────────────────────────────
-  if (visitedIds.has(nodeId)) return { fields: [], containers: [] }
-  visitedIds.add(nodeId)
-
   const node = ctx.allNodes.find((n) => n.id === nodeId)
   if (!node) return { fields: [], containers: [] }
 
-  // ── Own direct content ────────────────────────────────────────────────────
-  const ownFields: ResolvedField[] = ctx.allFields
-    .filter((f) => f.nodes.parentId === nodeId)
-    .map((f) => mapToResolvedField(f, ctx.containerSlugMap))
-
-  const ownContainers: ResolvedContainer[] = ctx.allNodes
-    .filter((n) => n.parentId === nodeId && n.type === 'container')
-    .map((n) => ({ id: n.id, name: n.name, edit: n.updatedAt }))
-
-  // mode='own-direct' stops here — no inheritance or relations
-  if (mode === 'own-direct') {
-    return {
-      fields:     ownFields,
-      containers: ownContainers.filter((c) => !visitedIds.has(c.id)),
-    }
-  }
+  const own = ownDirect(nodeId, ctx)
 
   // ── Structural inheritance: parent → child (one level only) ───────────────
-  const parentFields:     ResolvedField[]     = []
-  const parentContainers: ResolvedContainer[] = []
+  let parentFields:     ResolvedField[]     = []
+  let parentContainers: ResolvedContainer[] = []
 
-  if (node.parentId && !visitedIds.has(node.parentId)) {
-    const parentOwn = resolveNodeSchema(node.parentId, ctx, new Set(visitedIds), 'own-direct')
-    parentFields.push(...parentOwn.fields)
-    // Exclude the child itself from the inherited containers list (no self-reference)
-    parentContainers.push(...parentOwn.containers.filter((c) => c.id !== nodeId))
+  if (node.parentId && node.parentId !== nodeId) {
+    const parentOwn = ownDirect(node.parentId, ctx)
+    parentFields     = parentOwn.fields
+    parentContainers = parentOwn.containers.filter((c) => c.id !== nodeId)
   }
 
-  // ── Relation-based inheritance ────────────────────────────────────────────
-  const relFields:     ResolvedField[]     = []
-  const relContainers: ResolvedContainer[] = []
+  // ── Relation-based inheritance: cards only, single hop, no recursion ──────
+  const relFields: ResolvedField[] = []
 
-  const relations = ctx.allRelations.filter(
-    (r) => r.sourceNodeId === nodeId || r.targetNodeId === nodeId,
-  )
-
-  for (const rel of relations) {
+  for (const rel of ctx.allRelations) {
+    if (rel.sourceNodeId !== nodeId && rel.targetNodeId !== nodeId) continue
     const otherId = rel.sourceNodeId === nodeId ? rel.targetNodeId : rel.sourceNodeId
+    if (otherId === nodeId) continue // self-relation guard
 
     if (rel.relationType === '1:1') {
-      // Bidirectional: each side sees the own-direct content of the other
-      const otherOwn = resolveNodeSchema(otherId, ctx, new Set(visitedIds), 'own-direct')
-      relFields.push(...otherOwn.fields)
-      relContainers.push(...otherOwn.containers)
+      // Bidirectional: each side sees the other's own-direct cards.
+      relFields.push(...ownDirect(otherId, ctx).fields)
 
     } else if (rel.relationType === '1:n' && rel.targetNodeId === nodeId) {
-      // This node is the TARGET — receive source's own-direct content
-      const sourceOwn = resolveNodeSchema(rel.sourceNodeId, ctx, new Set(visitedIds), 'own-direct')
-      relFields.push(...sourceOwn.fields)
-      relContainers.push(...sourceOwn.containers)
+      // This node is the TARGET ("many") — receives the source's own-direct cards.
+      relFields.push(...ownDirect(rel.sourceNodeId, ctx).fields)
 
     } else if (rel.relationType === '1:n' && rel.sourceNodeId === nodeId) {
-      // This node is the SOURCE — skip (target receives on its own resolution)
+      // This node is the SOURCE ("one") — gives, never receives back.
       continue
 
     } else if (rel.relationType === 'n:m') {
-      // Bidirectional: each side sees the fully resolved content of the other
-      const otherFull = resolveNodeSchema(otherId, ctx, new Set(visitedIds), 'full')
-      relFields.push(...otherFull.fields)
-      relContainers.push(...otherFull.containers)
-    }
-  }
-
-  // ── 1:n transitive injection via 1:1 chain ────────────────────────────────
-  // If node X is reachable from this node via a chain of 1:1 relations,
-  // and X is the target of a 1:n from source S, then S's own-direct content
-  // is injected into this node (the 1:n traverses the 1:1 chain).
-  const chainIds = traverse1to1Chain(nodeId, ctx, visitedIds)
-
-  for (const chainNodeId of chainIds) {
-    for (const rel of ctx.allRelations) {
-      if (rel.relationType !== '1:n') continue
-      if (rel.targetNodeId !== chainNodeId) continue
-      if (visitedIds.has(rel.sourceNodeId)) continue
-
-      const sourceOwn = resolveNodeSchema(rel.sourceNodeId, ctx, new Set(visitedIds), 'own-direct')
-      relFields.push(...sourceOwn.fields)
-      relContainers.push(...sourceOwn.containers)
+      // Bidirectional: each side sees the other's own-direct cards.
+      relFields.push(...ownDirect(otherId, ctx).fields)
     }
   }
 
   // ── Union + deduplication ─────────────────────────────────────────────────
-  const allFields = dedup([...ownFields, ...parentFields, ...relFields])
-  const allContainers = dedup([...ownContainers, ...parentContainers, ...relContainers])
+  const fields     = dedup([...own.fields, ...parentFields, ...relFields])
+  const containers = dedup([...own.containers, ...parentContainers])
     .filter((c) => c.id !== nodeId) // never self-reference
 
-  return { fields: allFields, containers: allContainers }
+  return { fields, containers }
 }

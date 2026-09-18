@@ -5,6 +5,7 @@ import { resolveApiAuth } from '@/lib/api/auth'
 import { corsHeaders } from '@/lib/api/utils'
 import { buildResolverContext } from '@/lib/services/node-schema-context'
 import { resolveNodeSchema } from '@/lib/services/node-schema-resolver'
+import { rolesService } from '@/lib/services/roles.service'
 import { nodeNameToSlug } from '@/nodes/api-generator'
 import type { FieldType } from '@/types/nodes'
 
@@ -37,6 +38,12 @@ export async function GET(
     .limit(1)
 
   if (!row) return apiError('NOT_FOUND', 'Deck not found.', 404)
+
+  // Permissions are configured per deck — for a card, check its parent deck.
+  const permissionNodeId = row.type === 'container' ? row.id : row.parentId
+  if (!permissionNodeId) return apiError('NOT_FOUND', 'Deck not found.', 404)
+  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, permissionNodeId, 'read', apiAuth.projectId)
+  if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
 
   if (row.type === 'container') {
     const ctx = await buildResolverContext(apiAuth.projectId)

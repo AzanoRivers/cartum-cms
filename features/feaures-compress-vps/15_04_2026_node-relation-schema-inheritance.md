@@ -1,9 +1,45 @@
 # Feature: Herencia de Schema por Relaciones de Nodos
 
 **Fecha:** 15/04/2026  
-**Estado:** 🔲 Pendiente  
+**Estado:** ✅ Implementado, luego **simplificado el 2026-09-18**  
 **Prioridad:** Alta  
 **Área:** Backend (API schema + resolución de nodos) + Lógica de relaciones
+
+> **⚠️ ACTUALIZACIÓN 2026-09-18 — reglas 3 y 4 cambiaron.** Al preparar la API
+> para integraciones externas se encontraron dos problemas con el diseño
+> original de este doc:
+>
+> 1. **Riesgo de "reguero de datos" sin control.** La Regla 4 (n:m) resolvía
+>    el contenido *completamente resuelto* (`mode: 'full'`, recursivo) del
+>    otro lado, y la Regla 3 (1:n) atravesaba cadenas 1:1 sin límite de
+>    profundidad. Una consulta a un solo mazo podía terminar arrastrando
+>    campos de una cadena arbitrariamente larga de mazos relacionados.
+> 2. **Ambigüedad real si las relaciones propagaran mazos (containers).** Si
+>    una relación comparte los mazos anidados del otro lado, esos mazos
+>    anidados deberían a su vez compartir los suyos... y así sin un punto de
+>    corte natural (ver discusión que motivó el cambio).
+>
+> **Regla nueva, válida para 1:1, 1:n y n:m por igual:** una relación
+> **solo comparte cartas (fields) propias-directas del otro lado, en un
+> único salto, nunca mazos (containers), nunca recursivo.** Esto es
+> deliberado y refleja la analogía de base de datos: una relación es un
+> *join* entre dos tablas, no una fusión de sus esquemas completos — nunca
+> entrega las tablas hijas de la tabla con la que te relacionás.
+>
+> La **herencia estructural (Regla 1, padre → hijo)** NO cambió: sigue
+> heredando cartas Y mazos del padre directo, un solo nivel — porque ahí sí
+> hay un punto de corte natural y sin ambigüedad (el padre estructural es
+> único, a diferencia de una relación que puede tener cadenas).
+>
+> `traverse1to1Chain` (la inyección transitiva de 1:n a través de cadenas
+> 1:1, sección "Regla 3" más abajo) y el modo `'full'` recursivo de n:m
+> **fueron eliminados** de `lib/services/node-schema-resolver.ts`. El
+> resolver ya no necesita `visitedIds`/anti-ciclo en absoluto: al no haber
+> ningún salto de más de un nivel, no hay manera de formar un ciclo. Las
+> secciones "Regla 3", "Regla 4" y la tabla resumen más abajo describen el
+> diseño ORIGINAL (histórico) — la implementación real hoy es la descrita
+> arriba. Ver `locales/en.ts` / `locales/es.ts` → `cms.docs.relations` para
+> el texto público actualizado que sí refleja el comportamiento actual.
 
 ---
 

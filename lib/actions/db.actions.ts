@@ -2,7 +2,7 @@
 
 import { auth } from '@/auth'
 import { db } from '@/db'
-import { sql, eq, inArray, and, not } from 'drizzle-orm'
+import { sql, eq, inArray, and, not, isNull, lt } from 'drizzle-orm'
 import { cookies } from 'next/headers'
 import {
   nodes,
@@ -11,6 +11,7 @@ import {
   records,
   media,
   apiTokens,
+  apiTokenExclusions,
   emailOtpCodes,
   passwordResetTokens,
   usersRoles,
@@ -160,6 +161,7 @@ type CmsBackup = {
   projectMemberships?:      unknown[]  // v1.3+
   projectInvitations?:      unknown[]  // v1.4+
   apiTokens?:               unknown[]
+  apiTokenExclusions?:      unknown[]  // v1.5+
   appSettings?:             unknown[]
   projectSettings?:         unknown[]  // v1.3+
   roleSectionPermissions?:  unknown[]
@@ -178,9 +180,16 @@ export async function exportDatabaseAction(): Promise<ActionResult<{ json: strin
   const userId = await requireSuperAdmin()
   if (!userId) return { success: false, error: 'Unauthorized' }
 
+  // Lazy expiry sweep, instance-wide — no cron in serverless, so a backup
+  // should never carry pending invitations that were already dead when it
+  // was taken.
+  await db.delete(projectInvitations).where(
+    and(isNull(projectInvitations.acceptedAt), lt(projectInvitations.expiresAt, new Date())),
+  )
+
   const [
     projectData, usersData, rolesData, usersRolesData, projectMembershipsData,
-    projectInvitationsData, apiTokensData, appSettingsData, projectSettingsData,
+    projectInvitationsData, apiTokensData, apiTokenExclusionsData, appSettingsData, projectSettingsData,
     roleSectionPermissionsData, nodesData, fieldMetaData, nodeRelationsData,
     recordsData, mediaData, rolePermissionsData,
   ] = await Promise.all([
@@ -191,6 +200,7 @@ export async function exportDatabaseAction(): Promise<ActionResult<{ json: strin
     db.select().from(projectMemberships),
     db.select().from(projectInvitations),
     db.select().from(apiTokens),
+    db.select().from(apiTokenExclusions),
     db.select().from(appSettings),
     db.select().from(projectSettings),
     db.select().from(roleSectionPermissions),
@@ -203,7 +213,7 @@ export async function exportDatabaseAction(): Promise<ActionResult<{ json: strin
   ])
 
   const backup: CmsBackup = {
-    version:                 '1.4',
+    version:                 '1.5',
     exportedAt:              new Date().toISOString(),
     project:                 projectData,
     users:                   usersData,
@@ -212,6 +222,7 @@ export async function exportDatabaseAction(): Promise<ActionResult<{ json: strin
     projectMemberships:      projectMembershipsData,
     projectInvitations:      projectInvitationsData,
     apiTokens:               apiTokensData,
+    apiTokenExclusions:      apiTokenExclusionsData,
     appSettings:             appSettingsData,
     projectSettings:         projectSettingsData,
     roleSectionPermissions:  roleSectionPermissionsData,
@@ -316,16 +327,24 @@ function validateBackupItems(backup: CmsBackup): string | null {
       return 'invalid_role_permissions'
     }
   }
+  for (const ex of backup.apiTokenExclusions ?? []) {
+    if (!isRecord(ex) || typeof ex.id !== 'string' || typeof ex.tokenId !== 'string' || typeof ex.nodeId !== 'string') {
+      return 'invalid_api_token_exclusions'
+    }
+  }
   return null
 }
 
 // ── Import ────────────────────────────────────────────────────────────────────
 
-export async function importDatabaseAction(raw: unknown): Promise<ActionResult<null>> {
-  const userId = await requireSuperAdmin()
-  if (!userId) return { success: false, error: 'Unauthorized' }
-
-  // Top-level structure check (only required fields — content layer)
+/**
+ * Shared by both `importDatabaseAction` (plain .json) and
+ * `importDatabaseWithMediaAction` (.zip, media already re-uploaded and
+ * `backup.media` already rewritten to point at this instance's storage) —
+ * parses the top-level shape and normalizes optional config-layer arrays so
+ * older backup versions (v1.0–v1.4) still import.
+ */
+function parseAndValidateBackup(raw: unknown): { backup: CmsBackup } | { error: string } {
   if (
     typeof raw !== 'object' || raw === null ||
     !('version' in raw) || !('nodes' in raw) ||
@@ -335,10 +354,9 @@ export async function importDatabaseAction(raw: unknown): Promise<ActionResult<n
     !Array.isArray((raw as Record<string, unknown>).records) ||
     !Array.isArray((raw as Record<string, unknown>).media)
   ) {
-    return { success: false, error: 'invalid_backup' }
+    return { error: 'invalid_backup' }
   }
 
-  // Normalize optional arrays — v1.0/v1.1/v1.2 backups lack some config layer tables
   const rawObj = raw as Record<string, unknown>
   const arr    = (k: string) => Array.isArray(rawObj[k]) ? rawObj[k] as unknown[] : []
 
@@ -351,75 +369,194 @@ export async function importDatabaseAction(raw: unknown): Promise<ActionResult<n
     projectMemberships:     arr('projectMemberships'),
     projectInvitations:     arr('projectInvitations'),
     apiTokens:              arr('apiTokens'),
+    apiTokenExclusions:     arr('apiTokenExclusions'),
     appSettings:            arr('appSettings'),
     projectSettings:        arr('projectSettings'),
     roleSectionPermissions: arr('roleSectionPermissions'),
     rolePermissions:        arr('rolePermissions'),
   }
 
-  // Item-level shape validation
   const itemError = validateBackupItems(backup)
-  if (itemError) return { success: false, error: itemError }
+  if (itemError) return { error: itemError }
 
-  // Sort nodes topologically (BFS from roots) to satisfy self-referential FK
+  return { backup }
+}
+
+/** Wipes the entire instance and restores it from `backup`, inside one transaction. */
+async function restoreBackupTransaction(backup: CmsBackup): Promise<void> {
   const sortedNodes = topoSortNodes(backup.nodes)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type Tx = any
 
-  try {
-    await db.transaction(async (tx: Tx) => {
-      // ── Wipe in FK-safe order (children before parents) ──────────────────
-      await tx.delete(media)                  // uploadedBy → users RESTRICT
-      await tx.delete(apiTokens)              // roleId → roles
-      await tx.delete(usersRoles)             // userId → users, roleId → roles
-      await tx.delete(projectMemberships)     // roleId → roles RESTRICT; must precede roles
-      await tx.delete(roleSectionPermissions) // roleId → roles CASCADE
-      await tx.delete(rolePermissions)        // roleId + nodeId CASCADE
-      await tx.delete(nodeRelations)
-      await tx.delete(records)
-      await tx.delete(fieldMeta)
-      await tx.delete(nodes)
-      await tx.delete(appSettings)            // updatedBy → users SET NULL
-      await tx.delete(projectSettings)        // projectId → project CASCADE
-      await tx.delete(project)
-      await tx.delete(roles)
-      // Same neon-http issue: SET LOCAL in a separate statement doesn't persist.
-      // Use a DO block so set_config and DELETE share one execution context.
-      await tx.execute(sql`
-        DO $$
-        BEGIN
-          PERFORM set_config('cartum.allow_user_delete', 'true', true);
-          DELETE FROM users;
-        END $$
-      `)
+  await db.transaction(async (tx: Tx) => {
+    // ── Wipe in FK-safe order (children before parents) ──────────────────
+    await tx.delete(media)                  // uploadedBy → users RESTRICT
+    await tx.delete(apiTokenExclusions)     // tokenId → apiTokens CASCADE, nodeId → nodes CASCADE
+    await tx.delete(apiTokens)              // roleId → roles
+    await tx.delete(usersRoles)             // userId → users, roleId → roles
+    await tx.delete(projectMemberships)     // roleId → roles RESTRICT; must precede roles
+    await tx.delete(projectInvitations)     // projectId → project CASCADE, roleId → roles CASCADE
+    await tx.delete(roleSectionPermissions) // roleId → roles CASCADE
+    await tx.delete(rolePermissions)        // roleId + nodeId CASCADE
+    await tx.delete(nodeRelations)
+    await tx.delete(records)
+    await tx.delete(fieldMeta)
+    await tx.delete(nodes)
+    await tx.delete(appSettings)            // updatedBy → users SET NULL
+    await tx.delete(projectSettings)        // projectId → project CASCADE
+    await tx.delete(project)
+    await tx.delete(roles)
+    // Same neon-http issue: SET LOCAL in a separate statement doesn't persist.
+    // Use a DO block so set_config and DELETE share one execution context.
+    await tx.execute(sql`
+      DO $$
+      BEGIN
+        PERFORM set_config('cartum.allow_user_delete', 'true', true);
+        DELETE FROM users;
+      END $$
+    `)
 
-      // ── Restore in FK-safe order (parents before children) ───────────────
-      const ins = async (table: unknown, rows: unknown[]) => {
-        if (rows.length > 0) await tx.insert(table).values(rows)
-      }
-      await ins(project,                backup.project!)
-      await ins(roles,                  backup.roles!)
-      await ins(users,                  backup.users!)
-      await ins(usersRoles,             backup.usersRoles!)
-      await ins(projectMemberships,     backup.projectMemberships!)  // needs project + roles + users
-      await ins(projectInvitations,     backup.projectInvitations!)  // needs project + roles + users
-      await ins(apiTokens,              backup.apiTokens!)
-      await ins(roleSectionPermissions, backup.roleSectionPermissions!)
-      await ins(nodes,                  sortedNodes)
-      await ins(fieldMeta,              backup.fieldMeta)
-      await ins(nodeRelations,          backup.nodeRelations)
-      await ins(records,                backup.records)
-      await ins(media,                  backup.media)
-      await ins(rolePermissions,        backup.rolePermissions!)
-      await ins(appSettings,            backup.appSettings!)
-      await ins(projectSettings,        backup.projectSettings!)     // needs project + users
-    })
+    // ── Restore in FK-safe order (parents before children) ───────────────
+    const ins = async (table: unknown, rows: unknown[]) => {
+      if (rows.length > 0) await tx.insert(table).values(rows)
+    }
+    await ins(project,                backup.project!)
+    await ins(roles,                  backup.roles!)
+    await ins(users,                  backup.users!)
+    await ins(usersRoles,             backup.usersRoles!)
+    await ins(projectMemberships,     backup.projectMemberships!)  // needs project + roles + users
+    await ins(projectInvitations,     backup.projectInvitations!)  // needs project + roles + users
+    await ins(apiTokens,              backup.apiTokens!)
+    await ins(roleSectionPermissions, backup.roleSectionPermissions!)
+    await ins(nodes,                  sortedNodes)
+    await ins(fieldMeta,              backup.fieldMeta)
+    await ins(nodeRelations,          backup.nodeRelations)
+    await ins(records,                backup.records)
+    await ins(media,                  backup.media)
+    await ins(rolePermissions,        backup.rolePermissions!)
+    await ins(apiTokenExclusions,     backup.apiTokenExclusions!)   // needs apiTokens + nodes
+    await ins(appSettings,            backup.appSettings!)
+    await ins(projectSettings,        backup.projectSettings!)     // needs project + users
+
+    // Lazy expiry sweep — a restored backup can carry pending invitations
+    // that were already stale when it was taken (or long stale by now,
+    // for an old backup). Same reasoning as the export-time sweep.
+    await tx.delete(projectInvitations).where(
+      and(isNull(projectInvitations.acceptedAt), lt(projectInvitations.expiresAt, new Date())),
+    )
+  })
+}
+
+export async function importDatabaseAction(raw: unknown): Promise<ActionResult<null>> {
+  const userId = await requireSuperAdmin()
+  if (!userId) return { success: false, error: 'Unauthorized' }
+
+  const parsed = parseAndValidateBackup(raw)
+  if ('error' in parsed) return { success: false, error: parsed.error }
+
+  try {
+    await restoreBackupTransaction(parsed.backup)
   } catch {
     return { success: false, error: 'db_error' }
   }
 
   return { success: true, data: null }
+}
+
+// ── Import with media (.zip: database.json + images/ + videos/) ──────────────
+
+export type ImportWithMediaResult = {
+  mediaReuploaded: number
+  mediaFailed:     number
+}
+
+/**
+ * Same restore as `importDatabaseAction`, but for a "Super export with
+ * media" .zip: the client unzips it, sends `database` (the JSON text) plus
+ * one file per media entry it could extract, keyed `file:{mediaId}` in the
+ * FormData.
+ *
+ * The bucket URLs already in the backup are the source of truth and are
+ * reused AS-IS whenever they still work — this is the normal case
+ * (restoring on the same instance, same bucket, files never touched) and
+ * it never re-uploads anything for it. A file only gets re-uploaded to
+ * THIS instance's currently configured storage when its original URL is
+ * confirmed dead (`isMediaUrlReachable` returns false) — the .zip's bytes
+ * exist purely as a recovery fallback for that case, not as a mandatory
+ * step.
+ *
+ * A dead entry with no matching file in the FormData (skipped at export
+ * time too — unreachable URL, CORS, etc.) or whose re-upload fails on BOTH
+ * providers keeps its original (dead) reference — restoring the rest of
+ * the CMS should never be blocked by one broken file.
+ */
+export async function importDatabaseWithMediaAction(
+  formData: FormData,
+): Promise<ActionResult<ImportWithMediaResult>> {
+  const userId = await requireSuperAdmin()
+  if (!userId) return { success: false, error: 'Unauthorized' }
+
+  const databaseText = formData.get('database')
+  if (typeof databaseText !== 'string') return { success: false, error: 'invalid_backup' }
+
+  let raw: unknown
+  try {
+    raw = JSON.parse(databaseText)
+  } catch {
+    return { success: false, error: 'invalid_backup' }
+  }
+
+  const parsed = parseAndValidateBackup(raw)
+  if ('error' in parsed) return { success: false, error: parsed.error }
+  const { backup } = parsed
+
+  const { restoreMediaFile, isMediaUrlReachable } = await import('@/lib/media/storage-write')
+
+  let mediaReuploaded = 0
+  let mediaFailed     = 0
+
+  for (const item of backup.media) {
+    if (!isRecord(item)) continue
+    const mediaId    = typeof item.id === 'string' ? item.id : null
+    const projectId  = typeof item.projectId === 'string' ? item.projectId : null
+    const publicUrl  = typeof item.publicUrl === 'string' ? item.publicUrl : null
+    const mimeType   = typeof item.mimeType === 'string' ? item.mimeType : 'application/octet-stream'
+    const key        = typeof item.key === 'string' ? item.key : ''
+    const provider   = item.storageProvider === 'blob' ? 'blob' as const : 'r2' as const
+    if (!mediaId || !projectId) continue
+
+    // The bucket URL already in the backup still works — keep it exactly
+    // as-is, no upload needed. This is the common case.
+    if (publicUrl && await isMediaUrlReachable(publicUrl)) continue
+
+    const file = formData.get(`file:${mediaId}`)
+    if (!(file instanceof Blob)) continue // dead link AND export couldn't fetch it either — nothing we can do
+
+    try {
+      const bytes    = await file.arrayBuffer()
+      const filename = key.split('/').pop() ?? mediaId
+      const restored = await restoreMediaFile(projectId, bytes, mimeType, provider, filename)
+      if (restored) {
+        item.key             = restored.key
+        item.publicUrl        = restored.publicUrl
+        item.storageProvider  = restored.storageProvider
+        mediaReuploaded++
+      } else {
+        mediaFailed++
+      }
+    } catch {
+      mediaFailed++
+    }
+  }
+
+  try {
+    await restoreBackupTransaction(backup)
+  } catch {
+    return { success: false, error: 'db_error' }
+  }
+
+  return { success: true, data: { mediaReuploaded, mediaFailed } }
 }
 
 // ── Export project (scoped to current project) ───────────────────────────────
@@ -638,46 +775,6 @@ async function safeDelete(table: Parameters<typeof db.delete>[0]): Promise<void>
     if (code !== '42P01') throw e
     // table doesn't exist — nothing to delete, continue
   }
-}
-
-// ── Reset project (keeps users, roles, settings) ─────────────────────────────
-
-export async function resetProjectAction(): Promise<ActionResult<{ storagePurge: StoragePurgeResult } | null>> {
-  const session = await auth()
-  if (!session?.user?.id) return { success: false, error: 'Unauthorized' }
-
-  let projectId: string
-  try {
-    projectId = await requireProjectId()
-  } catch {
-    return { success: false, error: 'NO_PROJECT' }
-  }
-
-  // Purge project media from storage
-  let storagePurge: StoragePurgeResult = { deleted: 0, failed: 0, r2Orphans: 0, blobOrphans: 0 }
-  try {
-    storagePurge = await purgeProjectMediaStorage(projectId)
-  } catch { /* non-fatal — continue with DB deletion */ }
-
-  try {
-    // Collect all node IDs for this project (for FK-safe child deletion)
-    const nodeIds = (await db.select({ id: nodes.id }).from(nodes).where(eq(nodes.projectId, projectId))).map((r) => r.id)
-
-    // FK-safe deletion: children first
-    await db.delete(media).where(eq(media.projectId, projectId))
-    await db.delete(apiTokens).where(eq(apiTokens.projectId, projectId))
-    if (nodeIds.length > 0) {
-      await db.delete(nodeRelations).where(inArray(nodeRelations.sourceNodeId, nodeIds))
-      await db.delete(records).where(inArray(records.nodeId, nodeIds))
-      await db.delete(fieldMeta).where(inArray(fieldMeta.nodeId, nodeIds))
-      await db.delete(rolePermissions).where(inArray(rolePermissions.nodeId, nodeIds))
-    }
-    await db.delete(nodes).where(eq(nodes.projectId, projectId))
-  } catch {
-    return { success: false, error: 'db_error' }
-  }
-
-  return { success: true, data: { storagePurge } }
 }
 
 async function purgeProjectMediaStorage(projectId: string): Promise<StoragePurgeResult> {

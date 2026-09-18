@@ -40,6 +40,9 @@ export async function getMembersForProject(): Promise<{
 
 export async function getPendingInvitations() {
   const projectId = await requireProjectId()
+  // Lazy expiry sweep — no cron in serverless, so clean up stale pending
+  // invitations every time an admin opens the Users/invitations panel.
+  await projectInvitationsRepository.deleteExpiredPending(projectId)
   return projectInvitationsRepository.listPending(projectId)
 }
 

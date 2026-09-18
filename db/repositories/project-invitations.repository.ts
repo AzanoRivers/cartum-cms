@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, lt } from 'drizzle-orm'
 import { db } from '@/db'
 import { projectInvitations, roles } from '@/db/schema'
 
@@ -96,5 +96,23 @@ export const projectInvitationsRepository = {
     await db
       .delete(projectInvitations)
       .where(and(eq(projectInvitations.id, id), eq(projectInvitations.projectId, projectId)))
+  },
+
+  /**
+   * Lazy expiry sweep — this is a serverless deploy with no background
+   * worker/cron, so there is no process that expires invitations on a
+   * schedule. Instead this runs opportunistically at natural trigger points
+   * (opening the invite UI, sending a new invite, export, import) and
+   * deletes any PENDING invitation (never an already-accepted one — that's
+   * a historical record) whose `expiresAt` is in the past.
+   *
+   * Pass a `projectId` to scope the sweep to one project (cheap, used on
+   * every invite-flow interaction); omit it to sweep the whole instance
+   * (used by export/import, which operate instance-wide).
+   */
+  async deleteExpiredPending(projectId?: string): Promise<void> {
+    const conditions = [isNull(projectInvitations.acceptedAt), lt(projectInvitations.expiresAt, new Date())]
+    if (projectId) conditions.push(eq(projectInvitations.projectId, projectId))
+    await db.delete(projectInvitations).where(and(...conditions))
   },
 }

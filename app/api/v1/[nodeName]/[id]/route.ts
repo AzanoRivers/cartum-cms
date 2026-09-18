@@ -32,7 +32,7 @@ export async function GET(
     return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
   }
 
-  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'read')
+  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'read', apiAuth.projectId)
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
 
   const record = await recordsService.getById(node.id, id)
@@ -70,7 +70,7 @@ export async function PUT(
     return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
   }
 
-  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'update')
+  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'update', apiAuth.projectId)
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
 
   let body: Record<string, RecordValue>
@@ -107,7 +107,7 @@ export async function PATCH(
     return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
   }
 
-  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'update')
+  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'update', apiAuth.projectId)
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
 
   const existing = await recordsService.getById(node.id, id)
@@ -148,7 +148,7 @@ export async function DELETE(
     return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
   }
 
-  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'delete')
+  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'delete', apiAuth.projectId)
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
 
   try {

@@ -1,5 +1,6 @@
 import { nodesRepository } from '@/db/repositories/nodes.repository'
 import { recordsRepository } from '@/db/repositories/records.repository'
+import { mediaRepository } from '@/db/repositories/media.repository'
 import { connectionsRepository } from '@/db/repositories/connections.repository'
 import { validateFieldMeta } from '@/nodes/validator'
 import { resolveNodeTree } from '@/nodes/resolver'
@@ -13,6 +14,11 @@ import type {
   NodeTree,
   UpdateFieldMetaInput,
 } from '@/types/nodes'
+
+export type DeleteResult = {
+  mediaPurged: number
+  mediaFailed: number
+}
 
 export const nodeService = {
 
@@ -45,6 +51,12 @@ export const nodeService = {
   // ── Create ──────────────────────────────────────────────────────────────────
 
   async createContainer(input: CreateContainerInput, projectId: string): Promise<ContainerNode> {
+    if (input.parentId) {
+      const parent = await nodesRepository.findById(input.parentId, projectId)
+      if (!parent) throw new Error('PARENT_NOT_FOUND')
+      if (parent.type !== 'container') throw new Error('PARENT_MUST_BE_CONTAINER')
+    }
+
     const sibling = await nodesRepository.findSiblingByName(input.name, input.parentId ?? null, projectId)
     if (sibling) throw new Error('NODE_NAME_TAKEN')
 
@@ -162,7 +174,7 @@ export const nodeService = {
 
   // ── Delete ──────────────────────────────────────────────────────────────────
 
-  async delete(id: string, projectId: string, confirmed = false): Promise<void> {
+  async delete(id: string, projectId: string, confirmed = false): Promise<DeleteResult> {
     const node = await nodesRepository.findById(id, projectId)
     if (!node) throw new Error('NODE_NOT_FOUND')
 
@@ -177,7 +189,25 @@ export const nodeService = {
       }
     }
 
+    // Cascade-deleting this node's subtree (or the node itself, for a field)
+    // sets media.nodeId/media.recordId to NULL (no cascade there by design —
+    // losing a node/record must never silently delete someone's uploaded
+    // file's DB row). Purge those files from storage BEFORE the delete, or
+    // they become permanently unreachable orphans.
+    const descendantIds = node.type === 'container'
+      ? await nodesRepository.findDescendantIds(id, projectId)
+      : []
+    const subtreeIds = [id, ...descendantIds] // container: itself + all nested decks/cards; field: just itself
+    const recordIds  = node.type === 'container' ? await recordsRepository.findIdsByNodeIds(subtreeIds) : []
+
+    const mediaToPurge = await mediaRepository.findByNodeOrRecordIds(subtreeIds, recordIds, projectId)
+    const purge = mediaToPurge.length > 0
+      ? await mediaRepository.purgeMany(mediaToPurge.map((m) => m.id), projectId)
+      : { deleted: 0, failed: 0 }
+
     await nodesRepository.delete(id, projectId)
+
+    return { mediaPurged: purge.deleted, mediaFailed: purge.failed }
   },
 
 }

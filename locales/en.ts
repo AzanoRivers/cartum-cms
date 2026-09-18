@@ -680,39 +680,39 @@
       },
       relations: {
         title: 'Node Relations',
-        intro: 'When nodes are connected in the board, the API automatically merges their schemas. Fields from related nodes appear flat in the response - no nesting, no extra requests.',
-        flatPrincipleTitle: 'Flat response principle',
-        flatPrincipleDesc:  'Every node always returns two keys: fields (all inherited fields merged flat) and containers (shallow references). Containers never expose their own content inline - fetch them separately by id.',
+        intro: 'When decks are connected in the board, the API automatically merges their CARDS into the response. Decks are never merged - only cards. This keeps every response bounded: one call can never cascade into an unlimited chain of nested or related decks.',
+        flatPrincipleTitle: 'Flat response principle, cards only',
+        flatPrincipleDesc:  'Every deck always returns two keys: cards (its own cards plus cards borrowed through exactly one hop of inheritance, merged flat) and decks (shallow references only - id/name/edit). A relation NEVER hands over the other deck\'s own nested decks, only its cards. To read a related or nested deck\'s own schema, fetch it separately by id - it is never inlined.',
         inheritanceTitle:   'Structural inheritance (parent → child)',
-        inheritanceDesc:    'A child node (nested inside a parent container) automatically sees all fields and containers from its direct parent. The parent itself is excluded from the list to avoid self-reference. Inheritance is one level deep only.',
-        relationTypesTitle: 'Relation types',
+        inheritanceDesc:    'A deck nested inside a parent container automatically sees all cards AND sub-decks from its direct parent (the parent itself is excluded, to avoid self-reference). This is the one case where decks are borrowed too, because it mirrors the board\'s own visual nesting. It goes exactly one level up - never the grandparent.',
+        relationTypesTitle: 'Relation types - cards only, single hop, never recursive',
         types: {
           oneToOne: {
             label: '1:1  -  One to One',
-            desc:  'Both nodes share each other\'s own direct fields. Non-transitive: if A↔B and B↔C, then A does not see C\'s fields.',
+            desc:  'Both decks share each other\'s own cards (never their sub-decks). Non-transitive: if A↔B and B↔C, then A does not see C\'s cards.',
           },
           oneToMany: {
             label: '1:n  -  One to Many',
-            desc:  'The source node injects its own direct fields into the target node and into every node reachable from the target via 1:1 chains. The source does not receive anything back.',
+            desc:  'The "one" side\'s own cards flow into the "many" side. Unidirectional: the "one" side never receives anything back, and the injection never chains through any other relation - just this one hop.',
           },
           manyToMany: {
             label: 'n:m  -  Many to Many',
-            desc:  'Both nodes share each other\'s fully resolved content (including all their own inherited fields). Child nodes of each side also inherit this via structural inheritance.',
+            desc:  'Both decks share each other\'s own cards, same as 1:1 - bidirectional, single hop. Neither side hands over what it itself borrowed from a relation or from its parent.',
           },
         },
         multipleRelationsTitle: 'Multiple relations',
-        multipleRelationsDesc:  'A node can have multiple relations of different types simultaneously. The result is the deduplicated union of all inherited fields and containers.',
-        antiCycleTitle: 'Anti-cycle protection',
-        antiCycleDesc:  'The resolver tracks visited nodes per request. Circular relations (A↔B↔A) resolve safely without infinite loops.',
+        multipleRelationsDesc:  'A deck can have multiple relations of different types simultaneously. The result is the deduplicated union of all borrowed cards - always flat, always one hop away from each source.',
+        antiCycleTitle: 'Why there is no cycle risk',
+        antiCycleDesc:  'Because relations never chain (each one is resolved in a single hop, straight from the other side\'s own cards) there is nothing to loop through - A↔B and B↔A simply each contribute the other\'s own cards once, with no recursion involved.',
         consumingTitle: 'How to consume',
         consumingSteps: {
-          step1: 'Call GET /api/v1/table to get all root decks with their merged cards and nested deck references.',
-          step2: 'Use the cards array directly, it already contains everything the deck inherits.',
-          step3: 'For each item in decks, call GET /api/v1/table/{deckId} to get its merged cards separately.',
-          step4: 'Never expect nested content inside decks. They are always shallow references.',
+          step1: 'Call GET /api/v1/table to get all root decks with their merged cards and nested/related deck references.',
+          step2: 'The cards array is what that deck\'s records actually store - it is the safe list to validate against when reading or writing records for THAT deck.',
+          step3: 'For each item in decks, call GET /api/v1/table/{deckId} (or /api/v1/deck/{deckId}) separately to get that deck\'s own merged cards.',
+          step4: 'Never expect nested content inside decks - they are always shallow references, and a related deck\'s cards never mean you can send that data to a different deck\'s records endpoint.',
         },
         exampleTitle: 'Response example',
-        exampleNote:  'Blog Posts has a 1:1 relation with SEO node. The fields from SEO appear flat inside Blog Posts.',
+        exampleNote:  'Blog Posts has a 1:1 relation with the SEO deck. The SEO deck\'s own cards appear flat inside Blog Posts\' cards array - but SEO itself still only appears under Blog Posts\' decks as a shallow reference.',
       },
       multiProject: {
         title:        'Multi-Project',
@@ -2042,21 +2042,6 @@
         purgedSummary: 'Files purged: {deleted}. Errors: {failed}.',
         purgeFailWarn: '{failed} file(s) could not be deleted from storage and may remain as orphans.',
       },
-      resetProjectTitle:  'Reset project',
-      resetProjectDesc:   'Delete all content in the current project (nodes, records, media). Users, roles and settings are kept.',
-      resetProjectButton: 'Reset project',
-      resetProjectDialog: {
-        title:         'Reset project?',
-        desc:          'This will permanently erase all nodes, records and media in this project. Users and settings will not be affected.',
-        storageNote:   'All media files stored in Cloudflare R2 and Vercel Blob for this project will also be deleted.',
-        placeholder:   'Type to confirm',
-        confirmPhrase: 'RESET PROJECT',
-        cancel:        'Cancel',
-        confirm:       'Yes, reset project',
-        confirming:    'Resetting...',
-        purgedSummary: 'Files purged: {deleted}. Errors: {failed}.',
-        purgeFailWarn: '{failed} file(s) could not be deleted from storage.',
-      },
     },
     superDb: {
       title:    'Super DB',
@@ -2064,7 +2049,8 @@
       docsLinkLabel: 'Import & Export: Documentation',
       docsLinkDesc:  'Learn about full-instance backup, restore, file formats, and limitations.',
       exportTitle:           'Export entire CMS',
-      exportDesc:            'Download a full JSON backup of the ENTIRE instance: all projects, users, roles, settings and media. Includes credentials stored in app_settings.',
+      exportDesc:            'Download a full JSON backup of the ENTIRE instance: all projects, users, roles, permissions, API tokens (and their node exclusions) and media metadata.',
+      exportSecretsWarn:     'This file is NOT encrypted. Passwords are one-way hashed (bcrypt) and cannot be recovered, but any third-party credential you saved in Settings (storage, email, scraper keys) is stored and exported in PLAIN TEXT. Treat this file like a secret and never share it.',
       exportButton:          'Super export',
       exporting:             'Exporting...',
       exportWithMediaButton: 'Super export with media (.zip)',
@@ -2072,11 +2058,12 @@
       exportWithMediaNote:   'Includes ALL images and videos from every project.',
       exportError:           'Export failed. Please try again.',
       importTitle:           'Import entire CMS',
-      importDesc:            'Restore the ENTIRE instance from a Super Backup. Replaces everything: all projects, users, roles and settings.',
-      importButton:          'Choose Super Backup',
+      importDesc:            'Restore the ENTIRE instance from a Super Backup (.json) or a Super Backup with media (.zip). Replaces everything: all projects, users, roles, settings and media. Bucket URLs already in the backup are reused as-is whenever they still work. Importing a .zip only re-uploads a file to this instance\'s currently configured storage if its original URL no longer works.',
+      importButton:          'Choose Super Backup (.json or .zip)',
       importing:             'Importing...',
       importOverwriteWarn:   'This will replace ABSOLUTELY EVERYTHING in the CMS: all projects, all users, all settings. This cannot be undone.',
       importSuccess:         'CMS restored successfully from Super Backup.',
+      importMediaFailWarn:   'CMS restored, but {failed} media file(s) could not be re-uploaded and kept their old (possibly broken) link. {reuploaded} file(s) were re-uploaded successfully.',
       importError:           'Import failed. Use a valid Super Backup exported from Cartum.',
       resetError:            'Reset failed. Please try again.',
       dangerTitle:           'Danger zone',
@@ -3031,21 +3018,15 @@ export type Dictionary = {
         confirmPhrase: string; cancel: string; confirm: string; confirming: string
         purgedSummary: string; purgeFailWarn: string
       }
-      resetProjectTitle: string; resetProjectDesc: string; resetProjectButton: string
-      resetProjectDialog: {
-        title: string; desc: string; storageNote: string; placeholder: string
-        confirmPhrase: string; cancel: string; confirm: string; confirming: string
-        purgedSummary: string; purgeFailWarn: string
-      }
     }
     superDb: {
       title: string; subtitle: string
       docsLinkLabel: string; docsLinkDesc: string
-      exportTitle: string; exportDesc: string; exportButton: string; exporting: string
+      exportTitle: string; exportDesc: string; exportSecretsWarn: string; exportButton: string; exporting: string
       exportWithMediaButton: string; exportWithMediaing: string; exportWithMediaNote: string
       exportError: string
       importTitle: string; importDesc: string; importButton: string; importing: string
-      importOverwriteWarn: string; importSuccess: string; importError: string
+      importOverwriteWarn: string; importSuccess: string; importMediaFailWarn: string; importError: string
       resetError: string
       dangerTitle: string; dangerDesc: string; dangerButton: string
       resetDialog: {

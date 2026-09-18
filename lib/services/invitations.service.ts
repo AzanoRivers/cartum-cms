@@ -9,7 +9,7 @@ import { hashPassword } from '@/lib/services/auth.service'
 import { sendInvitationEmail } from '@/lib/email/templates/invitation'
 import type { SupportedLocale } from '@/types/project'
 
-const INVITE_EXPIRY_DAYS = 7
+const INVITE_EXPIRY_HOURS = 24
 
 export const invitationsService = {
 
@@ -27,9 +27,13 @@ export const invitationsService = {
     const existingMember = await projectMembershipsRepository.findByEmail(projectId, invitedEmail)
     if (existingMember) throw new Error('USER_ALREADY_MEMBER')
 
+    // Lazy cleanup — no cron in a serverless deploy, so sweep stale pending
+    // invitations for this project every time someone opens the invite flow.
+    await projectInvitationsRepository.deleteExpiredPending(projectId)
+
     const rawToken  = crypto.randomBytes(32).toString('base64url')
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
-    const expiresAt = new Date(Date.now() + INVITE_EXPIRY_DAYS * 86_400_000)
+    const expiresAt = new Date(Date.now() + INVITE_EXPIRY_HOURS * 3_600_000)
 
     await projectInvitationsRepository.upsert({
       projectId,
@@ -52,7 +56,7 @@ export const invitationsService = {
       to:          invitedEmail,
       projectName: proj?.name ?? 'a project',
       inviteUrl:   `${baseUrl}/invite/${rawToken}`,
-      expiryDays:  INVITE_EXPIRY_DAYS,
+      expiryHours: INVITE_EXPIRY_HOURS,
       locale:      (proj?.locale ?? 'en') as SupportedLocale,
       baseUrl,
       projectId,
@@ -66,9 +70,13 @@ export const invitationsService = {
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
     const invite    = await projectInvitationsRepository.findByTokenHash(tokenHash)
 
-    if (!invite)                      throw new Error('INVITE_NOT_FOUND')
-    if (invite.acceptedAt)            throw new Error('INVITE_ALREADY_USED')
-    if (invite.expiresAt < new Date()) throw new Error('INVITE_EXPIRED')
+    if (!invite)           throw new Error('INVITE_NOT_FOUND')
+    if (invite.acceptedAt) throw new Error('INVITE_ALREADY_USED')
+    if (invite.expiresAt < new Date()) {
+      // Lazy cleanup — this invite was already stale, no reason to keep it around.
+      await projectInvitationsRepository.delete(invite.id, invite.projectId)
+      throw new Error('INVITE_EXPIRED')
+    }
 
     let userId: string
     const existing = await usersRepository.findByEmail(invite.invitedEmail)
@@ -102,7 +110,7 @@ export const invitationsService = {
 
     const rawToken  = crypto.randomBytes(32).toString('base64url')
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
-    const expiresAt = new Date(Date.now() + INVITE_EXPIRY_DAYS * 86_400_000)
+    const expiresAt = new Date(Date.now() + INVITE_EXPIRY_HOURS * 3_600_000)
 
     await projectInvitationsRepository.refreshToken(invitationId, tokenHash, expiresAt)
 
@@ -118,7 +126,7 @@ export const invitationsService = {
       to:          invite.invitedEmail,
       projectName: proj?.name ?? 'a project',
       inviteUrl:   `${baseUrl}/invite/${rawToken}`,
-      expiryDays:  INVITE_EXPIRY_DAYS,
+      expiryHours: INVITE_EXPIRY_HOURS,
       locale:      (proj?.locale ?? 'en') as SupportedLocale,
       baseUrl,
     })

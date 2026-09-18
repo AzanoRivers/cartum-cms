@@ -301,6 +301,28 @@ async function findAncestors(nodeId: string): Promise<BreadcrumbItem[]> {
   }))
 }
 
+/**
+ * All descendant node IDs of `nodeId` (containers AND fields, any depth),
+ * scoped to `projectId`. Used before a cascading delete to know exactly
+ * which media rows would otherwise be orphaned by ON DELETE SET NULL.
+ * Does NOT include `nodeId` itself.
+ */
+async function findDescendantIds(nodeId: string, projectId: string): Promise<string[]> {
+  const result = await db.execute(sql`
+    WITH RECURSIVE descendants AS (
+      SELECT id FROM nodes WHERE parent_id = ${nodeId} AND project_id = ${projectId}
+      UNION ALL
+      SELECT n.id FROM nodes n
+      INNER JOIN descendants d ON n.parent_id = d.id
+      WHERE n.project_id = ${projectId}
+    )
+    SELECT id FROM descendants
+  `)
+
+  const rows = Array.isArray(result) ? result : (result as { rows: unknown[] }).rows
+  return (rows as { id: string }[]).map((r) => r.id)
+}
+
 async function findAll(projectId: string): Promise<AnyNode[]> {
   const rows = await db
     .select()
@@ -375,6 +397,7 @@ export const nodesRepository = {
   findAncestors,
   findAll,
   findFullTree,
+  findDescendantIds,
   countChildren,
   countRelationReferences,
   create,

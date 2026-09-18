@@ -5,7 +5,7 @@ import { getSetting } from '@/lib/settings/get-setting'
 import { rolesRepository } from '@/db/repositories/roles.repository'
 import { usersRepository } from '@/db/repositories/users.repository'
 import { projectMembershipsRepository } from '@/db/repositories/project-memberships.repository'
-import { ROLE_ADMIN, ROLE_EDITOR, ROLE_VIEWER, ROLE_RESTRICTED } from '@/types/roles'
+import { ROLE_ADMIN, ROLE_EDITOR, ROLE_VIEWER, ROLE_RESTRICTED, DEFAULT_SCHEMA_PERMS_WRITE, DEFAULT_SCHEMA_PERMS_READONLY } from '@/types/roles'
 import type {
   NodePermissions,
   PermissionOperation,
@@ -14,6 +14,7 @@ import type {
   SectionKey,
   SectionPermission,
   SectionAccess,
+  SchemaPermissions,
 } from '@/types/roles'
 
 // Full read+write permissions for built-in editor role
@@ -211,37 +212,122 @@ async function canPerform(
 
 /**
  * Checks a single operation using a role ID directly (for API token auth).
+ *
+ * Mirrors `resolvePermissions`'s priority order exactly, so a role behaves
+ * the same whether it's exercised from the CMS session or from an API
+ * token — a token tied to the built-in admin/editor role gets full access
+ * without needing any `rolePermissions` row seeded, same as a human admin.
+ *
+ * Priority:
+ * 1. Project-specific override in app_settings (`role_perms:{roleId}:{projectId}`)
+ *    → exact per-node entry if present.
+ * 2. Project-specific wildcard (`role_wildcard:{roleId}:{projectId}`) — set via
+ *    the "*" row in the Settings → Roles permission matrix.
+ * 3. Built-in role defaults by name: admin/editor → full access, viewer →
+ *    read-only, restricted → none. Only applies when no project override
+ *    exists for this role at all.
+ * 4. Custom roles with no project override → legacy global `rolePermissions`
+ *    table row, then the legacy global wildcard (`role_{roleId}_wildcard`)
+ *    as a last resort for pre-multi-project tokens.
  */
 async function canPerformByRole(
   roleId:    string,
   nodeId:    string,
   operation: PermissionOperation,
+  projectId: string,
 ): Promise<boolean> {
-  // Check wildcard permissions stored in app_settings
-  const wildcardRaw = await getSetting(`role_${roleId}_wildcard`)
-  if (wildcardRaw) {
+  // 1 & 2. Project-scoped override / wildcard
+  const [overrideRaw, projectWildcardRaw] = await Promise.all([
+    getSetting(`role_perms:${roleId}:${projectId}`),
+    getSetting(`role_wildcard:${roleId}:${projectId}`),
+  ])
+
+  if (overrideRaw) {
     try {
-      const wc = JSON.parse(wildcardRaw) as Record<string, boolean>
-      if (wc[operation]) return true
-    } catch { /* ignore malformed */ }
+      const parsed = JSON.parse(overrideRaw) as Record<string, PermsOverrideEntry>
+      const entry  = parsed[nodeId]
+      if (entry !== undefined) {
+        const map: Record<PermissionOperation, boolean> = {
+          read: entry.read ?? false, create: entry.create ?? false,
+          update: entry.update ?? false, delete: entry.delete ?? false,
+        }
+        return map[operation]
+      }
+    } catch { /* ignore malformed — fall through */ }
+
+    if (projectWildcardRaw) {
+      try {
+        const wc = JSON.parse(projectWildcardRaw) as Record<string, boolean>
+        if (wc[operation]) return true
+      } catch { /* ignore malformed */ }
+    }
+
+    // A project override map exists for this role but has no entry for this
+    // node and no matching wildcard — explicit deny, do NOT fall through to
+    // built-in defaults (the admin deliberately configured this role).
+    return false
   }
 
+  // 3. Built-in role defaults — only when no project override exists at all
+  const role = await rolesRepository.findById(roleId)
+  if (role) {
+    if (role.name === ROLE_ADMIN || role.name === ROLE_EDITOR) return true
+    if (role.name === ROLE_VIEWER) return operation === 'read'
+    if (role.name === ROLE_RESTRICTED) return false
+  }
+
+  // 4. Custom role fallback — legacy global table + legacy global wildcard
   const perms = await db
     .select()
     .from(rolePermissions)
     .where(and(eq(rolePermissions.roleId, roleId), eq(rolePermissions.nodeId, nodeId)))
     .limit(1)
 
-  if (perms.length === 0) return false
-
-  const p   = perms[0]
-  const map: Record<PermissionOperation, boolean> = {
-    read:   p.canRead,
-    create: p.canCreate,
-    update: p.canUpdate,
-    delete: p.canDelete,
+  if (perms.length > 0) {
+    const p   = perms[0]
+    const map: Record<PermissionOperation, boolean> = {
+      read:   p.canRead,
+      create: p.canCreate,
+      update: p.canUpdate,
+      delete: p.canDelete,
+    }
+    return map[operation]
   }
-  return map[operation]
+
+  const legacyWildcardRaw = await getSetting(`role_${roleId}_wildcard`)
+  if (legacyWildcardRaw) {
+    try {
+      const wc = JSON.parse(legacyWildcardRaw) as Record<string, boolean>
+      if (wc[operation]) return true
+    } catch { /* ignore malformed */ }
+  }
+
+  return false
+}
+
+/**
+ * Schema-level permissions (create/update/delete deck or card, connect
+ * relations) for a role in a project — the API-token counterpart of
+ * `resolveSchemaPermissions` (which is session/userId-based). Structural
+ * changes to the board (mazos/cartas/vínculos) are governed by this, never
+ * by the per-node record permissions in `canPerformByRole`.
+ */
+async function resolveSchemaPermissionsByRole(
+  roleId:    string,
+  projectId: string,
+): Promise<SchemaPermissions> {
+  const raw = await getSetting(`role_schema:${roleId}:${projectId}`)
+  if (raw) {
+    try {
+      return JSON.parse(raw) as SchemaPermissions
+    } catch { /* ignore malformed — fall through to role defaults */ }
+  }
+
+  const role = await rolesRepository.findById(roleId)
+  if (role && (role.name === ROLE_VIEWER || role.name === ROLE_RESTRICTED)) {
+    return { ...DEFAULT_SCHEMA_PERMS_READONLY }
+  }
+  return { ...DEFAULT_SCHEMA_PERMS_WRITE }
 }
 
 async function createRole(input: CreateRoleInput) {
@@ -437,6 +523,7 @@ export const rolesService = {
   getAccessibleNodes,
   canPerform,
   canPerformByRole,
+  resolveSchemaPermissionsByRole,
   createRole,
   deleteRole,
   setPermissions,

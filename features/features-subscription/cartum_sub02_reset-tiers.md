@@ -1,5 +1,35 @@
 # SUB-02 — Database Reset Tiers
 
+> **⚠️ ESTADO: histórico / parcialmente superado.** Este doc describía el plan original
+> de un tercer nivel de reset (`resetProjectAction`): vaciar el contenido del proyecto
+> actual pero conservar el `project` row + `users` + `roles`. Esa función se implementó
+> pero **nunca se conectó a ningún componente de UI** (quedó código y locale keys
+> muertos) y fue **eliminada** en 2026-09 al auditar el flujo antes de un reset completo.
+>
+> Cuando se agregó soporte multi-proyecto, el caso "borrar el proyecto actual" se resolvió
+> con una función distinta con semántica distinta: **`deleteUserProject`**
+> (`lib/actions/settings.actions.ts`), consumida por `ProjectSection.tsx`
+> (Settings → Proyectos → zona de peligro → "Eliminar proyecto"). A diferencia del plan
+> de abajo, esa función **borra el `project` row completo** (cascade se lleva
+> nodes/records/memberships/invitations/settings), no solo su contenido, y está
+> restringida a `isOwner = isSuperAdmin || project.ownerId === userId`, con guard para
+> no borrar tu único proyecto (`CANNOT_DELETE_LAST_PROJECT`).
+>
+> Los dos niveles de reset que SÍ existen y están wireados hoy son:
+> - **`resetCmsAction`** (`lib/actions/db.actions.ts`, botón "Borrar todos los datos" en
+>   `SuperDbSection.tsx`, solo super_admin): wipe total de la instancia. Documentado y
+>   vigente — ver secciones 2–5 abajo, que sí reflejan el código actual.
+> - **`deleteUserProject`** (ver arriba): borra un proyecto puntual del workspace
+>   multi-proyecto, no toca `users`/`roles`.
+>
+> Todo lo que menciona `resetProjectAction` de acá en adelante (secciones 1, 6, 7, 8 y
+> los flow diagrams de "Admin Project Reset") es el plan original que **no llegó a
+> implementarse tal cual** y no debe usarse como referencia del comportamiento actual.
+> `checkSetupComplete()` en el código real tampoco quitó el chequeo de `roles` que la
+> sección 3 de este doc decía que se iba a remover — sigue devolviendo `'no_superadmin'`
+> si `roles` está vacío aunque el proyecto exista, porque ningún flujo vivo borra `roles`
+> sin borrar también `users`.
+
 ## Goal
 
 Define two distinct reset operations with different blast radii:

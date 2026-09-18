@@ -32,7 +32,7 @@ export async function GET(
     return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
   }
 
-  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'read')
+  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'read', apiAuth.projectId)
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
 
   const { page, limit, sort, order, include, filters } = parseQueryParams(req)
@@ -83,7 +83,7 @@ export async function POST(
     return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
   }
 
-  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'create')
+  const allowed = await rolesService.canPerformByRole(apiAuth.roleId, node.id, 'create', apiAuth.projectId)
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
 
   let body: Record<string, RecordValue>

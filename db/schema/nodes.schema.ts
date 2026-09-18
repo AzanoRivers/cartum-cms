@@ -32,7 +32,7 @@ export const fieldMeta = pgTable(
     fieldType:        text('field_type').notNull(),
     isRequired:       boolean('is_required').notNull().default(false),
     defaultValue:     text('default_value'),
-    relationTargetId: uuid('relation_target_id').references(() => nodes.id),
+    relationTargetId: uuid('relation_target_id').references(() => nodes.id, { onDelete: 'set null' }),
     config:           jsonb('config'),
   },
   (t) => [

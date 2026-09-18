@@ -6,7 +6,7 @@ const INVITE_COPY = {
     heading:  "You're invited",
     body:     (p: string) => `You've been invited to join <strong style="color:#e2e8f0">${p}</strong> on Cartum.`,
     cta:      'Accept invitation →',
-    expiry:   (d: number) => `This invitation expires in ${d} days.`,
+    expiry:   (h: number) => `This invitation expires in ${h} hours.`,
     ignore:   "If you didn't expect this email, you can safely ignore it.",
   },
   es: {
@@ -14,7 +14,7 @@ const INVITE_COPY = {
     heading:  'Tienes una invitación',
     body:     (p: string) => `Has sido invitado a unirte a <strong style="color:#e2e8f0">${p}</strong> en Cartum.`,
     cta:      'Aceptar invitación →',
-    expiry:   (d: number) => `Esta invitación expira en ${d} días.`,
+    expiry:   (h: number) => `Esta invitación expira en ${h} horas.`,
     ignore:   'Si no esperabas este correo, puedes ignorarlo sin problema.',
   },
 } as const
@@ -22,12 +22,12 @@ const INVITE_COPY = {
 type SupportedLocale = keyof typeof INVITE_COPY
 
 function buildHtml({
-  locale, projectName, inviteUrl, expiryDays, logoUrl,
+  locale, projectName, inviteUrl, expiryHours, logoUrl,
 }: {
   locale: SupportedLocale
   projectName: string
   inviteUrl: string
-  expiryDays: number
+  expiryHours: number
   logoUrl: string | null
 }): string {
   const copy = INVITE_COPY[locale] ?? INVITE_COPY.en
@@ -59,7 +59,7 @@ function buildHtml({
               <a href="${inviteUrl}" style="display:inline-block;padding:10px 20px;color:#ffffff;font-size:13px;font-weight:500;text-decoration:none;">${copy.cta}</a>
             </td>
           </tr></table>
-          <p style="margin:0;font-size:12px;color:${DUSK.muted};line-height:1.6;">${copy.expiry(expiryDays)}<br/>${copy.ignore}</p>
+          <p style="margin:0;font-size:12px;color:${DUSK.muted};line-height:1.6;">${copy.expiry(expiryHours)}<br/>${copy.ignore}</p>
         </td></tr>
       </table>
     </td></tr>
@@ -68,12 +68,12 @@ function buildHtml({
 }
 
 export async function sendInvitationEmail({
-  to, projectName, inviteUrl, expiryDays, locale = 'en', baseUrl, projectId,
+  to, projectName, inviteUrl, expiryHours, locale = 'en', baseUrl, projectId,
 }: {
   to:          string
   projectName: string
   inviteUrl:   string
-  expiryDays:  number
+  expiryHours: number
   locale?:     SupportedLocale
   baseUrl?:    string
   projectId?:  string | null
@@ -82,7 +82,7 @@ export async function sendInvitationEmail({
 
   const provider = await resolveActiveProvider(projectId)
   const logoUrl  = baseUrl ? `${baseUrl}/images/brand/icon.png` : null
-  const html     = buildHtml({ locale, projectName, inviteUrl, expiryDays, logoUrl })
+  const html     = buildHtml({ locale, projectName, inviteUrl, expiryHours, logoUrl })
   const copy     = INVITE_COPY[locale] ?? INVITE_COPY.en
 
   const result = await sendEmailViaProvider(

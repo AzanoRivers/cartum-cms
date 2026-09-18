@@ -1,4 +1,4 @@
-import { SQL, asc, and, count, desc, eq, sql } from 'drizzle-orm'
+import { SQL, asc, and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { records } from '@/db/schema'
 
@@ -15,6 +15,13 @@ type RecordRow = typeof records.$inferSelect
 
 async function findByNodeId(nodeId: string): Promise<RecordRow[]> {
   return db.select().from(records).where(eq(records.nodeId, nodeId))
+}
+
+/** Record IDs across several container nodes at once — used before a cascading node delete. */
+async function findIdsByNodeIds(nodeIds: string[]): Promise<string[]> {
+  if (nodeIds.length === 0) return []
+  const rows = await db.select({ id: records.id }).from(records).where(inArray(records.nodeId, nodeIds))
+  return rows.map((r) => r.id)
 }
 
 async function findById(id: string): Promise<RecordRow | null> {
@@ -92,6 +99,7 @@ async function findByNodeIdPaginated(
 
 export const recordsRepository = {
   findByNodeId,
+  findIdsByNodeIds,
   findByNodeIdPaginated,
   findById,
   create,
