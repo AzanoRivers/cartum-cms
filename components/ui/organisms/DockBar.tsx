@@ -80,7 +80,7 @@ export function DockBar() {
   return (
     <nav
       aria-label="Dock"
-      className="dock-nav absolute bottom-12 left-1/2 z-30 flex items-center gap-1 rounded-xl border border-border bg-surface/90 px-2 py-1 shadow-lg backdrop-blur-sm"
+      className="dock-nav absolute bottom-12 left-1/2 z-30 flex items-center gap-1 rounded-xl border border-border bg-surface/90 px-2 py-1.5 shadow-lg backdrop-blur-sm"
       style={{
         // When collapsed: shift right by iconsHalfW so the toggle stays put.
         // When expanded: standard -50% centering.
@@ -98,8 +98,12 @@ export function DockBar() {
         style={{
           maxWidth:      collapsed ? '0px' : '320px',
           opacity:       collapsed ? 0 : 1,
-          WebkitClipPath: collapsed ? 'inset(-100px 0 0 100%)' : 'inset(-100px 0 0 -100px)',
-          clipPath:       collapsed ? 'inset(-100px 0 0 100%)' : 'inset(-100px 0 0 -100px)',
+          // bottom inset: -100px (not 0) — a flush 0 clipped the focus ring's
+          // offset poking out below each icon, even though top already had
+          // the same generous allowance. Only left/right actually drive the
+          // slide reveal animation; top/bottom just need room to not clip.
+          WebkitClipPath: collapsed ? 'inset(-100px 0 0 100%)' : 'inset(-100px 0 -100px -100px)',
+          clipPath:       collapsed ? 'inset(-100px 0 0 100%)' : 'inset(-100px 0 -100px -100px)',
           overflow:      collapsed ? 'hidden' : 'visible',
           pointerEvents: collapsed ? 'none' : undefined,
         }}

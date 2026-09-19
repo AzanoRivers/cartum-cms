@@ -1,4 +1,4 @@
-export type ThemeId = 'dark' | 'cyber-soft' | 'light' | 'dusk' | 'matrix' | 'cyber-human' | 'stranger-things'
+export type ThemeId = 'dark' | 'cyber-soft' | 'light' | 'dusk' | 'matrix' | 'cyber-human' | 'stranger-things' | 'le-art'
 
 export interface ThemeDefinition {
   id:          ThemeId
@@ -89,6 +89,17 @@ export const THEMES: ThemeDefinition[] = [
       surface: '#ffffff',
       primary: '#6366f1',
       accent:  '#0ea5e9',
+    },
+  },
+  {
+    id:          'le-art',
+    label:       "Le'Art",
+    description: 'Soft lavender canvas. Violet, pink, green & blue.',
+    preview: {
+      bg:      '#f6f1fb',
+      surface: '#fdfbff',
+      primary: '#a855f7',
+      accent:  '#3b82f6',
     },
   },
 ]

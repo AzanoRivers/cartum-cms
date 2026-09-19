@@ -40,6 +40,9 @@
   /* glow del color de selección */
   --color-accent: #22d3ee;
   /* nodos activos, highlights */
+  --color-icon: var(--color-accent);
+  /* ícono activo del Dock — igual a accent por defecto; un tema puede
+     desacoplarlo para dar a sus íconos un tono propio (ver Le'Art) */
   --color-text: #e2e8f0;
   /* texto principal */
   --color-muted: #94a3b8;
@@ -354,6 +357,38 @@
   --color-danger: #dc2626;
   --color-success: #16a34a;
   --color-warning: #d97706;
+}
+
+/*
+  ================================================================
+  Le'Art — soft lavender canvas, deliberately NOT pure white and
+  NOT dark. An artistic light theme: violet primary, sky-blue
+  accent, rose danger and spring-green success carry the "violeta,
+  rosa, verde y azul" palette across the semantic color slots.
+
+  Extra flourish (like Stranger Things' acid-green select): active
+  icons in the Dock and the Settings nav break from accent-blue and
+  pop in vivid green instead — "brillo y locura" — via --color-icon
+  and --color-select, decoupled from --color-accent (which stays
+  blue everywhere else: relations, badges, links...).
+  ================================================================
+*/
+[data-theme="le-art"] {
+  --color-bg:           #f6f1fb;
+  --color-surface:      #fdfbff;
+  --color-surface-2:    #efe4fa;
+  --color-border:       #ddd0ef;
+  --color-primary:      #a855f7;
+  --color-primary-glow: #a855f730;
+  --color-select:       #34d399;
+  --color-select-glow:  #34d39930;
+  --color-accent:       #3b82f6;
+  --color-icon:         #34d399;
+  --color-text:         #2a1f3d;
+  --color-muted:        #8577a3;
+  --color-danger:       #f43f5e;
+  --color-success:      #22c55e;
+  --color-warning:      #f59e0b;
 }
 
 /*

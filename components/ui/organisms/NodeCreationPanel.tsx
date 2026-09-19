@@ -115,7 +115,11 @@ export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
       (n) => n.name.toLowerCase() === trimmed.toLowerCase() && n.parentId === parentId
     )
     if (taken) {
-      setNameError(d?.creation.errors.nameTaken ?? 'A node with this name already exists here.')
+      const isContainer = selectedKind === 'container'
+      setNameError(
+        (isContainer ? d?.creation.errors.nameTaken : d?.creation.errors.nameTakenField)
+        ?? 'A node with this name already exists here.'
+      )
       return false
     }
     setNameError(null)
@@ -164,7 +168,8 @@ export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
   const stepTitle =
     step === 'type-select'       ? (d?.creation.titleTypeSelect ?? 'Create node') :
     step === 'field-type-select' ? (d?.creation.titleFieldType  ?? 'Select field type') :
-                                   (d?.creation.titleName       ?? 'Name your node')
+    selectedKind === 'container' ? (d?.creation.titleName       ?? 'Name your node') :
+                                   (d?.creation.titleNameField  ?? 'Name your field')
 
   return (
     <NodePanel
@@ -224,7 +229,7 @@ export function NodeCreationPanel({ parentId }: NodeCreationPanelProps) {
         {step === 'name-input' && (
           <div className="flex flex-col gap-4">
             <Input
-              label={d?.creation.nodeName ?? 'Node name'}
+              label={selectedKind === 'container' ? (d?.creation.nodeName ?? 'Node name') : (d?.creation.fieldName ?? 'Field name')}
               value={name}
               onChange={(e) => { setName(e.target.value); if (nameError) setNameError(null) }}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}

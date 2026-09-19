@@ -61,6 +61,7 @@ export function ThemeClient({ dict, layoutDict, currentTheme }: Props) {
     'matrix':           dict.themes.matrix,
     'cyber-human':      dict.themes.cyberHuman,
     'stranger-things':  dict.themes.strangerThings,
+    'le-art':           dict.themes.leArt,
   }
 
   return (

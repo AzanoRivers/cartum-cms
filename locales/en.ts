@@ -65,6 +65,7 @@
         matrix:     { label: 'Matrix',      description: "A classic. Neo would be proud. Or would he?" },
         cyberHuman:     { label: 'Cyber Human',      description: 'Human evolution has no limits. Expand your mind.' },
         strangerThings: { label: 'Stranger Things',  description: 'Upside Down. Orange gate & acid green.' },
+        leArt:          { label: "Le'Art",           description: 'Soft lavender canvas. Violet, pink, green & blue.' },
       },
     },
     initializing: {
@@ -220,16 +221,6 @@
       descriptionLabel:       'Description (optional)',
       descriptionPlaceholder: 'A short description of your project',
       projectLocaleLabel:     'Project language',
-      themeLabel:             'Interface theme',
-      themes: {
-        dark:           'Dark',
-        'cyber-soft':   'Cyber Soft',
-        light:          'Light',
-        dusk:           'Dusk',
-        matrix:         'Matrix',
-        'cyber-human':      'Cyber Human',
-        'stranger-things':  'Stranger Things',
-      },
       next:                'Next →',
       submit:              'Get started →',
       submitting:          'Creating account…',
@@ -999,17 +990,20 @@
       titleTypeSelect: 'Create',
       titleFieldType:  'Select card type',
       titleName:       'Name your deck',
+      titleNameField:  'Name your card',
       containerLabel:  'Deck',
       containerDesc:   'Groups cards of the same type',
       fieldLabel:      'Card',
       fieldDesc:       'Defines a property for each card',
       nodeName:        'Deck name',
+      fieldName:       'Card name',
       placeholder:     'e.g. products',
       back:            'Back',
       create:          'Create',
       errors: {
-        nameRequired: 'Name is required.',
-        nameTaken:    'A deck with this name already exists.',
+        nameRequired:   'Name is required.',
+        nameTaken:      'A deck with this name already exists.',
+        nameTakenField: 'A card with this name already exists.',
       },
     },
     fieldTypePicker: {
@@ -1411,6 +1405,7 @@
         matrix:     { label: 'Matrix',       description: "A classic. Neo would be proud. Or would he?" },
         cyberHuman:     { label: 'Cyber Human',      description: 'Human evolution has no limits. Expand your mind.' },
         strangerThings: { label: 'Stranger Things',  description: 'Upside Down. Orange gate & acid green.' },
+        leArt:          { label: "Le'Art",           description: 'Soft lavender canvas. Violet, pink, green & blue.' },
       },
     },
     project: {
@@ -1827,6 +1822,7 @@
       // Progress
       progressTitle:        'Extraction in progress',
       phaseLabel:           'Phase: {phase}',
+      phaseAnalyzing:       'Good hand — shuffling the cards…',
       phaseFallback:        'Asking OpenAI for help, don\'t tell Elon…',
       phaseQueued:          'Queued, waiting for a free slot…',
       pagesProgress:        '{done} / {total} pages',
@@ -2304,6 +2300,7 @@ export type Dictionary = {
         matrix:     { label: string; description: string }
         cyberHuman:     { label: string; description: string }
         strangerThings: { label: string; description: string }
+        leArt:          { label: string; description: string }
       }
     }
     initializing: {
@@ -2373,8 +2370,6 @@ export type Dictionary = {
       projectLabel: string; projectPlaceholder: string
       descriptionLabel: string; descriptionPlaceholder: string
       projectLocaleLabel: string
-      themeLabel: string
-      themes: { dark: string; 'cyber-soft': string; light: string; dusk: string; matrix: string; 'cyber-human': string; 'stranger-things': string }
       next: string; submit: string; submitting: string; back: string
       showPassword: string; hidePassword: string
       alreadyHaveAccount: string; signIn: string; disabled: string
@@ -2663,10 +2658,10 @@ export type Dictionary = {
       types: { text: string; number: string; boolean: string; image: string; video: string; gallery: string; relation: string }
     }
     creation: {
-      ariaLabel: string; titleTypeSelect: string; titleFieldType: string; titleName: string
+      ariaLabel: string; titleTypeSelect: string; titleFieldType: string; titleName: string; titleNameField: string
       containerLabel: string; containerDesc: string; fieldLabel: string; fieldDesc: string
-      nodeName: string; placeholder: string; back: string; create: string
-      errors: { nameRequired: string; nameTaken: string }
+      nodeName: string; fieldName: string; placeholder: string; back: string; create: string
+      errors: { nameRequired: string; nameTaken: string; nameTakenField: string }
     }
     fieldTypePicker: { text: string; number: string; boolean: string; image: string; video: string; relation: string; gallery: string }
     fieldEdit: {
@@ -2824,6 +2819,7 @@ export type Dictionary = {
         matrix:     { label: string; description: string }
         cyberHuman:     { label: string; description: string }
         strangerThings: { label: string; description: string }
+        leArt:          { label: string; description: string }
       }
     }
     project: {
@@ -2978,7 +2974,7 @@ export type Dictionary = {
       connectionOk: string; connectionFail: string
       urlLabel: string; urlPlaceholder: string; maxPages: string; downloadImages: string
       startMigration: string; starting: string; accuracyWarning: string
-      progressTitle: string; phaseLabel: string; phaseFallback: string; phaseQueued: string; pagesProgress: string; stepsProgress: string; estimatedTime: string; cancel: string
+      progressTitle: string; phaseLabel: string; phaseAnalyzing: string; phaseFallback: string; phaseQueued: string; pagesProgress: string; stepsProgress: string; estimatedTime: string; cancel: string
       cancelDialog: { title: string; message: string; confirm: string; dismiss: string }
       closeDialog: { title: string; message: string; cancelAndClose: string; stay: string }
       resultTitle: string; coverage: string; ttlWarning: string

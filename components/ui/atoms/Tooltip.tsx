@@ -29,6 +29,11 @@ export function Tooltip({ content, side = 'top', children }: TooltipProps) {
   const wrapperRef = useRef<HTMLSpanElement>(null)
   const tooltipRef = useRef<HTMLSpanElement>(null)
   const hideTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // React's onClick fires for touch taps AND real mouse clicks alike — there
+  // is no way to tell them apart from the click event itself. Track the
+  // pointer type from the pointerdown that always precedes it instead, so a
+  // real mouse click never gets routed through the touch-only toggle below.
+  const lastPointerType = useRef<string>('mouse')
 
   const show = () => {
     if (hideTimer.current) clearTimeout(hideTimer.current)
@@ -37,7 +42,7 @@ export function Tooltip({ content, side = 'top', children }: TooltipProps) {
   const hide = () => {
     hideTimer.current = setTimeout(() => setVisible(false), 80)
   }
-  // Touch devices don't fire hover/focus on tap, so a click toggles the
+  // Touch devices don't fire hover/focus on tap, so a tap toggles the
   // tooltip instead — auto-hides after a bit so it never gets stuck open.
   const toggleForTouch = () => {
     if (hideTimer.current) clearTimeout(hideTimer.current)
@@ -46,6 +51,16 @@ export function Tooltip({ content, side = 'top', children }: TooltipProps) {
       if (next) hideTimer.current = setTimeout(() => setVisible(false), 2500)
       return next
     })
+  }
+  // A real mouse/pen click always performs the trigger's own action (e.g.
+  // opening a modal) — never leave the tooltip lingering behind for it.
+  const handleClick = () => {
+    if (lastPointerType.current === 'touch') {
+      toggleForTouch()
+      return
+    }
+    if (hideTimer.current) clearTimeout(hideTimer.current)
+    setVisible(false)
   }
 
   // Keep the tooltip inside the viewport horizontally — a badge near either
@@ -79,9 +94,8 @@ export function Tooltip({ content, side = 'top', children }: TooltipProps) {
       className="relative inline-flex"
       onMouseEnter={show}
       onMouseLeave={hide}
-      onFocus={show}
-      onBlur={hide}
-      onClick={toggleForTouch}
+      onPointerDown={(e) => { lastPointerType.current = e.pointerType }}
+      onClick={handleClick}
     >
       {children}
       <span

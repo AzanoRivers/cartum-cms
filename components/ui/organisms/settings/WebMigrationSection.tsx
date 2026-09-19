@@ -453,6 +453,8 @@ export function WebMigrationSection({ d, isSuperAdmin, loadingText, canActions =
                     <>
                       <p>{progress.phase === 'analyzing:fallback'
                         ? d.phaseFallback
+                        : progress.phase === 'analyzing'
+                        ? d.phaseAnalyzing
                         : progress.phase === 'queued'
                         ? d.phaseQueued
                         : t(d, 'phaseLabel', { phase: progress.phase })
