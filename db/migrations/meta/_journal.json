@@ -120,6 +120,13 @@
       "when": 1789753548444,
       "tag": "0016_field_meta_relation_target_set_null",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789780298804,
+      "tag": "0017_nodes_slug_unique_per_project",
+      "breakpoints": true
     }
   ]
 }

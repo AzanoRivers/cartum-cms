@@ -1,4 +1,4 @@
-import { boolean, check, jsonb, pgTable, real, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, jsonb, pgTable, real, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import type { PgColumn } from 'drizzle-orm/pg-core'
 import { project } from './project.schema'
@@ -12,7 +12,7 @@ export const nodes = pgTable(
     projectId: uuid('project_id').references(() => project.id, { onDelete: 'cascade' }).notNull(),
     name:      text('name').notNull(),
     type:      text('type').notNull(),
-    slug:      text('slug').unique(),
+    slug:      text('slug'),
     parentId:  uuid('parent_id').references((): PgColumn => nodes.id, { onDelete: 'cascade' }),
     positionX: real('position_x').notNull().default(0),
     positionY: real('position_y').notNull().default(0),
@@ -21,6 +21,13 @@ export const nodes = pgTable(
   },
   (t) => [
     check('nodes_type_check', sql`${t.type} IN ('container', 'field')`),
+    // Slugs are the public API's root-deck identifier (GET /api/v1/{slug}),
+    // which is always resolved scoped to one project — so uniqueness only
+    // needs to hold WITHIN a project, never across the whole instance. A
+    // plain UNIQUE(slug) here blocked two unrelated projects from ever
+    // having a same-named root deck (e.g. importing the same site twice
+    // into two different projects).
+    unique('nodes_project_slug_unique').on(t.projectId, t.slug),
   ],
 )
 
