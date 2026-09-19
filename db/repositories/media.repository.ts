@@ -181,7 +181,7 @@ export const mediaRepository = {
       .select()
       .from(media)
       .where(where)
-      .orderBy(asc(sql`COALESCE(${media.name}, ${media.key})`))
+      .orderBy(asc(sql`lower(COALESCE(NULLIF(${media.name}, ''), regexp_replace(${media.key}, '^.*/', '')))`))
       .limit(perPage)
       .offset(offset)
 
@@ -219,6 +219,29 @@ export const mediaRepository = {
       .from(media)
       .where(eq(media.projectId, projectId))
     return rows.map((r) => (r.name ?? r.key.split('/').pop() ?? '').toLowerCase()).filter(Boolean)
+  },
+
+  /** Case-insensitive duplicate-name check, scoped to `projectId`, excluding `excludeId` itself. */
+  async existsByName(name: string, projectId: string, excludeId: string): Promise<boolean> {
+    const conditions = [
+      eq(media.projectId, projectId),
+      eq(sql`lower(${media.name})`, name.toLowerCase()),
+    ]
+    const rows = await db
+      .select({ id: media.id })
+      .from(media)
+      .where(and(...conditions))
+      .limit(2)
+    return rows.some((r) => r.id !== excludeId)
+  },
+
+  async rename(id: string, projectId: string, name: string): Promise<MediaRecord | null> {
+    const [row] = await db
+      .update(media)
+      .set({ name })
+      .where(and(eq(media.id, id), eq(media.projectId, projectId)))
+      .returning()
+    return row ? toMediaRecord(row) : null
   },
 
   async delete(id: string, projectId: string): Promise<void> {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { BreadcrumbBar } from '@/components/ui/molecules/BreadcrumbBar'
@@ -23,7 +23,8 @@ export type TopBarProps = {
 }
 
 export function TopBar({ currentProject, projects, userInitials, isSuperAdmin, cartumSuscriptor, cartumSuscriptorTime }: TopBarProps) {
-  const router = useRouter()
+  const router   = useRouter()
+  const pathname = usePathname()
   const [menuOpen, setMenuOpen]         = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const breadcrumb = useUIStore((s) => s.breadcrumb)
@@ -80,6 +81,13 @@ export function TopBar({ currentProject, projects, userInitials, isSuperAdmin, c
     openSettings('account')
   }
 
+  function handleGoHome(e: React.MouseEvent) {
+    if (pathname === '/cms/board') return
+    e.preventDefault()
+    setGlobalLoading(true)
+    router.push('/cms/board')
+  }
+
   return (
     <>
       <header className="relative z-40 flex h-10 items-center justify-between border-b border-border bg-surface px-4 shrink-0">
@@ -87,6 +95,7 @@ export function TopBar({ currentProject, projects, userInitials, isSuperAdmin, c
         <div className="flex items-center gap-2 min-w-0">
           <Link
             href="/cms/board"
+            onClick={handleGoHome}
             aria-label={d?.topBar.dashboardAriaLabel ?? 'Go to dashboard'}
             className="shrink-0 opacity-90 transition-opacity hover:opacity-100"
           >

@@ -384,6 +384,41 @@ html[data-project-switching]::after {
     --gray12:         var(--color-text);
 }
 
+/* === FULLSCREEN LOADER SPARKS ===
+   Thin electric streaks radiating outward from the spinner, looping while
+   the loader is visible. --angle/--spark-color/--delay are set per-spark
+   from JS (FullscreenLoader.tsx) since they vary per instance. */
+.loader-sparks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.loader-spark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 14px;
+    margin-top: -7px;
+    margin-left: -1px;
+    background: linear-gradient(to top, transparent, var(--spark-color, var(--color-accent)), transparent);
+    filter: drop-shadow(0 0 3px var(--spark-color, var(--color-accent)));
+    opacity: 0;
+    animation: loader-spark-fly 900ms var(--delay, 0ms) cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+@keyframes loader-spark-fly {
+    0%   { opacity: 0; transform: rotate(var(--angle, 0deg)) translateY(0)      scaleY(0.3); }
+    12%  { opacity: 1; }
+    65%  { opacity: 0.55; }
+    100% { opacity: 0; transform: rotate(var(--angle, 0deg)) translateY(-34px) scaleY(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loader-spark { animation: none; opacity: 0; }
+}
+
 /* === CARTUM CMS RAINBOW NEON === */
 @keyframes cartum-rainbow {
   0%   { background-position: 0% center; }

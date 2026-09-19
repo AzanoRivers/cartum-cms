@@ -4,13 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Search, Upload } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { useMediaGallery } from '@/lib/hooks/useMediaGallery'
-import { deleteMediaRecord, bulkDeleteMediaRecords, getMediaStorageSummary } from '@/lib/actions/media.actions'
+import { deleteMediaRecord, bulkDeleteMediaRecords, getMediaStorageSummary, renameMediaAsset } from '@/lib/actions/media.actions'
 import { MediaGalleryTabs }      from '@/components/ui/molecules/MediaGalleryTabs'
 import { MediaGalleryGrid }      from '@/components/ui/molecules/MediaGalleryGrid'
 import { MediaGalleryPagination } from '@/components/ui/molecules/MediaGalleryPagination'
 import { MediaBulkBar }          from '@/components/ui/molecules/MediaBulkBar'
 import { MediaUploadModal }      from '@/components/ui/organisms/MediaUploadModal'
-import { MediaPreviewModal }     from '@/components/ui/organisms/MediaPreviewModal'
+import { MediaPreviewModal, type RenameResult } from '@/components/ui/organisms/MediaPreviewModal'
 import { MediaBulkDeleteModal }  from '@/components/ui/organisms/MediaBulkDeleteModal'
 import { VideoFallbackModal }    from '@/components/ui/organisms/VideoFallbackModal'
 import { VHSTransition }         from '@/components/ui/transitions/VHSTransition'
@@ -167,6 +167,14 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
     }
     refresh()
     void refreshSummary()
+  }
+
+  async function handleRename(asset: MediaRecord, name: string): Promise<RenameResult> {
+    const res = await renameMediaAsset(asset.id, name)
+    if (!res.success) return { success: false, error: res.error }
+    setPreviewAsset((prev) => (prev && prev.id === asset.id ? { ...prev, name: res.data.name } : prev))
+    refresh()
+    return { success: true }
   }
 
   async function handleBulkDelete() {
@@ -365,10 +373,17 @@ export function MediaGalleryPage({ d, activeProvider = 'r2', vpsConfigured = fal
         asset={previewAsset}
         onClose={() => setPreviewAsset(null)}
         onDelete={handleDelete}
+        onRename={canDelete ? handleRename : undefined}
         deleteLabel={g.deleteLabel}
         confirmLabel={g.confirmDelete}
         copyUrlLabel={g.copyUrlLabel}
         copiedLabel={g.copiedLabel}
+        renameLabel={g.renameLabel}
+        renameSaveLabel={g.renameSaveLabel}
+        renameCancelLabel={g.renameCancelLabel}
+        nameRequiredLabel={g.renameNameRequired}
+        duplicateNameLabel={g.renameDuplicate}
+        renameErrorLabel={g.renameError}
       />
 
       {/* Tabs + Search + Mobile bulk bar */}

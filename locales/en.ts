@@ -1247,6 +1247,12 @@
         deleteError:     'Could not delete file.',
         copyUrlLabel:    'Copy URL',
         copiedLabel:     'Copied!',
+        renameLabel:        'Rename',
+        renameSaveLabel:    'Save',
+        renameCancelLabel:  'Cancel',
+        renameNameRequired: 'Name is required.',
+        renameDuplicate:    'An image with that name already exists in this project.',
+        renameError:        'Could not rename.',
         ofLabel:         'of',
         perPageLabel:    'Per page',
         // Optimus VPS warnings (upload succeeds but optimizer had issues)
@@ -2002,6 +2008,8 @@
       sponsorsCta:    'Every great project needs a little help. Become a Sponsor:',
       sponsorsXUrl:   'https://www.x.com/azanorivers',
       sponsorsXLabel: '@azanorivers on X',
+      sponsorsSupportUrl:   'https://support.azanolabs.com/?pr=muuuncodeide',
+      sponsorsSupportLabel: 'Support us!',
     },
     db: {
       title:              'Database',
@@ -2725,6 +2733,7 @@ export type Dictionary = {
         dropHere: string; orClick: string; uploadStart: string
         optimizing: string; uploading: string; uploadSuccess: string; uploadError: string
         deleteLabel: string; confirmDelete: string; deleteSuccess: string; deleteError: string; copyUrlLabel: string; copiedLabel: string
+        renameLabel: string; renameSaveLabel: string; renameCancelLabel: string; renameNameRequired: string; renameDuplicate: string; renameError: string
         ofLabel: string; perPageLabel: string
         vpsUnreachable: string; vpsAuth: string; vpsTimeout: string
         vpsValidation: string; vpsPartial: string; vpsQueueFull: string
@@ -3000,6 +3009,7 @@ export type Dictionary = {
       docs: string; docsUrl: string
       sponsorsTitle: string; sponsors: Array<{ name: string; url: string }>
       sponsorsCta: string; sponsorsXUrl: string; sponsorsXLabel: string
+      sponsorsSupportUrl: string; sponsorsSupportLabel: string
     }
     db: {
       title: string; docsLinkLabel: string; docsLinkDesc: string

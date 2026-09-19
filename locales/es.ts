@@ -1249,6 +1249,12 @@ export const es: Dictionary = {
         deleteError:       'No se pudo eliminar el archivo.',
         copyUrlLabel:      'Copiar URL',
         copiedLabel:       '¡Copiado!',
+        renameLabel:        'Renombrar',
+        renameSaveLabel:    'Guardar',
+        renameCancelLabel:  'Cancelar',
+        renameNameRequired: 'El nombre es obligatorio.',
+        renameDuplicate:    'Ya existe una imagen con ese nombre en este proyecto.',
+        renameError:        'No se pudo renombrar.',
         ofLabel:           'de',
         perPageLabel:      'Por página',
         // Advertencias del optimizador Optimus (la subida tiene éxito pero el optimizador falló)
@@ -2000,6 +2006,8 @@ export const es: Dictionary = {
       sponsorsCta:    'Todo gran proyecto necesita algo de ayuda. Conviértete en Sponsor:',
       sponsorsXUrl:   'https://www.x.com/azanorivers',
       sponsorsXLabel: '@azanorivers en X',
+      sponsorsSupportUrl:   'https://support.azanolabs.com/?pr=muuuncodeide',
+      sponsorsSupportLabel: '¡Apóyanos!',
     },
     db: {
       title:              'Base de datos',

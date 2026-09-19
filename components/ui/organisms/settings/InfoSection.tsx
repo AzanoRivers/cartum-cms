@@ -87,6 +87,14 @@ export function InfoSection({ d }: InfoSectionProps) {
               {s.name}
             </a>
           ))}
+          <a
+            href={d.sponsorsSupportUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-mono text-xs font-semibold text-white shadow-sm shadow-primary/20 transition-all hover:bg-primary/90 hover:-translate-y-px active:translate-y-0"
+          >
+            {d.sponsorsSupportLabel}
+          </a>
         </div>
         <p className="font-mono text-[11px] text-muted leading-relaxed">
           {d.sponsorsCta}{' '}

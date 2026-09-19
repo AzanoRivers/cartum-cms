@@ -330,6 +330,36 @@ export async function deleteMediaRecord(
 }
 
 // -----------------------------------------------------------------------
+// renameMediaAsset — updates the display name, scoped to `projectId`,
+// rejecting case-insensitive duplicates WITHIN the same project only.
+// -----------------------------------------------------------------------
+export async function renameMediaAsset(
+  id: string,
+  name: string,
+): Promise<ActionResult<{ name: string }>> {
+  try {
+    const [userId, projectId] = await Promise.all([requireSessionUserId(), requireProjectId()])
+    await assertProjectAccess(projectId)
+    const record = await mediaRepository.findById(id, projectId)
+    if (!record) return { success: false, error: 'NOT_FOUND' }
+    await requireGalleryPermission(userId, projectId, mimeToCategory(record.mimeType), 'canDelete')
+
+    const trimmed = name.trim()
+    if (!trimmed) return { success: false, error: 'NAME_REQUIRED' }
+
+    const duplicate = await mediaRepository.existsByName(trimmed, projectId, id)
+    if (duplicate) return { success: false, error: 'DUPLICATE_NAME' }
+
+    const updated = await mediaRepository.rename(id, projectId, trimmed)
+    if (!updated) return { success: false, error: 'NOT_FOUND' }
+
+    return { success: true, data: { name: updated.name ?? trimmed } }
+  } catch {
+    return { success: false, error: 'Failed to rename media record.' }
+  }
+}
+
+// -----------------------------------------------------------------------
 // bulkDeleteMediaRecords — removes multiple records from storage + DB
 // -----------------------------------------------------------------------
 export async function bulkDeleteMediaRecords(
