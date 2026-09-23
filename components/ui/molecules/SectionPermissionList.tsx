@@ -4,7 +4,7 @@ import type { SectionKey, SectionAccess } from '@/types/roles'
 import type { Dictionary } from '@/locales/en'
 
 const SECTION_KEYS: SectionKey[] = [
-  'project', 'appearance', 'account', 'email', 'storage',
+  'project', 'appearance', 'account', 'email', 'storage', 'members',
   'users', 'roles', 'api', 'db', 'webMigration', 'help', 'info',
 ]
 

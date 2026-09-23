@@ -8,13 +8,14 @@ import { db } from '@/db'
 import { roles, roleSectionPermissions } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { ROLE_ADMIN, ROLE_EDITOR, ROLE_VIEWER, ROLE_RESTRICTED } from '@/types/roles'
+import type { SectionKey } from '@/types/roles'
 
-type SectionKey = typeof SECTIONS[number]
-
-const SECTIONS = [
+// Curated subset of SECTION_KEYS (types/roles.ts) that gets an explicit,
+// per-role seeded permission row. Kept in sync with lib/services/setup.service.ts.
+const SECTIONS: readonly SectionKey[] = [
   'project', 'appearance', 'account', 'email', 'storage',
   'members', 'users', 'roles', 'api', 'db', 'webMigration', 'help', 'info',
-] as const
+]
 
 const DEFAULT_ROLES = [
   { name: ROLE_ADMIN,      description: 'Full access. Can manage users, roles, content, and settings.' },

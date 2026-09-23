@@ -5,14 +5,14 @@ import { cookies } from 'next/headers'
 import { db } from '@/db'
 import { project, users, usersRoles, roles, rolePermissions, nodes, media, projectMemberships, appSettings } from '@/db/schema'
 import { usersRepository } from '@/db/repositories/users.repository'
-import { del as blobDel } from '@vercel/blob'
+import { del as blobDel, list as blobList } from '@vercel/blob'
 import { auth } from '@/auth'
 import { getSetting, setSetting } from '@/lib/settings/get-setting'
 import { ACTIVE_PROJECT_COOKIE } from '@/lib/auth/constants'
 import { hashPassword } from '@/lib/services/auth.service'
 import { getR2Client } from '@/lib/media/r2-client'
 import { blobUpload, blobDelete, isBlobConfigured } from '@/lib/media/blob-client'
-import { PutObjectCommand, DeleteObjectCommand, PutBucketCorsCommand } from '@aws-sdk/client-s3'
+import { PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, PutBucketCorsCommand } from '@aws-sdk/client-s3'
 
 import { sendWelcomeEmail } from '@/lib/email/mailer'
 import { consumeRateLimit } from '@/lib/actions/rate-limit.actions'
@@ -267,9 +267,13 @@ export async function deleteUserProject(projectId: string): Promise<ActionResult
     await db.delete(project).where(eq(project.id, projectId))
 
     // 5. Purge storage files (best-effort — don't fail the action if storage is unreachable)
+    // Resolved for THIS project specifically — a project can configure its own
+    // R2 bucket or Blob token distinct from the instance default (Settings →
+    // Storage). Using the global client here would silently leave that
+    // project's files behind with zero trace once the project row is gone.
     let r2: Awaited<ReturnType<typeof getR2Client>> | null = null
-    try { r2 = await getR2Client() } catch { /* not configured */ }
-    const blobToken = await getSetting('blob_token', process.env.BLOB_READ_WRITE_TOKEN).catch(() => null)
+    try { r2 = await getR2Client(projectId) } catch { /* not configured */ }
+    const blobToken = await resolveStorageSetting('blob_token', process.env.BLOB_READ_WRITE_TOKEN, projectId).catch(() => undefined)
 
     await Promise.allSettled(
       mediaRows.map(async (row) => {
@@ -280,6 +284,39 @@ export async function deleteUserProject(projectId: string): Promise<ActionResult
         }
       }),
     )
+
+    // 5b. Sweep any true orphans under this project's prefix (media uploaded
+    // but whose DB row was already lost some other way) — the project row is
+    // gone after this, so this is the last chance to ever find them.
+    if (r2) {
+      try {
+        let continuationToken: string | undefined
+        do {
+          const listRes = await r2.client.send(new ListObjectsV2Command({
+            Bucket:            r2.bucket,
+            Prefix:            `uploads/${projectId}/`,
+            ContinuationToken: continuationToken,
+          }))
+          const keys = (listRes.Contents ?? []).map((obj) => ({ Key: obj.Key! }))
+          if (keys.length > 0) {
+            await r2.client.send(new DeleteObjectsCommand({ Bucket: r2.bucket, Delete: { Objects: keys, Quiet: true } }))
+          }
+          continuationToken = listRes.IsTruncated ? listRes.NextContinuationToken : undefined
+        } while (continuationToken)
+      } catch { /* best-effort */ }
+    }
+    if (blobToken) {
+      try {
+        let cursor: string | undefined
+        do {
+          const listRes = await blobList({ prefix: `uploads/${projectId}/`, cursor, token: blobToken })
+          for (const blob of listRes.blobs) {
+            try { await blobDel(blob.url, { token: blobToken }) } catch { /* best-effort */ }
+          }
+          cursor = listRes.hasMore ? listRes.cursor : undefined
+        } while (cursor)
+      } catch { /* best-effort */ }
+    }
 
     // 6. Switch session to the replacement project (identified before deletion)
     if (nextProjectId) {
@@ -311,7 +348,7 @@ async function requireStorageAccess() {
 }
 
 /** Resolves project-scoped storage setting: project key → global key → env fallback. */
-async function resolveStorageSetting(key: string, envFallback: string | undefined, projectId: string) {
+export async function resolveStorageSetting(key: string, envFallback: string | undefined, projectId: string) {
   return (
     (await getSetting(`${key}:${projectId}`)) ??
     (await getSetting(key, envFallback))

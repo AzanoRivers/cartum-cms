@@ -24,7 +24,7 @@ export function DocLink({ href, label, desc }: DocLinkProps) {
         <p className="font-mono text-xs text-text group-hover:text-primary transition-colors">{label}</p>
         <p className="font-mono text-[11px] text-muted leading-4 mt-0.5">{desc}</p>
       </div>
-      <span className="shrink-0 self-center font-mono text-muted/40 text-xs group-hover:text-primary/60 transition-colors">↗</span>
+      <span className="shrink-0 self-center font-mono text-muted/40 text-sm md:text-lg group-hover:text-primary/60 transition-colors">↗</span>
     </Link>
   )
 }

@@ -88,12 +88,11 @@ export default async function SystemCheckPage() {
   const dict   = setup.systemCheck
 
   const checks = await runChecks(dict)
-  const allOk  = checks.filter((c) => !c.warning).every((c) => c.ok)
 
   return (
     <SetupLayout currentStep="system-check" layoutDict={{ stepLabels: setup.stepLabels, back: setup.layout.back }}>
       <VHSTransition>
-        <SystemCheckClient checks={checks} allOk={allOk} dict={dict} />
+        <SystemCheckClient checks={checks} dict={dict} />
       </VHSTransition>
     </SetupLayout>
   )

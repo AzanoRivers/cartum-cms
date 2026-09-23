@@ -21,6 +21,7 @@
       allOk:          'All systems nominal',
       continue: 'Continue',
       fixFirst: 'Fix this first',
+      retrying: 'Retrying... ({attempt}/{max})',
     },
     locale: {
       title:    'Choose your language',
@@ -2324,7 +2325,7 @@ export type Dictionary = {
       blobLabel: string; blobWarning: string
       optimusLabel: string; optimusWarning: string
       scraperLabel: string; scraperWarning: string
-      allOk: string; continue: string; fixFirst: string
+      allOk: string; continue: string; fixFirst: string; retrying: string
     }
     locale: { title: string; subtitle: string; continue: string }
     credentials: {

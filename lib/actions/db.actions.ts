@@ -31,6 +31,7 @@ import { toSimpleName } from '@/nodes/api-generator'
 import { del as blobDel, list as blobList } from '@vercel/blob'
 import { getSetting } from '@/lib/settings/get-setting'
 import { getR2Client } from '@/lib/media/r2-client'
+import { resolveStorageSetting } from '@/lib/actions/settings.actions'
 import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
@@ -47,21 +48,42 @@ export type StoragePurgeResult = {
   blobOrphans: number
 }
 
+type R2Handle = Awaited<ReturnType<typeof getR2Client>>
+
+/**
+ * Purges media storage for the ENTIRE instance, across every project.
+ *
+ * Projects can each configure their own R2 bucket or Blob token, distinct
+ * from the instance default (Settings → Storage). A single global client
+ * here would silently leave a project's real files behind, forever
+ * untraceable once the reset wipes `project`/`appSettings` (the only rows
+ * that ever recorded which bucket/credentials that project used). So every
+ * project's OWN resolved client is used, deduplicated so a bucket/token
+ * shared by several projects is only swept once.
+ */
 async function purgeAllMediaStorage(): Promise<StoragePurgeResult> {
   let deleted     = 0
   let failed      = 0
   let r2Orphans   = 0
   let blobOrphans = 0
 
-  // Hoist clients once — getSetting reads from DB, must not run per-row
-  let r2: Awaited<ReturnType<typeof getR2Client>> | null = null
-  try { r2 = await getR2Client() } catch { /* R2 not configured */ }
+  const projects = await db.select({ id: project.id }).from(project)
 
-  const blobToken = await getSetting('blob_token', process.env.BLOB_READ_WRITE_TOKEN).catch(() => null)
+  const r2ByProject:   Map<string, R2Handle | null> = new Map()
+  const blobByProject: Map<string, string | null>   = new Map()
 
-  // ── Phase 1: DB-driven purge ─────────────────────────────────────────────
+  await Promise.all(projects.map(async (p) => {
+    const [r2Handle, blobToken] = await Promise.all([
+      getR2Client(p.id).catch(() => null),
+      resolveStorageSetting('blob_token', process.env.BLOB_READ_WRITE_TOKEN, p.id).catch(() => undefined),
+    ])
+    r2ByProject.set(p.id, r2Handle)
+    blobByProject.set(p.id, blobToken ?? null)
+  }))
+
+  // ── Phase 1: DB-driven purge, using each row's OWN project's client ──────
   const rows = await db
-    .select({ key: media.key, publicUrl: media.publicUrl, storageProvider: media.storageProvider })
+    .select({ key: media.key, publicUrl: media.publicUrl, storageProvider: media.storageProvider, projectId: media.projectId })
     .from(media)
 
   const BATCH = 100
@@ -71,9 +93,11 @@ async function purgeAllMediaStorage(): Promise<StoragePurgeResult> {
       batch.map(async (row) => {
         try {
           if (row.storageProvider === 'blob') {
+            const blobToken = blobByProject.get(row.projectId) ?? null
             if (!blobToken) { failed++; return }
             await blobDel(row.publicUrl, { token: blobToken })
           } else {
+            const r2 = r2ByProject.get(row.projectId) ?? null
             if (!r2) { failed++; return }
             await r2.client.send(new DeleteObjectCommand({ Bucket: r2.bucket, Key: row.key }))
           }
@@ -85,10 +109,24 @@ async function purgeAllMediaStorage(): Promise<StoragePurgeResult> {
     )
   }
 
-  // ── Phase 2: storage sweep — orphans not in DB ────────────────────────────
+  // ── Phase 2: storage sweep — orphans not in DB, once per DISTINCT bucket/token ──
+  const seenBuckets = new Set<string>()
+  const distinctR2 = [...r2ByProject.values()].filter((r2): r2 is R2Handle => {
+    if (!r2) return false
+    const sig = `${r2.bucket}|${r2.publicUrl}`
+    if (seenBuckets.has(sig)) return false
+    seenBuckets.add(sig)
+    return true
+  })
 
-  // R2 sweep
-  if (r2) {
+  const seenTokens = new Set<string>()
+  const distinctBlobTokens = [...blobByProject.values()].filter((t): t is string => {
+    if (!t || seenTokens.has(t)) return false
+    seenTokens.add(t)
+    return true
+  })
+
+  await Promise.all(distinctR2.map(async (r2) => {
     let continuationToken: string | undefined
     do {
       const listRes = await r2.client.send(new ListObjectsV2Command({
@@ -106,10 +144,9 @@ async function purgeAllMediaStorage(): Promise<StoragePurgeResult> {
       }
       continuationToken = listRes.IsTruncated ? listRes.NextContinuationToken : undefined
     } while (continuationToken)
-  }
+  }))
 
-  // Blob sweep
-  if (blobToken) {
+  await Promise.all(distinctBlobTokens.map(async (blobToken) => {
     let cursor: string | undefined
     do {
       const listRes = await blobList({ prefix: 'uploads/', cursor, token: blobToken })
@@ -121,7 +158,7 @@ async function purgeAllMediaStorage(): Promise<StoragePurgeResult> {
       }
       cursor = listRes.hasMore ? listRes.cursor : undefined
     } while (cursor)
-  }
+  }))
 
   return { deleted, failed, r2Orphans, blobOrphans }
 }
@@ -797,10 +834,12 @@ async function purgeProjectMediaStorage(projectId: string): Promise<StoragePurge
   let r2Orphans   = 0
   let blobOrphans = 0
 
+  // Resolved for THIS project — it may have its own R2 bucket or Blob token
+  // distinct from the instance default (Settings → Storage per project).
   let r2: Awaited<ReturnType<typeof getR2Client>> | null = null
-  try { r2 = await getR2Client() } catch { /* not configured */ }
+  try { r2 = await getR2Client(projectId) } catch { /* not configured */ }
 
-  const blobToken = await getSetting('blob_token', process.env.BLOB_READ_WRITE_TOKEN).catch(() => null)
+  const blobToken = await resolveStorageSetting('blob_token', process.env.BLOB_READ_WRITE_TOKEN, projectId).catch(() => undefined) ?? null
 
   const rows = await db
     .select({ key: media.key, publicUrl: media.publicUrl, storageProvider: media.storageProvider })

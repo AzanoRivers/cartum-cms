@@ -518,7 +518,7 @@ function DialogContent({
       <button
         onClick={closeSettings}
         aria-label="Close settings"
-        className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted hover:text-text hover:border-border/80 transition-colors cursor-pointer font-mono text-xs"
+        className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-md border border-border bg-surface shadow-sm text-muted hover:text-text hover:bg-surface-2 hover:border-border/80 transition-colors cursor-pointer font-mono text-xs"
       >
         ✕
       </button>

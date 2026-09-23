@@ -168,7 +168,12 @@ export function SuperDbSection({ d, canActions = true }: SuperDbSectionProps) {
         if (orphans > 0) toast.info(`Storage sweep: ${orphans} orphan file(s) removed.`)
       }
 
+      // Full reset must leave zero client-side trace of the wiped instance —
+      // stale cookies, storage, or DOM flags here would carry over into the
+      // "from scratch" setup wizard instead of a truly clean slate.
       try { localStorage.clear() } catch { /* sandboxed */ }
+      try { sessionStorage.clear() } catch { /* sandboxed */ }
+      try { document.documentElement.removeAttribute('data-project-switching') } catch { /* n/a */ }
       window.location.replace('/setup/locale')
     })
   }

@@ -23,6 +23,7 @@ export const es: Dictionary = {
       allOk:          'Houston, sin problemas. Podemos continuar.',
       continue:       'Continuar',
       fixFirst:       'Toca arreglar esto primero',
+      retrying:       'Reintentando... ({attempt}/{max})',
     },
     locale: {
       title:    '¿En qué idioma trabajamos?',

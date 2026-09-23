@@ -44,10 +44,17 @@ export interface CreateRoleInput {
   description?: string
 }
 
-export type SectionKey =
-  | 'project' | 'subscription' | 'appearance' | 'account' | 'email' | 'storage'
-  | 'users' | 'roles' | 'api' | 'db' | 'webMigration' | 'info' | 'members'
-  | 'cartumProjects' | 'variables' | 'defaults' | 'help' | 'superDb'
+// Single source of truth for every settings-nav section that can carry a
+// per-role permission. The DB check constraint on role_section_permissions.section
+// (see db/schema/role-section-permissions.schema.ts) is generated from this
+// same array — adding a new section here is the only place that needs editing.
+export const SECTION_KEYS = [
+  'project', 'subscription', 'appearance', 'account', 'email', 'storage',
+  'users', 'roles', 'api', 'db', 'webMigration', 'info', 'members',
+  'cartumProjects', 'variables', 'defaults', 'help', 'superDb',
+] as const
+
+export type SectionKey = typeof SECTION_KEYS[number]
 
 export interface SectionPermission {
   section:    SectionKey

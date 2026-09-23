@@ -5,6 +5,7 @@ import { project, roles, roleSectionPermissions, projectMemberships, users } fro
 import { eq } from 'drizzle-orm'
 import type { SupportedLocale } from '@/types/project'
 import { ROLE_ADMIN, ROLE_EDITOR, ROLE_VIEWER, ROLE_RESTRICTED } from '@/types/roles'
+import type { SectionKey } from '@/types/roles'
 import { ensureTriggers } from '@/db/adapters/ensure-triggers'
 import { ensureSchemaColumns } from '@/db/adapters/ensure-schema-columns'
 import { runMigrations } from '@/db/adapters/run-migrations'
@@ -65,12 +66,14 @@ export async function createProjectService(input: CreateProjectInput): Promise<v
 
 // ── Initialize Schema ─────────────────────────────────────────────────────────
 
-const SECTIONS = [
+// Curated subset of SECTION_KEYS (types/roles.ts) that gets an explicit,
+// per-role seeded permission row. Super-admin-only sections (cartumProjects,
+// variables, defaults, superDb) and subscription are intentionally excluded —
+// TS will error here if a typo'd value isn't a real SectionKey.
+const SECTIONS: readonly SectionKey[] = [
   'project', 'appearance', 'account', 'email', 'storage',
   'members', 'users', 'roles', 'api', 'db', 'webMigration', 'help', 'info',
-] as const
-
-type SectionKey = typeof SECTIONS[number]
+]
 
 const DEFAULT_ROLES = [
   { name: ROLE_ADMIN,      description: 'Full access. Can manage users, roles, content, and settings.' },
