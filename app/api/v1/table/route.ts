@@ -1,5 +1,5 @@
 import { resolveApiAuth } from '@/lib/api/auth'
-import { corsHeaders } from '@/lib/api/utils'
+import { corsHeaders, getParentSimpleName, matchesNameQuery } from '@/lib/api/utils'
 import { buildResolverContext } from '@/lib/services/node-schema-context'
 import { resolveNodeSchema } from '@/lib/services/node-schema-resolver'
 import { nodeService } from '@/lib/services/nodes.service'
@@ -20,12 +20,20 @@ export async function GET(req: Request) {
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
   if (!apiAuth.scope.includes('read')) return apiError('FORBIDDEN', 'Token scope does not allow read.', 403)
 
+  const url    = new URL(req.url)
+  const search = url.searchParams.get('search') ?? ''
+  const strict = url.searchParams.get('strict') === 'true'
+
   const ctx = await buildResolverContext(apiAuth.projectId)
   const rootDecks = ctx.allNodes.filter(
-    (n) => n.type === 'container' && n.parentId === null && !apiAuth.excludedNodeIds.includes(n.id),
+    (n) =>
+      n.type === 'container' &&
+      n.parentId === null &&
+      !apiAuth.excludedNodeIds.includes(n.id) &&
+      matchesNameQuery(n.name, n.simpleName, search, strict),
   )
 
-  // Silently drop decks the token's role cannot read — never 403 the whole
+  // Silently drop decks the token's role cannot read, never 403 the whole
   // list for one restricted deck among many.
   const readable = await Promise.all(
     rootDecks.map(async (deck) => ({
@@ -41,6 +49,7 @@ export async function GET(req: Request) {
       return {
         id:         deck.id,
         name:       deck.name,
+        simpleName: deck.simpleName,
         slug:       deck.slug ?? nodeNameToSlug(deck.name),
         updatedAt:  deck.updatedAt,
         cards:      resolved.fields,
@@ -80,8 +89,9 @@ export async function POST(req: Request) {
 
   try {
     const node = await nodeService.createContainer(parsed.data, apiAuth.projectId)
+    const parentSimpleName = await getParentSimpleName(node.parentId, apiAuth.projectId)
     return Response.json(
-      { data: { id: node.id, name: node.name, parentId: node.parentId, createdAt: node.createdAt, updatedAt: node.updatedAt } },
+      { data: { id: node.id, name: node.name, simpleName: node.simpleName, parentId: node.parentId, parentSimpleName, createdAt: node.createdAt, updatedAt: node.updatedAt } },
       { status: 201, headers: corsHeaders() },
     )
   } catch (err) {

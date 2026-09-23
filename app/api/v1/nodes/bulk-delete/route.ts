@@ -13,7 +13,7 @@ export async function OPTIONS() {
 }
 
 /**
- * Bulk delete for decks and/or cards in one call — each cascades on its own
+ * Bulk delete for decks and/or cards in one call - each cascades on its own
  * subtree (nested decks, their cards, their records, their media) exactly
  * like DELETE /api/v1/table/{deckId}?cascade=true. One failing ID never
  * blocks the rest: every ID gets its own success/error entry in the response.

@@ -15,11 +15,12 @@ function mapToResolvedField(
   containerSlugMap: Map<string, string>,
 ): ResolvedField {
   const field: ResolvedField = {
-    id:       row.nodes.id,
-    name:     row.nodes.name,
-    type:     row.field_meta.fieldType as FieldType,
-    required: row.field_meta.isRequired,
-    edit:     row.nodes.updatedAt,
+    id:         row.nodes.id,
+    name:       row.nodes.name,
+    simpleName: row.nodes.simpleName,
+    type:       row.field_meta.fieldType as FieldType,
+    required:   row.field_meta.isRequired,
+    edit:       row.nodes.updatedAt,
   }
 
   if (row.field_meta.defaultValue !== null && row.field_meta.defaultValue !== undefined) {
@@ -59,7 +60,7 @@ function ownDirect(nodeId: string, ctx: ResolverContext): ResolvedNodeContent {
 
   const containers: ResolvedContainer[] = ctx.allNodes
     .filter((n) => n.parentId === nodeId && n.type === 'container')
-    .map((n) => ({ id: n.id, name: n.name, edit: n.updatedAt }))
+    .map((n) => ({ id: n.id, name: n.name, simpleName: n.simpleName, edit: n.updatedAt }))
 
   return { fields, containers }
 }

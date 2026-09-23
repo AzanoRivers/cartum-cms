@@ -1,5 +1,7 @@
 import { recordsRepository } from '@/db/repositories/records.repository'
 import { mediaRepository } from '@/db/repositories/media.repository'
+import { nodesRepository } from '@/db/repositories/nodes.repository'
+import { toSimpleName } from '@/nodes/api-generator'
 import type { ContentRecord, RecordValue } from '@/types/records'
 import type { FieldNode, GalleryItem } from '@/types/nodes'
 
@@ -119,6 +121,54 @@ export function flattenRecord(
     updatedAt: record.updatedAt,
     ...(expandedData ?? record.data),
   }
+}
+
+/**
+ * Whether a deck/card matches a search query.
+ *
+ * Default (substring mode): matches if `query` is a substring of the display
+ * `name` (case-insensitive) OR of `simpleName` (both normalized the same way
+ * — lowercased, whitespace stripped — so "My Deck", "my deck" and "MyDeck"
+ * all match "deck").
+ *
+ * Strict mode (`strict: true`): ignores `name` entirely and requires an
+ * EXACT match against the normalized `simpleName` — "deck" no longer matches
+ * "My Deck", only an exact "mydeck" does.
+ */
+export function matchesNameQuery(name: string, simpleName: string | null, query: string, strict = false): boolean {
+  const q = query.trim()
+  if (!q) return true
+
+  const resolvedSimpleName = simpleName ?? toSimpleName(name)
+  if (strict) return resolvedSimpleName === toSimpleName(q)
+
+  if (name.toLowerCase().includes(q.toLowerCase())) return true
+  return resolvedSimpleName.includes(toSimpleName(q))
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Whether `value` is a well-formed UUID. Every id path param that feeds a
+ * raw `eq(uuidColumn, value)` query MUST be checked with this before the
+ * query runs — Postgres throws a raw, uncaught type error (500, with the
+ * query text in the response) for a non-UUID string, instead of a clean
+ * 400/404. Route handlers should return 400 INVALID_ID when this is false.
+ */
+export function isUuid(value: string): boolean {
+  return UUID_RE.test(value)
+}
+
+/**
+ * The simpleName of a deck/card's parent, for API responses that expose
+ * `parentId` — resolves it in one extra lookup so consumers don't have to
+ * make a second call just to know the parent's simpleName. Null when there
+ * is no parent (a root deck).
+ */
+export async function getParentSimpleName(parentId: string | null, projectId: string): Promise<string | null> {
+  if (!parentId) return null
+  const parent = await nodesRepository.findById(parentId, projectId)
+  return parent?.simpleName ?? null
 }
 
 export function corsHeaders(): HeadersInit {

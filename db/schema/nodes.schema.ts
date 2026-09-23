@@ -1,4 +1,4 @@
-import { boolean, check, jsonb, pgTable, real, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, index, jsonb, pgTable, real, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import type { PgColumn } from 'drizzle-orm/pg-core'
 import { project } from './project.schema'
@@ -11,6 +11,7 @@ export const nodes = pgTable(
     id:        uuid('id').primaryKey().defaultRandom(),
     projectId: uuid('project_id').references(() => project.id, { onDelete: 'cascade' }).notNull(),
     name:      text('name').notNull(),
+    simpleName: text('simple_name'),
     type:      text('type').notNull(),
     slug:      text('slug'),
     parentId:  uuid('parent_id').references((): PgColumn => nodes.id, { onDelete: 'cascade' }),
@@ -28,6 +29,10 @@ export const nodes = pgTable(
     // having a same-named root deck (e.g. importing the same site twice
     // into two different projects).
     unique('nodes_project_slug_unique').on(t.projectId, t.slug),
+    // simpleName is `name` lowercased with whitespace stripped, kept in sync on
+    // every write (see toSimpleName in nodes/api-generator.ts). Indexed so
+    // search-by-name endpoints can filter on it cheaply within a project.
+    index('nodes_project_simple_name_idx').on(t.projectId, t.simpleName),
   ],
 )
 

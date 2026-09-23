@@ -27,6 +27,7 @@ import {
   userEmailRegistry,
 } from '@/db/schema'
 import { requireProjectId } from '@/lib/auth/get-project-id'
+import { toSimpleName } from '@/nodes/api-generator'
 import { del as blobDel, list as blobList } from '@vercel/blob'
 import { getSetting } from '@/lib/settings/get-setting'
 import { getR2Client } from '@/lib/media/r2-client'
@@ -291,6 +292,19 @@ function topoSortNodes(nodeItems: unknown[]): unknown[] {
   return result
 }
 
+/**
+ * Fills in `simpleName` for backups taken before that column existed (or any
+ * row where it was left null), so restored data is searchable immediately
+ * instead of only after the next edit touches each node.
+ */
+function backfillSimpleName(nodeItems: unknown[]): unknown[] {
+  return nodeItems.map((n) => {
+    if (!isRecord(n) || typeof n.name !== 'string') return n
+    if (typeof n.simpleName === 'string' && n.simpleName) return n
+    return { ...n, simpleName: toSimpleName(n.name) }
+  })
+}
+
 // ── Backup item validators ────────────────────────────────────────────────────
 
 function validateBackupItems(backup: CmsBackup): string | null {
@@ -384,7 +398,7 @@ function parseAndValidateBackup(raw: unknown): { backup: CmsBackup } | { error: 
 
 /** Wipes the entire instance and restores it from `backup`, inside one transaction. */
 async function restoreBackupTransaction(backup: CmsBackup): Promise<void> {
-  const sortedNodes = topoSortNodes(backup.nodes)
+  const sortedNodes = backfillSimpleName(topoSortNodes(backup.nodes))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type Tx = any
@@ -700,7 +714,7 @@ export async function importProjectAction(raw: unknown): Promise<ActionResult<nu
       uploadedBy: session.user.id,
     }))
 
-  const sortedNodes = topoSortNodes(preparedNodes)
+  const sortedNodes = backfillSimpleName(topoSortNodes(preparedNodes))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type Tx = any

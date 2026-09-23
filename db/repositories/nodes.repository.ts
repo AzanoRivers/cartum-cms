@@ -1,7 +1,7 @@
 import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { nodes, fieldMeta } from '@/db/schema'
-import { nodeNameToSlug } from '@/nodes/api-generator'
+import { nodeNameToSlug, toSimpleName } from '@/nodes/api-generator'
 import type { AnyNode, BreadcrumbItem, ContainerNode, FieldConfig, FieldNode, FieldType } from '@/types/nodes'
 
 type NewContainerNode = {
@@ -26,14 +26,15 @@ type NewFieldNode = {
 
 function mapRow(row: typeof nodes.$inferSelect): ContainerNode {
   return {
-    id:        row.id,
-    name:      row.name,
-    type:      'container',
-    parentId:  row.parentId ?? null,
-    positionX: row.positionX,
-    positionY: row.positionY,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
+    id:         row.id,
+    name:       row.name,
+    simpleName: row.simpleName ?? null,
+    type:       'container',
+    parentId:   row.parentId ?? null,
+    positionX:  row.positionX,
+    positionY:  row.positionY,
+    createdAt:  row.createdAt,
+    updatedAt:  row.updatedAt,
   }
 }
 
@@ -54,6 +55,7 @@ async function findById(id: string, projectId: string): Promise<AnyNode | null> 
     return {
       id:               n.id,
       name:             n.name,
+      simpleName:       n.simpleName ?? null,
       type:             'field',
       parentId:         n.parentId ?? null,
       positionX:        n.positionX,
@@ -105,13 +107,14 @@ async function create(input: NewContainerNode): Promise<ContainerNode> {
   const [row] = await db
     .insert(nodes)
     .values({
-      projectId: input.projectId,
-      name:      input.name,
-      type:      'container',
-      parentId:  input.parentId ?? null,
-      positionX: input.positionX ?? 0,
-      positionY: input.positionY ?? 0,
-      slug:      input.parentId ? null : nodeNameToSlug(input.name),
+      projectId:  input.projectId,
+      name:       input.name,
+      simpleName: toSimpleName(input.name),
+      type:       'container',
+      parentId:   input.parentId ?? null,
+      positionX:  input.positionX ?? 0,
+      positionY:  input.positionY ?? 0,
+      slug:       input.parentId ? null : nodeNameToSlug(input.name),
     })
     .returning()
 
@@ -148,6 +151,7 @@ async function updateName(id: string, name: string, parentId: string | null, pro
     .update(nodes)
     .set({
       name,
+      simpleName: toSimpleName(name),
       ...(parentId === null && { slug: nodeNameToSlug(name) }),
       updatedAt: new Date(),
     })
@@ -187,12 +191,13 @@ async function createField(input: {
   const [nodeRow] = await db
     .insert(nodes)
     .values({
-      projectId: input.projectId,
-      name:      input.name,
-      type:      'field',
-      parentId:  input.parentId,
-      positionX: input.positionX,
-      positionY: input.positionY,
+      projectId:  input.projectId,
+      name:       input.name,
+      simpleName: toSimpleName(input.name),
+      type:       'field',
+      parentId:   input.parentId,
+      positionX:  input.positionX,
+      positionY:  input.positionY,
     })
     .returning()
 
@@ -210,6 +215,7 @@ async function createField(input: {
   return {
     id:               nodeRow.id,
     name:             nodeRow.name,
+    simpleName:       nodeRow.simpleName ?? null,
     type:             'field',
     parentId:         nodeRow.parentId ?? null,
     positionX:        nodeRow.positionX,
@@ -236,7 +242,7 @@ async function findChildren(parentId: string, projectId: string): Promise<AnyNod
       const n = row.nodes
       const m = row.field_meta
       return {
-        id: n.id, name: n.name, type: 'field' as const,
+        id: n.id, name: n.name, simpleName: n.simpleName ?? null, type: 'field' as const,
         parentId:         n.parentId ?? null,
         positionX:        n.positionX, positionY: n.positionY,
         createdAt:        n.createdAt, updatedAt: n.updatedAt,
@@ -335,7 +341,7 @@ async function findAll(projectId: string): Promise<AnyNode[]> {
       const n = row.nodes
       const m = row.field_meta
       return {
-        id: n.id, name: n.name, type: 'field' as const,
+        id: n.id, name: n.name, simpleName: n.simpleName ?? null, type: 'field' as const,
         parentId:         n.parentId ?? null,
         positionX:        n.positionX, positionY: n.positionY,
         createdAt:        n.createdAt, updatedAt: n.updatedAt,
@@ -361,7 +367,7 @@ async function updateFieldMeta(nodeId: string, projectId: string, patch: {
   if (patch.name !== undefined) {
     await db
       .update(nodes)
-      .set({ name: patch.name, updatedAt: new Date() })
+      .set({ name: patch.name, simpleName: toSimpleName(patch.name), updatedAt: new Date() })
       .where(and(eq(nodes.id, nodeId), eq(nodes.projectId, projectId)))
   }
 

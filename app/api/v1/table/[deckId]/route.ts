@@ -1,5 +1,5 @@
 import { resolveApiAuth } from '@/lib/api/auth'
-import { corsHeaders } from '@/lib/api/utils'
+import { corsHeaders, getParentSimpleName, isUuid, matchesNameQuery } from '@/lib/api/utils'
 import { buildResolverContext } from '@/lib/services/node-schema-context'
 import { resolveNodeSchema } from '@/lib/services/node-schema-resolver'
 import { nodeService } from '@/lib/services/nodes.service'
@@ -25,6 +25,7 @@ export async function GET(
   if (!apiAuth.scope.includes('read')) return apiError('FORBIDDEN', 'Token scope does not allow read.', 403)
 
   const { deckId } = await params
+  if (!isUuid(deckId)) return apiError('NOT_FOUND', 'Deck not found.', 404)
 
   if (apiAuth.excludedNodeIds.includes(deckId)) {
     return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
@@ -33,7 +34,7 @@ export async function GET(
   const allowed = await rolesService.canPerformByRole(apiAuth.roleId, deckId, 'read', apiAuth.projectId)
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
 
-  // ctx is already scoped to apiAuth.projectId — a deckId from another
+  // ctx is already scoped to apiAuth.projectId - a deckId from another
   // project simply won't be found here, never leaked.
   const ctx = await buildResolverContext(apiAuth.projectId)
   const deck = ctx.allNodes.find((n) => n.id === deckId)
@@ -42,16 +43,20 @@ export async function GET(
   if (deck.type !== 'container') return apiError('BAD_REQUEST', 'Node is not a deck.', 400)
 
   const resolved = resolveNodeSchema(deckId, ctx)
+  const url      = new URL(req.url)
+  const search   = url.searchParams.get('search') ?? ''
+  const strict   = url.searchParams.get('strict') === 'true'
 
   return Response.json(
     {
       deck: {
-        id:        deck.id,
-        name:      deck.name,
-        slug:      deck.slug ?? nodeNameToSlug(deck.name),
-        updatedAt: deck.updatedAt,
-        cards:     resolved.fields,
-        decks:     resolved.containers,
+        id:         deck.id,
+        name:       deck.name,
+        simpleName: deck.simpleName,
+        slug:       deck.slug ?? nodeNameToSlug(deck.name),
+        updatedAt:  deck.updatedAt,
+        cards:      resolved.fields.filter((f) => matchesNameQuery(f.name, f.simpleName, search, strict)),
+        decks:      resolved.containers.filter((c) => matchesNameQuery(c.name, c.simpleName, search, strict)),
       },
     },
     { headers: corsHeaders() },
@@ -67,6 +72,7 @@ export async function PUT(
   if (!apiAuth.scope.includes('update')) return apiError('FORBIDDEN', 'Token scope does not allow update.', 403)
 
   const { deckId } = await params
+  if (!isUuid(deckId)) return apiError('NOT_FOUND', 'Deck not found.', 404)
 
   if (apiAuth.excludedNodeIds.includes(deckId)) {
     return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
@@ -93,8 +99,9 @@ export async function PUT(
 
   try {
     const node = await nodeService.rename(deckId, parsed.data.name, apiAuth.projectId)
+    const parentSimpleName = await getParentSimpleName(node.parentId, apiAuth.projectId)
     return Response.json(
-      { data: { id: node.id, name: node.name, parentId: node.parentId, updatedAt: node.updatedAt } },
+      { data: { id: node.id, name: node.name, simpleName: node.simpleName, parentId: node.parentId, parentSimpleName, updatedAt: node.updatedAt } },
       { headers: corsHeaders() },
     )
   } catch (err) {
@@ -113,6 +120,7 @@ export async function DELETE(
   if (!apiAuth.scope.includes('delete')) return apiError('FORBIDDEN', 'Token scope does not allow delete.', 403)
 
   const { deckId } = await params
+  if (!isUuid(deckId)) return apiError('NOT_FOUND', 'Deck not found.', 404)
 
   if (apiAuth.excludedNodeIds.includes(deckId)) {
     return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)

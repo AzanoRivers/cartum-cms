@@ -1,0 +1,24 @@
+@baseUrl = http://localhost:3000
+@token = 10d9700fdff71b51d0685428fe4fedcfadc7f5bbfeaaecbe85ff4b15d2a5d140
+@searchpatron = azanorivers
+
+### GET /api/v1/table: todos los mazos raíz con sus cartas y sub-mazos
+GET {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+
+### GET /api/v1/table?search=: filtra mazos RAÍZ por name o simpleName (case/espacio-insensitive)
+### Nota: solo filtra mazos raíz (parentId null). Un mazo anidado (ej. "Pay" dentro de
+### "Site: AzanoRivers") no aparece acá aunque matchee. Usá GET /api/v1/deck?search= para
+### buscar mazos a cualquier nivel de anidamiento, GET /api/v1/find/:simpleName para buscar
+### mazos o cartas por simpleName exacto, o GET /api/v1/table/:deckId?search= para filtrar
+### el contenido de un mazo puntual.
+GET {{baseUrl}}/api/v1/table?search={{searchpatron}}
+Authorization: Bearer {{token}}
+
+### GET /api/v1/table?search=&strict=true: coincidencia EXACTA de simpleName (no substring)
+GET {{baseUrl}}/api/v1/table?search=site:{{searchpatron}}&strict=true
+Authorization: Bearer {{token}}
+
+### GET /api/v1/deck?search=: busca mazos en TODO el proyecto, a cualquier nivel de anidamiento
+GET {{baseUrl}}/api/v1/deck?search=pay
+Authorization: Bearer {{token}}

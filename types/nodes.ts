@@ -81,6 +81,7 @@ export type FieldConfig =
 export interface BaseNode {
   id: string
   name: string
+  simpleName: string | null
   type: NodeCategory
   parentId: string | null
   positionX: number
@@ -155,15 +156,16 @@ export interface NodeTree {
 // ── Schema resolver types ─────────────────────────────────────────────────────
 
 export interface NodeRow {
-  id:        string
-  name:      string
-  type:      string
-  slug:      string | null
-  parentId:  string | null
-  positionX: number
-  positionY: number
-  createdAt: Date
-  updatedAt: Date
+  id:         string
+  name:       string
+  simpleName: string | null
+  type:       string
+  slug:       string | null
+  parentId:   string | null
+  positionX:  number
+  positionY:  number
+  createdAt:  Date
+  updatedAt:  Date
 }
 
 export interface FieldMetaRow {
@@ -191,6 +193,7 @@ export interface FieldWithMeta {
 export interface ResolvedField {
   id:            string
   name:          string
+  simpleName:    string | null
   type:          FieldType
   required:      boolean
   edit:          Date
@@ -199,9 +202,10 @@ export interface ResolvedField {
 }
 
 export interface ResolvedContainer {
-  id:   string
-  name: string
-  edit: Date
+  id:         string
+  name:       string
+  simpleName: string | null
+  edit:       Date
 }
 
 export interface ResolvedNodeContent {

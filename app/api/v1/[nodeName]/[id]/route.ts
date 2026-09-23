@@ -3,7 +3,7 @@ import { recordsService } from '@/lib/services/records.service'
 import { rolesService } from '@/lib/services/roles.service'
 import { nodesRepository } from '@/db/repositories/nodes.repository'
 import { resolveApiAuth } from '@/lib/api/auth'
-import { corsHeaders, expandRelations, flattenRecord, parseQueryParams } from '@/lib/api/utils'
+import { corsHeaders, expandRelations, flattenRecord, isUuid, parseQueryParams } from '@/lib/api/utils'
 import type { FieldNode } from '@/types/nodes'
 import type { RecordValue } from '@/types/records'
 
@@ -24,6 +24,7 @@ export async function GET(
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
   if (!apiAuth.scope.includes('read')) return apiError('FORBIDDEN', 'Token scope does not allow read.', 403)
+  if (!isUuid(id)) return apiError('NOT_FOUND', `Record '${id}' not found.`, 404)
 
   const node = await nodeService.findBySlug(nodeName, apiAuth.projectId)
   if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
@@ -62,6 +63,7 @@ export async function PUT(
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
   if (!apiAuth.scope.includes('update')) return apiError('FORBIDDEN', 'Token scope does not allow update.', 403)
+  if (!isUuid(id)) return apiError('NOT_FOUND', `Record '${id}' not found.`, 404)
 
   const node = await nodeService.findBySlug(nodeName, apiAuth.projectId)
   if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
@@ -99,6 +101,7 @@ export async function PATCH(
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
   if (!apiAuth.scope.includes('update')) return apiError('FORBIDDEN', 'Token scope does not allow update.', 403)
+  if (!isUuid(id)) return apiError('NOT_FOUND', `Record '${id}' not found.`, 404)
 
   const node = await nodeService.findBySlug(nodeName, apiAuth.projectId)
   if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)
@@ -140,6 +143,7 @@ export async function DELETE(
   const apiAuth = await resolveApiAuth(req)
   if (!apiAuth) return apiError('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401)
   if (!apiAuth.scope.includes('delete')) return apiError('FORBIDDEN', 'Token scope does not allow delete.', 403)
+  if (!isUuid(id)) return apiError('NOT_FOUND', `Record '${id}' not found.`, 404)
 
   const node = await nodeService.findBySlug(nodeName, apiAuth.projectId)
   if (!node) return apiError('NOT_FOUND', `No node with slug '${nodeName}' was found.`, 404)

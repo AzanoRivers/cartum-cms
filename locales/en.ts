@@ -605,12 +605,38 @@
         deckSlugDesc: 'The slug of a deck you created on the board. There are no predefined models: you define the structure. The slug is derived from the deck name (e.g. "Blog Posts" into "blog-posts").',
         scopeTitle:   'Token scope',
         scopeDesc:    'Each token carries a set of allowed actions. The required scope per endpoint is shown in the Permission column.',
+        tocLabel: 'On this page',
+        toc: {
+          token:          'Create an API Token',
+          auth:           'Authentication',
+          baseUrl:        'Base URL',
+          deckSlug:       'What is {deckSlug}?',
+          endpoints:      'Available endpoints',
+          simpleName:     'simpleName & parentSimpleName',
+          search:         'Search & filtering (schema endpoints)',
+          queryParams:    'Query parameters (GET list)',
+          responseList:   'Successful response: list',
+          responseRecord: 'Successful response: single record',
+          include:        'Relation expansion (include)',
+          errors:         'Error codes',
+          examples:       'cURL examples',
+        },
         endpointsTitle: 'Available endpoints',
         endpoints: {
           schema:        'List all decks with their cards (fields) and nested decks',
           getSchemaDeck: 'Get the schema for a single deck by UUID',
+          createDeck:    'Create a new deck (root or nested)',
+          renameDeck:    'Rename a deck',
+          deleteDeck:    'Delete a deck (?cascade=true also deletes its children and connections)',
+          searchDecks:   'Search decks by name/simpleName, project-wide at any nesting level (lightweight, no cards/decks)',
           getDeck:       'Get deck metadata by UUID',
+          searchCards:   'Search cards by name/simpleName, project-wide or scoped to one deck with &deckId=',
           getCard:       'Get card (field) metadata by UUID',
+          createCard:    'Create a new card inside a deck',
+          updateCard:    'Update a card\'s config (name, type, required, default value, relation target)',
+          deleteCard:    'Delete a card (purges its media and strips it from every record)',
+          bulkDelete:    'Delete multiple decks and/or cards in one call',
+          findBySimpleName: 'Find any deck or card by simpleName, project-wide (array, not unique)',
           listRecords:   'List records in a deck (paginated)',
           getRecord:     'Get a single record by UUID',
           createRecord:  'Add a new record to a deck',
@@ -627,6 +653,16 @@
         },
         putVsPatchNote:   'PUT replaces the entire data object. PATCH merges with existing data. Omitted fields are preserved.',
         canvasNote:       'Deck positions on the board canvas are not exposed. They are internal CMS configuration.',
+        simpleNameTitle: 'simpleName & parentSimpleName',
+        simpleNameDesc:  'Every deck and card object includes simpleName alongside name: the same name, lowercased, with whitespace stripped (e.g. "Blog Posts" becomes "blogposts"). It is kept in sync automatically whenever a deck or card is created or renamed, and it is what ?search=, &strict=true, and GET /api/v1/find/{simpleName} match against. Any object that has a parentId also includes parentSimpleName: the simpleName of that parent deck, so you rarely need a second call just to identify the parent.',
+        searchTitle: 'Search & filtering (schema endpoints)',
+        searchDesc:  'GET /api/v1/table, GET /api/v1/table/{deckId}, GET /api/v1/deck, and GET /api/v1/card all accept ?search= and &strict= to filter what they return. Scope differs per endpoint: /api/v1/table only searches root decks, /api/v1/table/{deckId} only searches that one deck\'s own cards and nested decks, /api/v1/deck searches ALL decks project-wide at any nesting level, and /api/v1/card searches all cards project-wide (add &deckId= to scope it to one deck\'s own cards).',
+        searchParams: {
+          search: { name: 'search', type: 'string', default: '-', desc: 'Matches if the query is a substring of name (case-insensitive) OR of simpleName (case/space-insensitive).' },
+          strict: { name: 'strict', type: 'boolean', default: 'false', desc: 'When true, ignores name and requires an EXACT match against the normalized simpleName instead of a substring.' },
+          deckId: { name: 'deckId', type: 'uuid', default: '-', desc: 'GET /api/v1/card only. Scopes the search to that one deck\'s own cards instead of the whole project.' },
+        },
+        searchNote: 'GET /api/v1/deck and GET /api/v1/card return lightweight matches, not full deck content (a deck match never includes cards/decks). Once you have an id, fetch its full content with GET /api/v1/table/{deckId} or a single card with GET /api/v1/card/{cardId}. Need an exact simpleName match without caring whether it is a deck or a card? Use GET /api/v1/find/{simpleName} instead.',
         queryParamsTitle: 'Query parameters (GET list)',
         params: {
           page:    { name: 'page',              type: 'number',   default: '1',            desc: 'Current page' },
@@ -645,7 +681,8 @@
           badRequest:   { code: '400', name: 'BAD_REQUEST',      desc: 'Invalid JSON in request body' },
           unauthorized: { code: '401', name: 'UNAUTHORIZED',     desc: 'Missing, invalid, revoked, or expired token' },
           forbidden:    { code: '403', name: 'FORBIDDEN',        desc: 'Token scope does not allow this action, or the deck is excluded by token policy' },
-          notFound:     { code: '404', name: 'NOT_FOUND',        desc: 'Deck slug or record UUID not found' },
+          notFound:     { code: '404', name: 'NOT_FOUND',        desc: 'Deck slug, deck/card UUID, or record UUID not found (also returned for a malformed UUID)' },
+          conflict:     { code: '409', name: 'CONFLICT',         desc: 'Deleting a deck that has children or active relations without ?cascade=true' },
           validation:   { code: '422', name: 'VALIDATION_ERROR', desc: 'Invalid data (required card, out of range, etc.)' },
           noContent:    { code: '204', name: 'n/a',              desc: 'DELETE successful (no response body)' },
         },
@@ -662,12 +699,14 @@
         fields: {
           id:           { name: 'id',           type: 'string',  desc: 'Card UUID' },
           name:         { name: 'name',         type: 'string',  desc: 'Card name' },
+          simpleName:   { name: 'simpleName',   type: 'string',  desc: 'name, lowercased with whitespace stripped. See API for Developers > simpleName & parentSimpleName' },
           type:         { name: 'type',         type: 'string',  desc: 'Type: text, number, boolean, image, video, gallery, relation' },
           required:     { name: 'required',     type: 'boolean', desc: 'Whether the card is required when creating/updating a record' },
           defaultValue: { name: 'defaultValue', type: 'string',  desc: '(optional) Configured default value' },
           relatesTo:    { name: 'relatesTo',    type: 'string',  desc: '(relation cards only) Slug of the linked deck' },
         },
         exampleLabel: 'cURL example',
+        crossRefNote: 'Need to filter this list, or find a deck/card that is not a root deck? See API for Developers → Search & filtering, and GET /api/v1/find/{simpleName}.',
       },
       relations: {
         title: 'Node Relations',
@@ -2539,10 +2578,29 @@ export type Dictionary = {
         tokenTitle: string; tokenStep1: string; tokenStep2: string; tokenStep3: string; tokenStep4: string; tokenStep5: string; tokenStep6: string
         authTitle: string; authNote: string; baseUrlTitle: string
         deckSlugTitle: string; deckSlugDesc: string; scopeTitle: string; scopeDesc: string
+        tocLabel: string
+        toc: {
+          token: string; auth: string; baseUrl: string; deckSlug: string; endpoints: string
+          simpleName: string; search: string; queryParams: string; responseList: string
+          responseRecord: string; include: string; errors: string; examples: string
+        }
         endpointsTitle: string
-        endpoints: { schema: string; getSchemaDeck: string; getDeck: string; getCard: string; listRecords: string; getRecord: string; createRecord: string; putRecord: string; patchRecord: string; deleteRecord: string }
+        endpoints: {
+          schema: string; getSchemaDeck: string; createDeck: string; renameDeck: string; deleteDeck: string
+          searchDecks: string; getDeck: string; searchCards: string; getCard: string; createCard: string; updateCard: string; deleteCard: string
+          bulkDelete: string; findBySimpleName: string
+          listRecords: string; getRecord: string; createRecord: string; putRecord: string; patchRecord: string; deleteRecord: string
+        }
         endpointPermissions: { anyToken: string; read: string; write: string; update: string; delete: string }
-        putVsPatchNote: string; canvasNote: string; queryParamsTitle: string
+        putVsPatchNote: string; canvasNote: string
+        simpleNameTitle: string; simpleNameDesc: string
+        searchTitle: string; searchDesc: string; searchNote: string
+        searchParams: {
+          search: { name: string; type: string; default: string; desc: string }
+          strict: { name: string; type: string; default: string; desc: string }
+          deckId: { name: string; type: string; default: string; desc: string }
+        }
+        queryParamsTitle: string
         params: {
           page:    { name: string; type: string; default: string; desc: string }
           limit:   { name: string; type: string; default: string; desc: string }
@@ -2558,6 +2616,7 @@ export type Dictionary = {
           unauthorized: { code: string; name: string; desc: string }
           forbidden:    { code: string; name: string; desc: string }
           notFound:     { code: string; name: string; desc: string }
+          conflict:     { code: string; name: string; desc: string }
           validation:   { code: string; name: string; desc: string }
           noContent:    { code: string; name: string; desc: string }
         }
@@ -2569,12 +2628,13 @@ export type Dictionary = {
         fields: {
           id:           { name: string; type: string; desc: string }
           name:         { name: string; type: string; desc: string }
+          simpleName:   { name: string; type: string; desc: string }
           type:         { name: string; type: string; desc: string }
           required:     { name: string; type: string; desc: string }
           defaultValue: { name: string; type: string; desc: string }
           relatesTo:    { name: string; type: string; desc: string }
         }
-        exampleLabel: string
+        exampleLabel: string; crossRefNote: string
       }
       relations: {
         title: string; intro: string

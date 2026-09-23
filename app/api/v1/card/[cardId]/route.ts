@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { fieldMeta, nodes } from '@/db/schema'
 import { resolveApiAuth } from '@/lib/api/auth'
-import { corsHeaders } from '@/lib/api/utils'
+import { corsHeaders, getParentSimpleName, isUuid } from '@/lib/api/utils'
 import { nodeService } from '@/lib/services/nodes.service'
 import { rolesService } from '@/lib/services/roles.service'
 import { nodesRepository } from '@/db/repositories/nodes.repository'
@@ -28,8 +28,9 @@ export async function GET(
   if (!apiAuth.scope.includes('read')) return apiError('FORBIDDEN', 'Token scope does not allow read.', 403)
 
   const { cardId } = await params
+  if (!isUuid(cardId)) return apiError('NOT_FOUND', 'Card not found.', 404)
 
-  // Scoped to this token's project — a card ID from another project must 404,
+  // Scoped to this token's project - a card ID from another project must 404,
   // never leak field metadata across projects.
   const [row] = await db
     .select()
@@ -51,11 +52,15 @@ export async function GET(
   const allowed = await rolesService.canPerformByRole(apiAuth.roleId, parentId, 'read', apiAuth.projectId)
   if (!allowed) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
 
+  const parentSimpleName = await getParentSimpleName(parentId, apiAuth.projectId)
+
   return Response.json({
     data: {
       id:               row.nodes.id,
       name:             row.nodes.name,
+      simpleName:       row.nodes.simpleName,
       parentId:         row.nodes.parentId,
+      parentSimpleName,
       fieldType:        row.field_meta.fieldType as FieldType,
       required:         row.field_meta.isRequired,
       defaultValue:     row.field_meta.defaultValue ?? null,
@@ -68,6 +73,7 @@ export async function GET(
 }
 
 async function loadCard(cardId: string, projectId: string) {
+  if (!isUuid(cardId)) return null
   const [row] = await db
     .select()
     .from(nodes)
@@ -112,12 +118,15 @@ export async function PUT(
 
   try {
     const node = await nodeService.updateFieldMeta(cardId, parsed.data, apiAuth.projectId)
+    const parentSimpleName = await getParentSimpleName(node.parentId, apiAuth.projectId)
     return Response.json(
       {
         data: {
           id:               node.id,
           name:             node.name,
+          simpleName:       node.simpleName,
           parentId:         node.parentId,
+          parentSimpleName,
           fieldType:        node.fieldType,
           required:         node.isRequired,
           defaultValue:     node.defaultValue,
@@ -158,7 +167,7 @@ export async function DELETE(
   try {
     // Media referenced by this field's values across sibling records would
     // otherwise become orphaned (records keep the stale key, files stay in
-    // storage forever) — purge them, then strip the key from every record.
+    // storage forever), purge them, then strip the key from every record.
     const fieldType = existing.field_meta.fieldType as FieldType
     if (fieldType === 'image' || fieldType === 'video' || fieldType === 'gallery') {
       const siblingRecords = await recordsRepository.findByNodeId(parentId)

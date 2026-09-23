@@ -56,6 +56,27 @@ function UL({ items }: { items: string[] }) {
   )
 }
 
+function TocList({ label, items }: { label: string; items: { id: string; label: string }[] }) {
+  return (
+    <nav aria-label={label} className="rounded-md border border-border bg-surface-2/40 p-3">
+      <p className="font-mono text-[10px] uppercase tracking-widest text-muted/70 mb-2">{label}</p>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+        {items.map((item, i) => (
+          <li key={item.id}>
+            <a
+              href={`#${item.id}`}
+              className="flex items-center gap-2 rounded-md border border-border/60 bg-surface px-2.5 py-1.5 font-mono text-xs text-muted transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+            >
+              <span className="shrink-0 text-[10px] text-primary/50 tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+              <span className="truncate">{item.label}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
 function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
   return (
     <div className="overflow-x-auto rounded-md border border-border">
@@ -600,41 +621,68 @@ function MediaSection({ d }: { d: DocsDict }) {
 
 function ApiForDevsSection({ d }: { d: DocsDict }) {
   const s = d.apiForDevs
+  const toc = [
+    { id: 'api-token',           label: s.toc.token },
+    { id: 'api-auth',            label: s.toc.auth },
+    { id: 'api-baseurl',         label: s.toc.baseUrl },
+    { id: 'api-deckslug',        label: s.toc.deckSlug },
+    { id: 'api-endpoints',       label: s.toc.endpoints },
+    { id: 'api-simplename',      label: s.toc.simpleName },
+    { id: 'api-search',          label: s.toc.search },
+    { id: 'api-queryparams',     label: s.toc.queryParams },
+    { id: 'api-response-list',   label: s.toc.responseList },
+    { id: 'api-response-record', label: s.toc.responseRecord },
+    { id: 'api-include',         label: s.toc.include },
+    { id: 'api-errors',          label: s.toc.errors },
+    { id: 'api-examples',        label: s.toc.examples },
+  ]
   return (
     <div className="space-y-4">
       <SectionHeading>{s.title}</SectionHeading>
       <Prose>{s.intro}</Prose>
 
-      <div>
+      <TocList label={s.tocLabel} items={toc} />
+
+      <div id="api-token">
         <SubHeading>{s.tokenTitle}</SubHeading>
         <UL items={[s.tokenStep1, s.tokenStep2, s.tokenStep3, s.tokenStep4, s.tokenStep5, s.tokenStep6]} />
       </div>
 
-      <div>
+      <div id="api-auth">
         <SubHeading>{s.authTitle}</SubHeading>
         <DocsCodeBlock language="http" code="Authorization: Bearer <token>" />
         <p className="mt-1.5 text-xs text-muted">{s.authNote}</p>
       </div>
 
-      <div>
+      <div id="api-baseurl">
         <SubHeading>{s.baseUrlTitle}</SubHeading>
         <DocsCodeBlock language="url" code="https://<your-domain>/api/v1/" />
       </div>
 
-      <div>
+      <div id="api-deckslug">
         <SubHeading>{s.deckSlugTitle}</SubHeading>
         <Prose>{s.deckSlugDesc}</Prose>
       </div>
 
-      <div>
+      <div id="api-endpoints">
         <SubHeading>{s.endpointsTitle}</SubHeading>
         <Table
           headers={['Method', 'Route', 'Description', 'Permission']}
           rows={[
             ['GET',    '/api/v1/table',                    s.endpoints.schema,         s.endpointPermissions.anyToken],
+            ['POST',   '/api/v1/table',                    s.endpoints.createDeck,     s.endpointPermissions.write],
             ['GET',    '/api/v1/table/{deckId}',           s.endpoints.getSchemaDeck,  s.endpointPermissions.anyToken],
+            ['PUT',    '/api/v1/table/{deckId}',           s.endpoints.renameDeck,     s.endpointPermissions.update],
+            ['DELETE', '/api/v1/table/{deckId}',           s.endpoints.deleteDeck,     s.endpointPermissions.delete],
+            ['GET',    '/api/v1/deck',                     s.endpoints.searchDecks,    s.endpointPermissions.read],
             ['GET',    '/api/v1/deck/{deckId}',            s.endpoints.getDeck,        s.endpointPermissions.read],
+            ['GET',    '/api/v1/card',                     s.endpoints.searchCards,    s.endpointPermissions.read],
             ['GET',    '/api/v1/card/{cardId}',            s.endpoints.getCard,        s.endpointPermissions.anyToken],
+            ['POST',   '/api/v1/card',                     s.endpoints.createCard,     s.endpointPermissions.write],
+            ['PUT',    '/api/v1/card/{cardId}',             s.endpoints.updateCard,     s.endpointPermissions.update],
+            ['DELETE', '/api/v1/card/{cardId}',             s.endpoints.deleteCard,     s.endpointPermissions.delete],
+            ['POST',   '/api/v1/nodes/bulk-delete',        s.endpoints.bulkDelete,     s.endpointPermissions.delete],
+            ['GET',    '/api/v1/find/{simpleName}',        s.endpoints.findBySimpleName, s.endpointPermissions.anyToken],
             ['GET',    '/api/v1/{deckSlug}',               s.endpoints.listRecords,    s.endpointPermissions.read],
             ['GET',    '/api/v1/{deckSlug}/{id}',          s.endpoints.getRecord,      s.endpointPermissions.read],
             ['POST',   '/api/v1/{deckSlug}',               s.endpoints.createRecord,   s.endpointPermissions.write],
@@ -649,7 +697,26 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
         </div>
       </div>
 
-      <div>
+      <div id="api-simplename">
+        <SubHeading>{s.simpleNameTitle}</SubHeading>
+        <Prose>{s.simpleNameDesc}</Prose>
+      </div>
+
+      <div id="api-search">
+        <SubHeading>{s.searchTitle}</SubHeading>
+        <Prose>{s.searchDesc}</Prose>
+        <div className="mt-2">
+          <Table
+            headers={['Param', 'Type', 'Default', 'Description']}
+            rows={Object.values(s.searchParams).map((p) => [p.name, p.type, p.default, p.desc])}
+          />
+        </div>
+        <div className="mt-2">
+          <Note>{s.searchNote}</Note>
+        </div>
+      </div>
+
+      <div id="api-queryparams">
         <SubHeading>{s.queryParamsTitle}</SubHeading>
         <Table
           headers={['Param', 'Type', 'Default', 'Description']}
@@ -657,7 +724,7 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
         />
       </div>
 
-      <div>
+      <div id="api-response-list">
         <SubHeading>{s.responseListTitle}</SubHeading>
         <DocsCodeBlock
           language="json"
@@ -682,7 +749,7 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
         />
       </div>
 
-      <div>
+      <div id="api-response-record">
         <SubHeading>{s.responseRecordTitle}</SubHeading>
         <DocsCodeBlock
           language="json"
@@ -699,7 +766,7 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
         />
       </div>
 
-      <div>
+      <div id="api-include">
         <SubHeading>{s.includeTitle}</SubHeading>
         <Prose>{s.includeDesc}</Prose>
         <div className="mt-2">
@@ -720,7 +787,7 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
         </div>
       </div>
 
-      <div>
+      <div id="api-errors">
         <SubHeading>{s.errorsTitle}</SubHeading>
         <Table
           headers={['HTTP', 'Error', 'Description']}
@@ -728,7 +795,7 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
         />
       </div>
 
-      <div>
+      <div id="api-examples">
         <SubHeading>{s.examplesTitle}</SubHeading>
         <Note>{s.examplesNote}</Note>
         <div className="mt-2">
@@ -737,6 +804,75 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
             code={`# List all decks on the table (root-level schema)
 curl -H "Authorization: Bearer <token>" \\
   https://your-domain.com/api/v1/table
+
+# Search root decks by name or simpleName (substring)
+curl -H "Authorization: Bearer <token>" \\
+  "https://your-domain.com/api/v1/table?search=prod"
+
+# Same, but require an EXACT simpleName match
+curl -H "Authorization: Bearer <token>" \\
+  "https://your-domain.com/api/v1/table?search=products&strict=true"
+
+# Find any deck or card by simpleName, anywhere in the project (read scope required)
+curl -H "Authorization: Bearer <token>" \\
+  https://your-domain.com/api/v1/find/products
+
+# Search decks by name/simpleName, any nesting level (read scope required)
+curl -H "Authorization: Bearer <token>" \\
+  "https://your-domain.com/api/v1/deck?search=pay"
+
+# Search cards project-wide (read scope required)
+curl -H "Authorization: Bearer <token>" \\
+  "https://your-domain.com/api/v1/card?search=title"
+
+# Search cards inside one specific deck only
+curl -H "Authorization: Bearer <token>" \\
+  "https://your-domain.com/api/v1/card?search=title&deckId=<deckId>"
+
+# Create a new root deck (write scope required)
+curl -X POST \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"Products","parentId":null}' \\
+  https://your-domain.com/api/v1/table
+
+# Rename a deck (update scope required)
+curl -X PUT \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"Products v2"}' \\
+  https://your-domain.com/api/v1/table/<deckId>
+
+# Delete a deck, cascading its nested decks/cards/records (delete scope required)
+curl -X DELETE \\
+  -H "Authorization: Bearer <token>" \\
+  "https://your-domain.com/api/v1/table/<deckId>?cascade=true"
+
+# Create a new card inside a deck (write scope required)
+curl -X POST \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"sku","parentId":"<deckId>","fieldType":"text","isRequired":true}' \\
+  https://your-domain.com/api/v1/card
+
+# Update a card's config (update scope required)
+curl -X PUT \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"isRequired":false}' \\
+  https://your-domain.com/api/v1/card/<cardId>
+
+# Delete a card (delete scope required)
+curl -X DELETE \\
+  -H "Authorization: Bearer <token>" \\
+  https://your-domain.com/api/v1/card/<cardId>
+
+# Bulk delete decks and/or cards in one call (delete scope required)
+curl -X POST \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"ids":["<deckId>","<cardId>"]}' \\
+  https://your-domain.com/api/v1/nodes/bulk-delete
 
 # Schema for a single deck by UUID
 curl -H "Authorization: Bearer <token>" \\
@@ -894,25 +1030,27 @@ function ApiSchemaSection({ d }: { d: DocsDict }) {
     {
       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "name": "Products",
+      "simpleName": "products",
       "slug": "products",
       "updatedAt": "2026-04-15T10:00:00Z",
       "cards": [
-        { "id": "f1e2d3c4-...", "name": "title",    "type": "text",     "required": true },
-        { "id": "f2e3d4c5-...", "name": "price",    "type": "number",   "required": true },
-        { "id": "f3e4d5c6-...", "name": "featured", "type": "boolean",  "required": false },
-        { "id": "f4e5d6c7-...", "name": "cover",    "type": "image",    "required": false },
-        { "id": "f5e6d7c8-...", "name": "category", "type": "relation", "required": false, "relatesTo": "categories" }
+        { "id": "f1e2d3c4-...", "name": "title",    "simpleName": "title",    "type": "text",     "required": true },
+        { "id": "f2e3d4c5-...", "name": "price",    "simpleName": "price",    "type": "number",   "required": true },
+        { "id": "f3e4d5c6-...", "name": "featured", "simpleName": "featured", "type": "boolean",  "required": false },
+        { "id": "f4e5d6c7-...", "name": "cover",    "simpleName": "cover",    "type": "image",    "required": false },
+        { "id": "f5e6d7c8-...", "name": "category", "simpleName": "category", "type": "relation", "required": false, "relatesTo": "categories" }
       ],
       "decks": []
     },
     {
       "id": "b2c3d4e5-f6a7-8901-bcde-f01234567891",
       "name": "Categories",
+      "simpleName": "categories",
       "slug": "categories",
       "updatedAt": "2026-04-15T09:00:00Z",
       "cards": [
-        { "id": "f6e7d8c9-...", "name": "name",  "type": "text", "required": true },
-        { "id": "f7e8d9c0-...", "name": "color", "type": "text", "required": false }
+        { "id": "f6e7d8c9-...", "name": "name",  "simpleName": "name",  "type": "text", "required": true },
+        { "id": "f7e8d9c0-...", "name": "color", "simpleName": "color", "type": "text", "required": false }
       ],
       "decks": []
     }
@@ -936,6 +1074,8 @@ function ApiSchemaSection({ d }: { d: DocsDict }) {
           code={`curl -H "Authorization: Bearer <token>" \\\n  https://your-domain.com/api/v1/table`}
         />
       </div>
+
+      <Note>{s.crossRefNote}</Note>
     </div>
   )
 }

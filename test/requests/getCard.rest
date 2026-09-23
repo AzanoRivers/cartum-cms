@@ -1,0 +1,20 @@
+@baseUrl = http://localhost:3000
+@token = 10d9700fdff71b51d0685428fe4fedcfadc7f5bbfeaaecbe85ff4b15d2a5d140
+@cardId = c2a988a0-47b3-442c-90f9-d20c2e0a9f11
+@cardName = otherprojects
+
+### GET /api/v1/card/:cardId: metadata de una carta por UUID (NO por simpleName, "pay" rompía esto)
+GET {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{token}}
+
+### GET /api/v1/find/:simpleName: para buscar por simpleName (mazo o carta, "pay" es un mazo)
+GET {{baseUrl}}/api/v1/find/{{cardName}}
+Authorization: Bearer {{token}}
+
+### GET /api/v1/card?search=: busca cartas por name/simpleName en TODO el proyecto
+GET {{baseUrl}}/api/v1/card?search=h1
+Authorization: Bearer {{token}}
+
+### GET /api/v1/card?search=&deckId=: acota la búsqueda a las cartas propias de un mazo
+GET {{baseUrl}}/api/v1/card?search=h1&deckId=34f307be-f7a2-4d7c-a4a9-c37c85bd691c
+Authorization: Bearer {{token}}

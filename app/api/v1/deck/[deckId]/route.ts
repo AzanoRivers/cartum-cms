@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { fieldMeta, nodes } from '@/db/schema'
 import { resolveApiAuth } from '@/lib/api/auth'
-import { corsHeaders } from '@/lib/api/utils'
+import { corsHeaders, getParentSimpleName, isUuid } from '@/lib/api/utils'
 import { buildResolverContext } from '@/lib/services/node-schema-context'
 import { resolveNodeSchema } from '@/lib/services/node-schema-resolver'
 import { rolesService } from '@/lib/services/roles.service'
@@ -26,6 +26,7 @@ export async function GET(
   if (!apiAuth.scope.includes('read')) return apiError('FORBIDDEN', 'Token scope does not allow read.', 403)
 
   const { deckId } = await params
+  if (!isUuid(deckId)) return apiError('NOT_FOUND', 'Deck not found.', 404)
 
   if (apiAuth.excludedNodeIds.includes(deckId)) {
     return apiError('FORBIDDEN', 'Access to this deck is excluded by token policy.', 403)
@@ -39,7 +40,7 @@ export async function GET(
 
   if (!row) return apiError('NOT_FOUND', 'Deck not found.', 404)
 
-  // Permissions are configured per deck — for a card, check its parent deck.
+  // Permissions are configured per deck - for a card, check its parent deck.
   const permissionNodeId = row.type === 'container' ? row.id : row.parentId
   if (!permissionNodeId) return apiError('NOT_FOUND', 'Deck not found.', 404)
   const allowed = await rolesService.canPerformByRole(apiAuth.roleId, permissionNodeId, 'read', apiAuth.projectId)
@@ -49,19 +50,24 @@ export async function GET(
     const ctx = await buildResolverContext(apiAuth.projectId)
     const resolved = resolveNodeSchema(deckId, ctx)
     const slug = row.slug ?? nodeNameToSlug(row.name)
+    const parentSimpleName = row.parentId
+      ? (ctx.allNodes.find((n) => n.id === row.parentId)?.simpleName ?? null)
+      : null
 
     return Response.json(
       {
         data: {
-          id:        row.id,
-          name:      row.name,
-          type:      row.type,
+          id:         row.id,
+          name:       row.name,
+          simpleName: row.simpleName,
+          type:       row.type,
           slug,
-          parentId:  row.parentId,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-          cards:     resolved.fields,
-          decks:     resolved.containers,
+          parentId:   row.parentId,
+          parentSimpleName,
+          createdAt:  row.createdAt,
+          updatedAt:  row.updatedAt,
+          cards:      resolved.fields,
+          decks:      resolved.containers,
         },
       },
       { headers: corsHeaders() },
@@ -74,13 +80,17 @@ export async function GET(
     .where(eq(fieldMeta.nodeId, deckId))
     .limit(1)
 
+  const parentSimpleName = await getParentSimpleName(row.parentId, apiAuth.projectId)
+
   return Response.json(
     {
       data: {
         id:           row.id,
         name:         row.name,
+        simpleName:   row.simpleName,
         type:         row.type,
         parentId:     row.parentId,
+        parentSimpleName,
         fieldType:    (meta?.fieldType as FieldType) ?? null,
         required:     meta?.isRequired ?? false,
         defaultValue: meta?.defaultValue ?? null,

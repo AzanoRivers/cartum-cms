@@ -1,0 +1,29 @@
+@baseUrl = http://localhost:3000
+@token = 10d9700fdff71b51d0685428fe4fedcfadc7f5bbfeaaecbe85ff4b15d2a5d140
+@deckId = 34f307be-f7a2-4d7c-a4a9-c37c85bd691c
+@cardId = c2a988a0-47b3-442c-90f9-d20c2e0a9f11
+
+### GET /api/v1/deck/:deckId: metadata + contenido completo de un mazo por UUID (incluye cards/decks)
+GET {{baseUrl}}/api/v1/deck/{{deckId}}
+Authorization: Bearer {{token}}
+
+### GET /api/v1/deck/:cardId: el mismo endpoint también resuelve un id de carta (metadata sin cards/decks)
+GET {{baseUrl}}/api/v1/deck/{{cardId}}
+Authorization: Bearer {{token}}
+
+### GET /api/v1/deck?search=: busca mazos por name/simpleName en TODO el proyecto, cualquier nivel de anidamiento
+### A diferencia de /deck/:deckId, esto devuelve solo metadata liviana (sin cards/decks)
+GET {{baseUrl}}/api/v1/deck?search=pay
+Authorization: Bearer {{token}}
+
+### GET /api/v1/deck?search=&strict=true: coincidencia EXACTA de simpleName (no substring)
+GET {{baseUrl}}/api/v1/deck?search=pay&strict=true
+Authorization: Bearer {{token}}
+
+### GET /api/v1/deck?search= sin match: debería devolver data: []
+GET {{baseUrl}}/api/v1/deck?search=noexiste12345
+Authorization: Bearer {{token}}
+
+### GET /api/v1/deck (sin search): lista TODOS los mazos del proyecto, cualquier nivel de anidamiento
+GET {{baseUrl}}/api/v1/deck
+Authorization: Bearer {{token}}
