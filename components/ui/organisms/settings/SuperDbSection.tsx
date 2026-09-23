@@ -5,6 +5,7 @@ import { Download, Upload, Trash2, Archive } from 'lucide-react'
 import { Spinner } from '@/components/ui/atoms/Spinner'
 import { DangerResetDialog } from '@/components/ui/molecules/DangerResetDialog'
 import { exportDatabaseAction, importDatabaseAction, importDatabaseWithMediaAction, resetCmsAction } from '@/lib/actions/db.actions'
+import { buildBackupZip, type BackupMediaItem } from '@/lib/media/export-zip-client'
 import { DocLink } from '@/components/ui/atoms/DocLink'
 import { useUIStore } from '@/lib/stores/uiStore'
 import { toast } from '@/lib/toast'
@@ -48,38 +49,24 @@ export function SuperDbSection({ d, canActions = true }: SuperDbSectionProps) {
       const res = await exportDatabaseAction()
       if (!res.success) { toast.error(d.exportError); return }
 
-      const backup    = JSON.parse(res.data.json) as { media?: Array<{ publicUrl: string; mimeType: string; key: string; id: string }> }
+      const backup    = JSON.parse(res.data.json) as { media?: BackupMediaItem[] }
       const mediaList = backup.media ?? []
 
-      const { zipSync, strToU8 } = await import('fflate')
-      const files: Record<string, Uint8Array> = {
-        'database.json': strToU8(res.data.json),
-      }
-
-      const CONCURRENCY = 6
-      for (let i = 0; i < mediaList.length; i += CONCURRENCY) {
-        await Promise.all(
-          mediaList.slice(i, i + CONCURRENCY).map(async (m) => {
-            try {
-              const r = await fetch(m.publicUrl)
-              if (!r.ok) return
-              const buf      = await r.arrayBuffer()
-              const folder   = m.mimeType?.startsWith('video/') ? 'videos' : 'images'
-              const filename = m.key.split('/').pop() ?? m.id
-              files[`${folder}/${filename}`] = new Uint8Array(buf)
-            } catch { /* file unreachable or CORS not configured — skip */ }
-          }),
-        )
-      }
-
-      const zipped  = zipSync(files, { level: 0 })
-      const zipBlob = new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' })
-      const url     = URL.createObjectURL(zipBlob)
-      const a       = document.createElement('a')
-      a.href        = url
-      a.download    = `cartum-super-backup-${new Date().toISOString().slice(0, 10)}.zip`
+      const { blob: zipBlob, total, failed } = await buildBackupZip(res.data.json, mediaList)
+      const url = URL.createObjectURL(zipBlob)
+      const a   = document.createElement('a')
+      a.href     = url
+      a.download = `cartum-super-backup-${new Date().toISOString().slice(0, 10)}.zip`
       a.click()
       URL.revokeObjectURL(url)
+
+      if (failed > 0) {
+        toast.warning(
+          d.exportMediaPartialWarn
+            .replace('{failed}', String(failed))
+            .replace('{total}',  String(total)),
+        )
+      }
     })
   }
 

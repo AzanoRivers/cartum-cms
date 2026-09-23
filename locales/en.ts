@@ -2069,6 +2069,7 @@
       docsLinkLabel:      'Import & Export: Documentation',
       docsLinkDesc:       'Learn how project backup and restore works, file formats, and limitations.',
       exportError:        'Export failed. Please try again.',
+      exportMediaPartialWarn: 'ZIP created, but {failed} of {total} media file(s) could not be downloaded (dead link, CORS, or network) and were left out. Check the browser console for which ones, and your storage CORS/custom domain configuration.',
       resetError:         'Operation failed. Please try again.',
       purgeImagesTitle:   'Delete all images',
       purgeImagesDesc:    'Permanently delete all media files (images and videos) from storage for the current project. Content, decks and records are preserved. This action only affects the active project.',
@@ -2100,6 +2101,7 @@
       exportWithMediaing:    'Building ZIP...',
       exportWithMediaNote:   'Includes ALL images and videos from every project.',
       exportError:           'Export failed. Please try again.',
+      exportMediaPartialWarn: 'ZIP created, but {failed} of {total} media file(s) could not be downloaded (dead link, CORS, or network) and were left out. Check the browser console for which ones, and your storage CORS/custom domain configuration.',
       importTitle:           'Import entire CMS',
       importDesc:            'Restore the ENTIRE instance from a Super Backup (.json) or a Super Backup with media (.zip). Replaces everything: all projects, users, roles, settings and media. Bucket URLs already in the backup are reused as-is whenever they still work. Importing a .zip only re-uploads a file to this instance\'s currently configured storage if its original URL no longer works.',
       importButton:          'Choose Super Backup (.json or .zip)',
@@ -3077,7 +3079,7 @@ export type Dictionary = {
       importTitle: string; importDesc: string; importButton: string; importing: string
       importOverwriteWarn: string; importSuccess: string; importError: string
       exportWithMediaButton: string; exportWithMediaing: string; exportWithMediaNote: string
-      exportError: string; resetError: string
+      exportError: string; exportMediaPartialWarn: string; resetError: string
       purgeImagesTitle: string; purgeImagesDesc: string; purgeImagesButton: string
       purgeImagesDialog: {
         title: string; desc: string; storageNote: string; placeholder: string
@@ -3090,7 +3092,7 @@ export type Dictionary = {
       docsLinkLabel: string; docsLinkDesc: string
       exportTitle: string; exportDesc: string; exportSecretsWarn: string; exportButton: string; exporting: string
       exportWithMediaButton: string; exportWithMediaing: string; exportWithMediaNote: string
-      exportError: string
+      exportError: string; exportMediaPartialWarn: string
       importTitle: string; importDesc: string; importButton: string; importing: string
       importOverwriteWarn: string; importSuccess: string; importMediaFailWarn: string; importError: string
       resetError: string
