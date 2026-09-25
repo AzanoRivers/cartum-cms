@@ -291,8 +291,6 @@
         rolesGuide:     'Roles & Access',
         media:          'Media & Storage',
         apiForDevs:     'API for Developers',
-        apiSchema:      'API: Table Discovery',
-        relations:          'Node Relations',
         nodesAndFieldsDev:  'Nodes & Fields',
         usersGuide:         'Users & Roles',
         emailSetup:         'Email Setup',
@@ -613,28 +611,43 @@
           baseUrl:        'Base URL',
           deckSlug:       'What is {deckSlug}?',
           endpoints:      'Available endpoints',
+          endpointsGet:    'GET endpoints',
+          endpointsPost:   'POST endpoints',
+          endpointsPut:    'PUT endpoints',
+          endpointsPatch:  'PATCH endpoints',
+          endpointsDelete: 'DELETE endpoints',
+          schemaResponse: 'Table schema response (GET /api/v1/table)',
+          relations:      'Node relations & inheritance',
           simpleName:     'simpleName & parentSimpleName',
+          cardConfig:     'Card field config (per type)',
           search:         'Search & filtering (schema endpoints)',
           queryParams:    'Query parameters (GET list)',
           responseList:   'Successful response: list',
           responseRecord: 'Successful response: single record',
           include:        'Relation expansion (include)',
+          delete:         'Deleting decks & cards',
           errors:         'Error codes',
           examples:       'cURL examples',
         },
         endpointsTitle: 'Available endpoints',
+        endpointsOverview: 'Every route below, grouped by HTTP method so you can jump straight to GET, POST, PUT, PATCH, or DELETE. Each row shows the route, what it does, and the token scope it requires.',
+        endpointsGetTitle:    'GET',
+        endpointsPostTitle:   'POST',
+        endpointsPutTitle:    'PUT',
+        endpointsPatchTitle:  'PATCH',
+        endpointsDeleteTitle: 'DELETE',
         endpoints: {
           schema:        'List all decks with their cards (fields) and nested decks',
           getSchemaDeck: 'Get the schema for a single deck by UUID',
-          createDeck:    'Create a new deck (root or nested)',
+          createDeck:    'Create a new deck (root, nested by parentId, or nested by parentSimpleName)',
           renameDeck:    'Rename a deck',
           deleteDeck:    'Delete a deck (?cascade=true also deletes its children and connections)',
           searchDecks:   'Search decks by name/simpleName, project-wide at any nesting level (lightweight, no cards/decks)',
           getDeck:       'Get deck metadata by UUID',
           searchCards:   'Search cards by name/simpleName, project-wide or scoped to one deck with &deckId=',
           getCard:       'Get card (field) metadata by UUID',
-          createCard:    'Create a new card inside a deck',
-          updateCard:    'Update a card\'s config (name, type, required, default value, relation target)',
+          createCard:    'Create a new card inside a deck, with optional type-specific config (see Card field config)',
+          updateCard:    'Update a card (name, type, required, default value, relation target, type-specific config)',
           deleteCard:    'Delete a card (purges its media and strips it from every record)',
           bulkDelete:    'Delete multiple decks and/or cards in one call',
           findBySimpleName: 'Find any deck or card by simpleName, project-wide (array, not unique)',
@@ -654,8 +667,78 @@
         },
         putVsPatchNote:   'PUT replaces the entire data object. PATCH merges with existing data. Omitted fields are preserved.',
         canvasNote:       'Deck positions on the board canvas are not exposed. They are internal CMS configuration.',
+        schemaResponseTitle: 'Table schema response (GET /api/v1/table)',
+        schemaResponseIntro: 'Before consuming data, discover which decks are on the table and what cards (fields) they contain, without opening the CMS.',
+        schemaAnyTokenNote:  'Any valid token can access this endpoint. No scope or per-deck permission required.',
+        schemaFieldsTitle: 'Fields in each card object',
+        schemaFields: {
+          id:           { name: 'id',           type: 'string',  desc: 'Card UUID' },
+          name:         { name: 'name',         type: 'string',  desc: 'Card name' },
+          simpleName:   { name: 'simpleName',   type: 'string',  desc: 'name, lowercased with whitespace stripped. See simpleName & parentSimpleName below.' },
+          type:         { name: 'type',         type: 'string',  desc: 'Type: text, number, boolean, image, video, gallery, relation' },
+          required:     { name: 'required',     type: 'boolean', desc: 'Whether the card is required when creating/updating a record' },
+          defaultValue: { name: 'defaultValue', type: 'string',  desc: '(optional) Configured default value' },
+          relatesTo:    { name: 'relatesTo',    type: 'string',  desc: '(relation cards only) Slug of the linked deck' },
+        },
+        schemaResponseNote: 'Need to filter this list, or find a deck/card that is not a root deck? See Search & filtering below, and GET /api/v1/find/{simpleName}.',
+        relationsTitle: 'Node relations & inheritance',
+        relationsIntro: 'When decks are connected in the board, the API automatically merges their CARDS into the response. Decks are never merged, only cards. This keeps every response bounded: one call can never cascade into an unlimited chain of nested or related decks. This is different from a relation-type card (fieldType: relation, documented in Card field config below), which links to a single record instead of merging a whole deck\'s cards.',
+        relationsFlatTitle: 'Flat response principle, cards only',
+        relationsFlatDesc:  'Every deck always returns two keys: cards (its own cards plus cards borrowed through exactly one hop of inheritance, merged flat) and decks (shallow references only, id/name/edit). A relation NEVER hands over the other deck\'s own nested decks, only its cards. To read a related or nested deck\'s own schema, fetch it separately by id, it is never inlined.',
+        relationsInheritanceTitle: 'Structural inheritance (parent → child)',
+        relationsInheritanceDesc:  'A deck nested inside a parent container automatically sees all cards AND sub-decks from its direct parent (the parent itself is excluded, to avoid self-reference). This is the one case where decks are borrowed too, because it mirrors the board\'s own visual nesting. It goes exactly one level up, never the grandparent.',
+        relationsTypesTitle: 'Relation types, cards only, single hop, never recursive',
+        relationsTypes: {
+          oneToOne: {
+            label: '1:1  -  One to One',
+            desc:  'Both decks share each other\'s own cards (never their sub-decks). Non-transitive: if A↔B and B↔C, then A does not see C\'s cards.',
+          },
+          oneToMany: {
+            label: '1:n  -  One to Many',
+            desc:  'The "one" side\'s own cards flow into the "many" side. Unidirectional: the "one" side never receives anything back, and the injection never chains through any other relation, just this one hop.',
+          },
+          manyToMany: {
+            label: 'n:m  -  Many to Many',
+            desc:  'Both decks share each other\'s own cards, same as 1:1, bidirectional, single hop. Neither side hands over what it itself borrowed from a relation or from its parent.',
+          },
+        },
+        relationsMultipleTitle: 'Multiple relations',
+        relationsMultipleDesc:  'A deck can have multiple relations of different types simultaneously. The result is the deduplicated union of all borrowed cards, always flat, always one hop away from each source.',
+        relationsAntiCycleTitle: 'Why there is no cycle risk',
+        relationsAntiCycleDesc:  'Because relations never chain (each one is resolved in a single hop, straight from the other side\'s own cards) there is nothing to loop through. A↔B and B↔A simply each contribute the other\'s own cards once, with no recursion involved.',
+        relationsConsumingTitle: 'How to consume',
+        relationsConsumingSteps: {
+          step1: 'Call GET /api/v1/table to get all root decks with their merged cards and nested/related deck references.',
+          step2: 'The cards array is what that deck\'s records actually store, it is the safe list to validate against when reading or writing records for THAT deck.',
+          step3: 'For each item in decks, call GET /api/v1/table/{deckId} (or /api/v1/deck/{deckId}) separately to get that deck\'s own merged cards.',
+          step4: 'Never expect nested content inside decks, they are always shallow references, and a related deck\'s cards never mean you can send that data to a different deck\'s records endpoint.',
+        },
+        relationsExampleTitle: 'Response example',
+        relationsExampleNote:  'Blog Posts has a 1:1 relation with the SEO deck. The SEO deck\'s own cards appear flat inside Blog Posts\' cards array, but SEO itself still only appears under Blog Posts\' decks as a shallow reference.',
         simpleNameTitle: 'simpleName & parentSimpleName',
-        simpleNameDesc:  'Every deck and card object includes simpleName alongside name: the same name, lowercased, with whitespace stripped (e.g. "Blog Posts" becomes "blogposts"). It is kept in sync automatically whenever a deck or card is created or renamed, and it is what ?search=, &strict=true, and GET /api/v1/find/{simpleName} match against. Any object that has a parentId also includes parentSimpleName: the simpleName of that parent deck, so you rarely need a second call just to identify the parent.',
+        simpleNameDesc:  'Every deck and card object includes simpleName alongside name: the same name, lowercased, with whitespace stripped (e.g. "Blog Posts" becomes "blogposts"). It is kept in sync automatically whenever a deck or card is created or renamed, and it is what ?search=, &strict=true, and GET /api/v1/find/{simpleName} match against. Any object that has a parentId also includes parentSimpleName: the simpleName of that parent deck, so you rarely need a second call just to identify the parent. POST /api/v1/table also accepts parentSimpleName in the request body as an alternative to parentId: the parent deck is resolved by its simpleName before creation. No match returns 404 NOT_FOUND, more than one match returns 409 AMBIGUOUS_PARENT (use parentId instead to disambiguate). Omitting both parentId and parentSimpleName, or sending parentId as null, creates the deck at the root of the table.',
+        cardConfigTitle: 'Card field config (per type)',
+        cardConfigIntro: 'POST /api/v1/card and PUT /api/v1/card/{cardId} accept a config object shaped by fieldType. text, number, boolean, and relation only validate and normalize what you send. image, video, and gallery additionally accept real file uploads, see Media references below.',
+        cardConfigTable: {
+          text:     { type: 'text',     keys: 'multiline, maxLength',                    desc: 'multiline (boolean, default false) renders a textarea instead of a single-line input. maxLength (number) caps the stored value length.' },
+          number:   { type: 'number',   keys: 'subtype, valueMode, fixedValue, min, max', desc: 'subtype is integer or float (default integer). valueMode is fixed (uses fixedValue) or range (uses min/max, must satisfy min <= max).' },
+          boolean:  { type: 'boolean',  keys: 'defaultValue, trueLabel, falseLabel',      desc: 'defaultValue (boolean, default false). trueLabel/falseLabel are optional display labels.' },
+          relation: { type: 'relation', keys: 'relationType',                            desc: 'relationTargetId is a top-level field (not inside config), required and validated separately. relationType is 1:1, 1:n (default), or n:m, stored inside config.' },
+          media:    { type: 'image / video', keys: 'see Media references',               desc: 'Each field accepts one media reference, resolved into defaultUrl and defaultMediaId.' },
+          gallery:  { type: 'gallery', keys: 'items, maxItems',                           desc: 'items is an array of media references (see below), each resolved into { url, mediaId }. maxItems (optional) caps how many items are accepted, both in config and per request.' },
+        },
+        mediaRefTitle: 'Media references (image, video, gallery)',
+        mediaRefIntro: 'A media reference is checked in this order: mediaId first, then base64, then url. Only the first one present is used.',
+        mediaRefTable: {
+          mediaId:  { name: 'mediaId',  type: 'uuid',   appliesTo: 'image, video, gallery item', desc: 'Reuses an existing media asset already uploaded to this project. Fails with 404 MEDIA_NOT_FOUND if it does not exist, or 422 MEDIA_TYPE_MISMATCH if its type does not match the field.' },
+          base64:   { name: 'base64',   type: 'string', appliesTo: 'image, video, gallery item', desc: 'Raw base64 data, or a full data:<mimeType>;base64,<data> URI. Decoded and uploaded server-side to the project\'s active storage provider (R2 or Blob), creating a real media asset.' },
+          mimeType: { name: 'mimeType', type: 'string', appliesTo: 'image, video, gallery item', desc: 'Required when base64 is not a data URI. Must be an allowed image or video mimeType.' },
+          filename: { name: 'filename', type: 'string', appliesTo: 'image, video, gallery item', desc: 'Optional. Used as the uploaded asset\'s stored name.' },
+          url:      { name: 'url',      type: 'string', appliesTo: 'image, video, gallery item', desc: 'Links to an already-hosted file. No upload happens, mediaId stays null.' },
+          maxItems: { name: 'maxItems', type: 'number', appliesTo: 'gallery only',               desc: 'Optional cap on config.items.length. A single request also cannot carry more than 24 gallery items.' },
+        },
+        mediaLimitsNote: 'Images accept jpeg, png, webp, gif, and avif up to 80MB. Videos accept mp4, webm, and quicktime up to 500MB, but if the project\'s active storage provider is Vercel Blob, videos over 50MB are rejected with 422 VIDEO_TOO_LARGE_FOR_BLOB (Cloudflare R2 has no such limit).',
+        cardConfigExamplesNote: 'A deckId is required for every example below. Response bodies include the resolved config, with defaultUrl/defaultMediaId or items already filled in.',
         searchTitle: 'Search & filtering (schema endpoints)',
         searchDesc:  'GET /api/v1/table, GET /api/v1/table/{deckId}, GET /api/v1/deck, and GET /api/v1/card all accept ?search= and &strict= to filter what they return. Scope differs per endpoint: /api/v1/table only searches root decks, /api/v1/table/{deckId} only searches that one deck\'s own cards and nested decks, /api/v1/deck searches ALL decks project-wide at any nesting level, and /api/v1/card searches all cards project-wide (add &deckId= to scope it to one deck\'s own cards).',
         searchParams: {
@@ -677,73 +760,26 @@
         responseRecordTitle: 'Successful response: single record',
         includeTitle:        'Relation expansion (include)',
         includeDesc:         'Relation cards store the linked record UUID. With ?include=fieldName the UUID is replaced by the full linked record (one level deep).',
+        deleteTitle: 'Deleting decks & cards',
+        deleteIntro: 'Both delete endpoints require the delete scope. Deleting a card is immediate. Deleting a deck refuses by default if the deck is not empty.',
+        deleteCardTitle: 'DELETE /api/v1/card/{cardId}',
+        deleteCardDesc:  'Purges any media that field referenced across every record (storage file and media row), strips the field from every record that had it set, then deletes the card. Returns 204 No Content, with no response body.',
+        deleteDeckTitle: 'DELETE /api/v1/table/{deckId}',
+        deleteDeckDesc:  'Without ?cascade=true, fails with 409 if the deck has nested decks/cards (NODE_HAS_CHILDREN) or active relation connections to other decks (NODE_HAS_CONNECTIONS), each reporting a count. With ?cascade=true, deletes the whole subtree (and its connections) along with every media file its cards uploaded. On success returns 200 with a body reporting how many media files were purged.',
+        deleteConflictNote: 'Passing a card id to the deck endpoint returns 400 BAD_REQUEST ("Node is not a deck."). Passing a deck id to the card endpoint, a malformed UUID, or an id that does not exist, returns 404 NOT_FOUND.',
+        deleteExamplesNote: 'Both response shapes below: the 409 conflict when a deck is not empty, and the 200 success body after deleting it.',
         errorsTitle:         'Error codes',
         errors: {
-          badRequest:   { code: '400', name: 'BAD_REQUEST',      desc: 'Invalid JSON in request body' },
+          badRequest:   { code: '400', name: 'BAD_REQUEST',      desc: 'Invalid JSON in request body, or a node id passed to the wrong delete endpoint' },
           unauthorized: { code: '401', name: 'UNAUTHORIZED',     desc: 'Missing, invalid, revoked, or expired token' },
           forbidden:    { code: '403', name: 'FORBIDDEN',        desc: 'Token scope does not allow this action, or the deck is excluded by token policy' },
-          notFound:     { code: '404', name: 'NOT_FOUND',        desc: 'Deck slug, deck/card UUID, or record UUID not found (also returned for a malformed UUID)' },
-          conflict:     { code: '409', name: 'CONFLICT',         desc: 'Deleting a deck that has children or active relations without ?cascade=true' },
-          validation:   { code: '422', name: 'VALIDATION_ERROR', desc: 'Invalid data (required card, out of range, etc.)' },
-          noContent:    { code: '204', name: 'n/a',              desc: 'DELETE successful (no response body)' },
+          notFound:     { code: '404', name: 'NOT_FOUND',        desc: 'Deck slug, deck/card UUID, record UUID, or mediaId not found (also returned for a malformed UUID)' },
+          conflict:     { code: '409', name: 'CONFLICT',         desc: 'Deleting a deck with children or active relations without ?cascade=true (NODE_HAS_CHILDREN / NODE_HAS_CONNECTIONS, includes a count), or a parentSimpleName shared by more than one deck (AMBIGUOUS_PARENT)' },
+          validation:   { code: '422', name: 'VALIDATION_ERROR', desc: 'Invalid data: required field missing, value out of range, unsupported or oversized media, gallery over maxItems, storage not configured, etc.' },
+          noContent:    { code: '204', name: 'n/a',              desc: 'Card DELETE successful (no response body). Deck DELETE returns 200 with a body instead, see Deleting decks & cards.' },
         },
         examplesTitle: 'cURL examples',
         examplesNote:  'Examples use a deck called "products" with cards: name (text), price (number), featured (boolean).',
-      },
-      apiSchema: {
-        title:            'API: Table Discovery',
-        intro:            'Before consuming data, discover which decks are on the table and what cards (fields) they contain, without opening the CMS.',
-        endpointLabel:    'Endpoint',
-        anyTokenNote:     'Any valid token can access this endpoint. No scope or per-deck permission required.',
-        responseTitle:    'Response',
-        fieldsTableTitle: 'Fields in each card object',
-        fields: {
-          id:           { name: 'id',           type: 'string',  desc: 'Card UUID' },
-          name:         { name: 'name',         type: 'string',  desc: 'Card name' },
-          simpleName:   { name: 'simpleName',   type: 'string',  desc: 'name, lowercased with whitespace stripped. See API for Developers > simpleName & parentSimpleName' },
-          type:         { name: 'type',         type: 'string',  desc: 'Type: text, number, boolean, image, video, gallery, relation' },
-          required:     { name: 'required',     type: 'boolean', desc: 'Whether the card is required when creating/updating a record' },
-          defaultValue: { name: 'defaultValue', type: 'string',  desc: '(optional) Configured default value' },
-          relatesTo:    { name: 'relatesTo',    type: 'string',  desc: '(relation cards only) Slug of the linked deck' },
-        },
-        exampleLabel: 'cURL example',
-        crossRefNote: 'Need to filter this list, or find a deck/card that is not a root deck? See API for Developers → Search & filtering, and GET /api/v1/find/{simpleName}.',
-      },
-      relations: {
-        title: 'Node Relations',
-        intro: 'When decks are connected in the board, the API automatically merges their CARDS into the response. Decks are never merged - only cards. This keeps every response bounded: one call can never cascade into an unlimited chain of nested or related decks.',
-        flatPrincipleTitle: 'Flat response principle, cards only',
-        flatPrincipleDesc:  'Every deck always returns two keys: cards (its own cards plus cards borrowed through exactly one hop of inheritance, merged flat) and decks (shallow references only - id/name/edit). A relation NEVER hands over the other deck\'s own nested decks, only its cards. To read a related or nested deck\'s own schema, fetch it separately by id - it is never inlined.',
-        inheritanceTitle:   'Structural inheritance (parent → child)',
-        inheritanceDesc:    'A deck nested inside a parent container automatically sees all cards AND sub-decks from its direct parent (the parent itself is excluded, to avoid self-reference). This is the one case where decks are borrowed too, because it mirrors the board\'s own visual nesting. It goes exactly one level up - never the grandparent.',
-        relationTypesTitle: 'Relation types - cards only, single hop, never recursive',
-        types: {
-          oneToOne: {
-            label: '1:1  -  One to One',
-            desc:  'Both decks share each other\'s own cards (never their sub-decks). Non-transitive: if A↔B and B↔C, then A does not see C\'s cards.',
-          },
-          oneToMany: {
-            label: '1:n  -  One to Many',
-            desc:  'The "one" side\'s own cards flow into the "many" side. Unidirectional: the "one" side never receives anything back, and the injection never chains through any other relation - just this one hop.',
-          },
-          manyToMany: {
-            label: 'n:m  -  Many to Many',
-            desc:  'Both decks share each other\'s own cards, same as 1:1 - bidirectional, single hop. Neither side hands over what it itself borrowed from a relation or from its parent.',
-          },
-        },
-        multipleRelationsTitle: 'Multiple relations',
-        multipleRelationsDesc:  'A deck can have multiple relations of different types simultaneously. The result is the deduplicated union of all borrowed cards - always flat, always one hop away from each source.',
-        antiCycleTitle: 'Why there is no cycle risk',
-        antiCycleDesc:  'Because relations never chain (each one is resolved in a single hop, straight from the other side\'s own cards) there is nothing to loop through - A↔B and B↔A simply each contribute the other\'s own cards once, with no recursion involved.',
-        consumingTitle: 'How to consume',
-        consumingSteps: {
-          step1: 'Call GET /api/v1/table to get all root decks with their merged cards and nested/related deck references.',
-          step2: 'The cards array is what that deck\'s records actually store - it is the safe list to validate against when reading or writing records for THAT deck.',
-          step3: 'For each item in decks, call GET /api/v1/table/{deckId} (or /api/v1/deck/{deckId}) separately to get that deck\'s own merged cards.',
-          step4: 'Never expect nested content inside decks - they are always shallow references, and a related deck\'s cards never mean you can send that data to a different deck\'s records endpoint.',
-        },
-        exampleTitle: 'Response example',
-        exampleNote:  'Blog Posts has a 1:1 relation with the SEO deck. The SEO deck\'s own cards appear flat inside Blog Posts\' cards array - but SEO itself still only appears under Blog Posts\' decks as a shallow reference.',
       },
       multiProject: {
         title:        'Multi-Project',
@@ -2460,7 +2496,7 @@ export type Dictionary = {
       sections: {
         gettingStarted: string; navigation: string; nodesAndFields: string
         content: string; webMigration: string; relationsGuide: string; rolesGuide: string; multiProject: string
-        media: string; apiForDevs: string; apiSchema: string; relations: string; nodesAndFieldsDev: string; webMigrationDev: string; multiProjectDev: string
+        media: string; apiForDevs: string; nodesAndFieldsDev: string; webMigrationDev: string; multiProjectDev: string
         storageSetup: string
         usersGuide: string
         emailSetup: string
@@ -2584,10 +2620,14 @@ export type Dictionary = {
         tocLabel: string
         toc: {
           token: string; auth: string; baseUrl: string; deckSlug: string; endpoints: string
-          simpleName: string; search: string; queryParams: string; responseList: string
-          responseRecord: string; include: string; errors: string; examples: string
+          endpointsGet: string; endpointsPost: string; endpointsPut: string; endpointsPatch: string; endpointsDelete: string
+          schemaResponse: string; relations: string
+          simpleName: string; cardConfig: string; search: string; queryParams: string; responseList: string
+          responseRecord: string; include: string; delete: string; errors: string; examples: string
         }
-        endpointsTitle: string
+        endpointsTitle: string; endpointsOverview: string
+        endpointsGetTitle: string; endpointsPostTitle: string; endpointsPutTitle: string
+        endpointsPatchTitle: string; endpointsDeleteTitle: string
         endpoints: {
           schema: string; getSchemaDeck: string; createDeck: string; renameDeck: string; deleteDeck: string
           searchDecks: string; getDeck: string; searchCards: string; getCard: string; createCard: string; updateCard: string; deleteCard: string
@@ -2596,7 +2636,52 @@ export type Dictionary = {
         }
         endpointPermissions: { anyToken: string; read: string; write: string; update: string; delete: string }
         putVsPatchNote: string; canvasNote: string
+        schemaResponseTitle: string; schemaResponseIntro: string; schemaAnyTokenNote: string
+        schemaFieldsTitle: string
+        schemaFields: {
+          id:           { name: string; type: string; desc: string }
+          name:         { name: string; type: string; desc: string }
+          simpleName:   { name: string; type: string; desc: string }
+          type:         { name: string; type: string; desc: string }
+          required:     { name: string; type: string; desc: string }
+          defaultValue: { name: string; type: string; desc: string }
+          relatesTo:    { name: string; type: string; desc: string }
+        }
+        schemaResponseNote: string
+        relationsTitle: string; relationsIntro: string
+        relationsFlatTitle: string; relationsFlatDesc: string
+        relationsInheritanceTitle: string; relationsInheritanceDesc: string
+        relationsTypesTitle: string
+        relationsTypes: {
+          oneToOne:   { label: string; desc: string }
+          oneToMany:  { label: string; desc: string }
+          manyToMany: { label: string; desc: string }
+        }
+        relationsMultipleTitle: string; relationsMultipleDesc: string
+        relationsAntiCycleTitle: string; relationsAntiCycleDesc: string
+        relationsConsumingTitle: string
+        relationsConsumingSteps: { step1: string; step2: string; step3: string; step4: string }
+        relationsExampleTitle: string; relationsExampleNote: string
         simpleNameTitle: string; simpleNameDesc: string
+        cardConfigTitle: string; cardConfigIntro: string
+        cardConfigTable: {
+          text:     { type: string; keys: string; desc: string }
+          number:   { type: string; keys: string; desc: string }
+          boolean:  { type: string; keys: string; desc: string }
+          relation: { type: string; keys: string; desc: string }
+          media:    { type: string; keys: string; desc: string }
+          gallery:  { type: string; keys: string; desc: string }
+        }
+        mediaRefTitle: string; mediaRefIntro: string
+        mediaRefTable: {
+          mediaId:  { name: string; type: string; appliesTo: string; desc: string }
+          base64:   { name: string; type: string; appliesTo: string; desc: string }
+          mimeType: { name: string; type: string; appliesTo: string; desc: string }
+          filename: { name: string; type: string; appliesTo: string; desc: string }
+          url:      { name: string; type: string; appliesTo: string; desc: string }
+          maxItems: { name: string; type: string; appliesTo: string; desc: string }
+        }
+        mediaLimitsNote: string; cardConfigExamplesNote: string
         searchTitle: string; searchDesc: string; searchNote: string
         searchParams: {
           search: { name: string; type: string; default: string; desc: string }
@@ -2613,7 +2698,12 @@ export type Dictionary = {
           include: { name: string; type: string; default: string; desc: string }
         }
         responseListTitle: string; responseRecordTitle: string
-        includeTitle: string; includeDesc: string; errorsTitle: string
+        includeTitle: string; includeDesc: string
+        deleteTitle: string; deleteIntro: string
+        deleteCardTitle: string; deleteCardDesc: string
+        deleteDeckTitle: string; deleteDeckDesc: string
+        deleteConflictNote: string; deleteExamplesNote: string
+        errorsTitle: string
         errors: {
           badRequest:   { code: string; name: string; desc: string }
           unauthorized: { code: string; name: string; desc: string }
@@ -2624,36 +2714,6 @@ export type Dictionary = {
           noContent:    { code: string; name: string; desc: string }
         }
         examplesTitle: string; examplesNote: string
-      }
-      apiSchema: {
-        title: string; intro: string; endpointLabel: string; anyTokenNote: string
-        responseTitle: string; fieldsTableTitle: string
-        fields: {
-          id:           { name: string; type: string; desc: string }
-          name:         { name: string; type: string; desc: string }
-          simpleName:   { name: string; type: string; desc: string }
-          type:         { name: string; type: string; desc: string }
-          required:     { name: string; type: string; desc: string }
-          defaultValue: { name: string; type: string; desc: string }
-          relatesTo:    { name: string; type: string; desc: string }
-        }
-        exampleLabel: string; crossRefNote: string
-      }
-      relations: {
-        title: string; intro: string
-        flatPrincipleTitle: string; flatPrincipleDesc: string
-        inheritanceTitle: string; inheritanceDesc: string
-        relationTypesTitle: string
-        types: {
-          oneToOne:   { label: string; desc: string }
-          oneToMany:  { label: string; desc: string }
-          manyToMany: { label: string; desc: string }
-        }
-        multipleRelationsTitle: string; multipleRelationsDesc: string
-        antiCycleTitle: string; antiCycleDesc: string
-        consumingTitle: string
-        consumingSteps: { step1: string; step2: string; step3: string; step4: string }
-        exampleTitle: string; exampleNote: string
       }
       multiProject: {
         title: string; intro: string

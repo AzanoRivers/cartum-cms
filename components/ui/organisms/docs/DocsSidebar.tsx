@@ -17,7 +17,7 @@ export type DocsSidebarProps = {
 }
 
 const TOP_IDS  = ['gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration', 'relationsGuide', 'multiProject', 'rolesGuide'] as const
-const DEV_IDS  = ['installation', 'usersGuide', 'nodesAndFieldsDev', 'importExport', 'emailSetup', 'webMigrationDev', 'multiProjectDev', 'media', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations'] as const
+const DEV_IDS  = ['installation', 'usersGuide', 'nodesAndFieldsDev', 'importExport', 'emailSetup', 'webMigrationDev', 'multiProjectDev', 'media', 'storageSetup', 'apiForDevs'] as const
 const ALL_IDS  = [...TOP_IDS, ...DEV_IDS] as const
 
 type SectionId = typeof ALL_IDS[number]
@@ -43,8 +43,6 @@ const ICONS: Record<SectionId, Parameters<typeof Icon>[0]['name']> = {
   media:             'Image',
   storageSetup:      'HardDrive',
   apiForDevs:      'Code',
-  apiSchema:       'Network',
-  relations:       'GitMerge',
 }
 
 export function DocsSidebar({ sections, activeId, onSelect, showLang = false, currentLocale = 'en' }: DocsSidebarProps) {

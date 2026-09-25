@@ -130,6 +130,7 @@ export interface CreateFieldInput {
   relationTargetId?: string
   positionX?: number
   positionY?: number
+  config?: FieldConfig | null
 }
 
 export interface UpdateFieldMetaInput {

@@ -3,13 +3,14 @@ import { db } from '@/db'
 import { fieldMeta, nodes } from '@/db/schema'
 import { resolveApiAuth } from '@/lib/api/auth'
 import { corsHeaders, getParentSimpleName, isUuid } from '@/lib/api/utils'
+import { resolveCreateFieldConfig } from '@/lib/api/card-config'
 import { nodeService } from '@/lib/services/nodes.service'
 import { rolesService } from '@/lib/services/roles.service'
 import { nodesRepository } from '@/db/repositories/nodes.repository'
 import { recordsRepository } from '@/db/repositories/records.repository'
 import { mediaRepository } from '@/db/repositories/media.repository'
 import { UpdateFieldMetaSchema } from '@/lib/actions/nodes.schemas'
-import type { FieldType } from '@/types/nodes'
+import type { FieldType, UpdateFieldMetaInput } from '@/types/nodes'
 
 function apiError(error: string, message: string, status: number) {
   return Response.json({ error, message }, { status, headers: corsHeaders() })
@@ -116,8 +117,28 @@ export async function PUT(
     return apiError('VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.', 422)
   }
 
+  // config is only resolved (and only sent to nodeService) when the caller
+  // actually included it - omitting the key must leave the stored config
+  // untouched, never fall back to an implicit `config: undefined` key that
+  // would look the same as "clear it" to nodeService.updateFieldMeta.
+  let updateInput: UpdateFieldMetaInput = parsed.data
+  if (parsed.data.config !== undefined) {
+    const effectiveFieldType = parsed.data.fieldType ?? (existing.field_meta.fieldType as FieldType)
+    const effectiveRelTarget = parsed.data.relationTargetId ?? existing.field_meta.relationTargetId ?? undefined
+    const configResult = await resolveCreateFieldConfig(
+      effectiveFieldType,
+      parsed.data.config,
+      effectiveRelTarget,
+      { projectId: apiAuth.projectId, parentId: parentId },
+    )
+    if (!configResult.ok) {
+      return apiError(configResult.error, configResult.message, configResult.status)
+    }
+    updateInput = { ...parsed.data, config: configResult.config ?? undefined }
+  }
+
   try {
-    const node = await nodeService.updateFieldMeta(cardId, parsed.data, apiAuth.projectId)
+    const node = await nodeService.updateFieldMeta(cardId, updateInput, apiAuth.projectId)
     const parentSimpleName = await getParentSimpleName(node.parentId, apiAuth.projectId)
     return Response.json(
       {
@@ -131,6 +152,7 @@ export async function PUT(
           required:         node.isRequired,
           defaultValue:     node.defaultValue,
           relationTargetId: node.relationTargetId,
+          config:           node.config,
           updatedAt:        node.updatedAt,
         },
       },

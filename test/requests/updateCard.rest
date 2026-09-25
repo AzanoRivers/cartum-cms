@@ -1,0 +1,526 @@
+@baseUrl = http://localhost:3000
+@token = REPLACE_WITH_A_REAL_TOKEN
+@tokenNoUpdateScope = REPLACE_WITH_A_TOKEN_MISSING_UPDATE_SCOPE
+@tokenExcludedDeck = REPLACE_WITH_A_TOKEN_THAT_EXCLUDES_deckId_BELOW
+@tokenNoSchemaUpdate = REPLACE_WITH_A_TOKEN_ON_A_ROLE_WITH_canUpdate_FALSE
+
+### =========================================================================
+### SETUP — root deck to hold every test card (copy the returned id into @deckId)
+### =========================================================================
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "UpdateCardTestDeck"
+}
+
+###
+@deckId = 00000000-0000-0000-0000-000000000000
+
+### SETUP — one text card with a real config (copy id into @cardId)
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "CardToUpdate",
+  "parentId": "{{deckId}}",
+  "fieldType": "text",
+  "defaultValue": "hola",
+  "config": { "multiline": true, "maxLength": 300 }
+}
+
+###
+@cardId = 00000000-0000-0000-0000-000000000000
+
+### =========================================================================
+### 1) PARTIAL UPDATE — updating one field must NOT wipe the others.
+### config and defaultValue must survive untouched (only isRequired changes).
+### =========================================================================
+PUT {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "isRequired": true
+}
+
+### verify: config ({"maxLength":300,"multiline":true}) and defaultValue ("hola") are still there
+GET {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{token}}
+
+### =========================================================================
+### 2) EXPLICIT CONFIG UPDATE — per fieldType (same shapes as postCreateCard.rest)
+### =========================================================================
+
+### 2a) text: change multiline/maxLength
+PUT {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "config": { "multiline": false, "maxLength": 50 }
+}
+
+### 2b) number: fixed value
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "NumberCard",
+  "parentId": "{{deckId}}",
+  "fieldType": "number"
+}
+
+###
+@numberCardId = 00000000-0000-0000-0000-000000000000
+
+PUT {{baseUrl}}/api/v1/card/{{numberCardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "config": { "subtype": "integer", "valueMode": "fixed", "fixedValue": 42 }
+}
+
+### 2c) number: switch the SAME card to a range instead
+PUT {{baseUrl}}/api/v1/card/{{numberCardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "config": { "subtype": "float", "valueMode": "range", "min": 0, "max": 100 }
+}
+
+### 2d) boolean
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "BooleanCard",
+  "parentId": "{{deckId}}",
+  "fieldType": "boolean"
+}
+
+###
+@booleanCardId = 00000000-0000-0000-0000-000000000000
+
+PUT {{baseUrl}}/api/v1/card/{{booleanCardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "config": { "defaultValue": true, "trueLabel": "Activo", "falseLabel": "Inactivo" }
+}
+
+### 2e) gallery: replace items and maxItems entirely
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "GalleryCard",
+  "parentId": "{{deckId}}",
+  "fieldType": "gallery"
+}
+
+###
+@galleryCardId = 00000000-0000-0000-0000-000000000000
+
+PUT {{baseUrl}}/api/v1/card/{{galleryCardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "config": {
+    "maxItems": 5,
+    "items": [
+      { "url": "https://example.com/a.jpg" },
+      { "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "mimeType": "image/png" }
+    ]
+  }
+}
+
+### =========================================================================
+### 3) MEDIA REFERENCES — image/video updates (base64 upload, mediaId, url)
+### =========================================================================
+
+### 3a) create an image card with no default
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "ImageCard",
+  "parentId": "{{deckId}}",
+  "fieldType": "image"
+}
+
+###
+@imageCardId = 00000000-0000-0000-0000-000000000000
+
+### 3b) set its default image via base64 (server uploads and creates a real media asset)
+PUT {{baseUrl}}/api/v1/card/{{imageCardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "config": { "base64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=" }
+}
+
+### copy the response's config.defaultMediaId into @existingMediaId to reuse it below
+@existingMediaId = 00000000-0000-0000-0000-000000000000
+
+### 3c) point a DIFFERENT card at that same existing media, by mediaId (no new upload)
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "ImageCard2",
+  "parentId": "{{deckId}}",
+  "fieldType": "image"
+}
+
+###
+@imageCard2Id = 00000000-0000-0000-0000-000000000000
+
+PUT {{baseUrl}}/api/v1/card/{{imageCard2Id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "config": { "mediaId": "{{existingMediaId}}" }
+}
+
+### 3d) switch it to a plain external url instead (no upload, mediaId goes back to null)
+PUT {{baseUrl}}/api/v1/card/{{imageCard2Id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "config": { "url": "https://example.com/pic.jpg" }
+}
+
+### 3e) mediaId that does not exist → 404 MEDIA_NOT_FOUND
+PUT {{baseUrl}}/api/v1/card/{{imageCard2Id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "config": { "mediaId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }
+}
+
+### 3f) setup: a video card with a real uploaded media, to test a type mismatch
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "VideoCard",
+  "parentId": "{{deckId}}",
+  "fieldType": "video",
+  "config": { "base64": "AAAAHGZ0eXBpc29tAAACAGlzb21pc28y", "mimeType": "video/mp4" }
+}
+
+### copy the response's config.defaultMediaId into @existingVideoMediaId
+@existingVideoMediaId = 00000000-0000-0000-0000-000000000000
+
+### 3g) mediaId type mismatch: point the IMAGE card at the VIDEO's media → 422 MEDIA_TYPE_MISMATCH
+PUT {{baseUrl}}/api/v1/card/{{imageCard2Id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "config": { "mediaId": "{{existingVideoMediaId}}" }
+}
+
+### =========================================================================
+### 4) RELATION — relationTargetId (top-level) and relationType (in config)
+### =========================================================================
+
+### 4a) setup: a real target deck and a plain text card to convert into a relation
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "RelationTargetDeck"
+}
+
+###
+@relationTargetId = 00000000-0000-0000-0000-000000000000
+
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "ToBecomeRelation",
+  "parentId": "{{deckId}}",
+  "fieldType": "text"
+}
+
+###
+@relationCardId = 00000000-0000-0000-0000-000000000000
+
+### 4b) change its type to relation, set target and relationType together (write both at once:
+### changing fieldType without sending a matching config leaves the OLD type's config
+### shape in place, so always send fieldType + relationTargetId + config together)
+PUT {{baseUrl}}/api/v1/card/{{relationCardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fieldType": "relation",
+  "relationTargetId": "{{relationTargetId}}",
+  "config": { "relationType": "n:m" }
+}
+
+### 4c) relationTargetId that is well-formed but does not exist → 422 RELATION_TARGET_NOT_FOUND
+PUT {{baseUrl}}/api/v1/card/{{relationCardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "relationTargetId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+}
+
+### 4d) relationTargetId that IS a real node but a card, not a deck → 422 RELATION_TARGET_MUST_BE_CONTAINER
+PUT {{baseUrl}}/api/v1/card/{{relationCardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "relationTargetId": "{{numberCardId}}"
+}
+
+### =========================================================================
+### 5) FIELD TYPE CHANGE — allowed only while the deck has zero records.
+### The public API has no "force change + wipe data" path (that only exists
+### in the CMS board UI's own confirm dialog).
+### =========================================================================
+
+### 5a) fieldType change on a card with no records yet → succeeds
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "FreeToChange",
+  "parentId": "{{deckId}}",
+  "fieldType": "text"
+}
+
+###
+@freeCardId = 00000000-0000-0000-0000-000000000000
+
+PUT {{baseUrl}}/api/v1/card/{{freeCardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fieldType": "number",
+  "config": { "subtype": "integer" }
+}
+
+### 5b) setup: a card that DOES have a record referencing it (needs its own clean deck,
+### so no OTHER required card blocks the record write)
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "BlockedTypeChangeDeck"
+}
+
+###
+@blockedDeckId = 00000000-0000-0000-0000-000000000000
+
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "onlyField",
+  "parentId": "{{blockedDeckId}}",
+  "fieldType": "text"
+}
+
+###
+@blockedCardId = 00000000-0000-0000-0000-000000000000
+
+### create the record on the deck's own slug (equals the deck's simpleName: blockedtypechangedeck)
+POST {{baseUrl}}/api/v1/blockedtypechangedeck
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "onlyField": "some value"
+}
+
+### 5c) attempt to change its type now → 422 FIELD_TYPE_CHANGE_BLOCKED
+PUT {{baseUrl}}/api/v1/card/{{blockedCardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fieldType": "number"
+}
+
+### =========================================================================
+### 6) NAME COLLISION — renaming a card to a name a sibling already has
+### =========================================================================
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "SiblingA",
+  "parentId": "{{deckId}}",
+  "fieldType": "text"
+}
+
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "SiblingB",
+  "parentId": "{{deckId}}",
+  "fieldType": "text"
+}
+
+###
+@siblingBId = 00000000-0000-0000-0000-000000000000
+
+### → 422 { "error": "VALIDATION_ERROR", "message": "NODE_NAME_TAKEN" }
+PUT {{baseUrl}}/api/v1/card/{{siblingBId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "SiblingA"
+}
+
+### renaming a card to the name it ALREADY has is fine (not a collision with itself)
+PUT {{baseUrl}}/api/v1/card/{{siblingBId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "SiblingB"
+}
+
+### =========================================================================
+### 7) NOT FOUND / BAD REQUEST — malformed or wrong-type ids, invalid JSON
+### =========================================================================
+
+### 7a) non-UUID cardId → 404 NOT_FOUND
+PUT {{baseUrl}}/api/v1/card/not-a-uuid
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "isRequired": true
+}
+
+### 7b) well-formed UUID that never existed → 404 NOT_FOUND
+PUT {{baseUrl}}/api/v1/card/11111111-1111-1111-1111-111111111111
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "isRequired": true
+}
+
+### 7c) a deck id passed as if it were a cardId → 404 NOT_FOUND
+PUT {{baseUrl}}/api/v1/card/{{deckId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "isRequired": true
+}
+
+### 7d) invalid JSON body → 400 BAD_REQUEST
+PUT {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+not json
+
+### =========================================================================
+### 8) AUTH — missing/invalid Authorization → 401 UNAUTHORIZED
+### =========================================================================
+
+### 8a) no Authorization header at all
+PUT {{baseUrl}}/api/v1/card/{{cardId}}
+Content-Type: application/json
+
+{
+  "isRequired": true
+}
+
+### 8b) unknown/garbage token
+PUT {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer this-token-does-not-exist
+Content-Type: application/json
+
+{
+  "isRequired": true
+}
+
+### =========================================================================
+### 9) SCOPE — token has no "update" scope → 403 FORBIDDEN
+### Generate @tokenNoUpdateScope in Settings → API with scope = ["read","write","delete"]
+### =========================================================================
+PUT {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{tokenNoUpdateScope}}
+Content-Type: application/json
+
+{
+  "isRequired": true
+}
+
+### =========================================================================
+### 10) TOKEN POLICY — deckId (the card's parent) is in the token's excluded list → 403 FORBIDDEN
+### Generate @tokenExcludedDeck in Settings → API excluding {{deckId}} explicitly
+### =========================================================================
+PUT {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{tokenExcludedDeck}}
+Content-Type: application/json
+
+{
+  "isRequired": true
+}
+
+### =========================================================================
+### 11) ROLE — token's role has schema canUpdate = false → 403 FORBIDDEN
+### Generate @tokenNoSchemaUpdate on a role whose Settings → Roles schema
+### permissions have "Update card/deck" unchecked for this project
+### =========================================================================
+PUT {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{tokenNoSchemaUpdate}}
+Content-Type: application/json
+
+{
+  "isRequired": true
+}
+
+### =========================================================================
+### CLEANUP — remove the test decks (cascades every card/record/media created above)
+### =========================================================================
+DELETE {{baseUrl}}/api/v1/table/{{deckId}}?cascade=true
+Authorization: Bearer {{token}}
+
+###
+DELETE {{baseUrl}}/api/v1/table/{{relationTargetId}}?cascade=true
+Authorization: Bearer {{token}}
+
+###
+DELETE {{baseUrl}}/api/v1/table/{{blockedDeckId}}?cascade=true
+Authorization: Bearer {{token}}

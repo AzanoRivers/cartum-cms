@@ -3,6 +3,7 @@ import { db } from '@/db'
 import { fieldMeta, nodes } from '@/db/schema'
 import { resolveApiAuth } from '@/lib/api/auth'
 import { corsHeaders, getParentSimpleName, isUuid, matchesNameQuery } from '@/lib/api/utils'
+import { resolveCreateFieldConfig } from '@/lib/api/card-config'
 import { nodeService } from '@/lib/services/nodes.service'
 import { rolesService } from '@/lib/services/roles.service'
 import { CreateFieldSchema } from '@/lib/actions/nodes.schemas'
@@ -108,8 +109,21 @@ export async function POST(req: Request) {
     return apiError('FORBIDDEN', 'Access to the parent deck is excluded by token policy.', 403)
   }
 
+  const configResult = await resolveCreateFieldConfig(
+    parsed.data.fieldType,
+    parsed.data.config,
+    parsed.data.relationTargetId,
+    { projectId: apiAuth.projectId, parentId: parsed.data.parentId },
+  )
+  if (!configResult.ok) {
+    return apiError(configResult.error, configResult.message, configResult.status)
+  }
+
   try {
-    const node = await nodeService.createField(parsed.data, apiAuth.projectId)
+    const node = await nodeService.createField(
+      { ...parsed.data, config: configResult.config },
+      apiAuth.projectId,
+    )
     const parentSimpleName = await getParentSimpleName(node.parentId, apiAuth.projectId)
     return Response.json(
       {
@@ -123,6 +137,7 @@ export async function POST(req: Request) {
           required:         node.isRequired,
           defaultValue:     node.defaultValue,
           relationTargetId: node.relationTargetId,
+          config:           node.config,
           createdAt:        node.createdAt,
           updatedAt:        node.updatedAt,
         },

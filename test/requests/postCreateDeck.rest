@@ -1,0 +1,53 @@
+@baseUrl = http://localhost:3000
+@token = 8cf90c4a1ffb89099be302c98dbea0db3d846428e71cb625482e553ce0c1a60f
+@parentDeckId = 00000000-0000-0000-0000-000000000000
+@parentSimpleName = pay
+
+### POST /api/v1/table — sin parent: se crea como mazo RAÍZ (deck maestro) de la mesa
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Nuevo Mazo Raiz"
+}
+
+### POST /api/v1/table — con parentId: se crea ANIDADO dentro de ese mazo (por UUID)
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Sub Mazo por Id",
+  "parentId": "{{parentDeckId}}"
+}
+
+### POST /api/v1/table — con parentSimpleName: se crea ANIDADO, resuelto por simpleName (sin saber el UUID)
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Sub Mazo por SimpleName",
+  "parentSimpleName": "{{parentSimpleName}}"
+}
+
+### POST /api/v1/table — parentSimpleName que no existe: debería devolver 404 NOT_FOUND
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Este falla",
+  "parentSimpleName": "noexiste12345"
+}
+
+### POST /api/v1/table — explicit parentId null: equivalente a omitirlo, también crea en la raíz
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Otro Mazo Raiz",
+  "parentId": null
+}

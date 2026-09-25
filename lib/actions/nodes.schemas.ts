@@ -2,7 +2,12 @@ import { z } from 'zod'
 
 export const CreateContainerSchema = z.object({
   name:      z.string().min(1).max(64).regex(/^[a-zA-Z0-9 _-]+$/, 'Name contains invalid characters.'),
-  parentId:  z.string().uuid().nullable(),
+  // Omitted, or explicit null, both mean "create at the root of the table".
+  parentId:  z.string().uuid().nullable().optional().transform((v) => v ?? null),
+  // v1 API only: identify the parent deck by simpleName instead of parentId.
+  // Ignored if parentId is also given. Resolved to a real parentId by the
+  // route handler before nodeService.createContainer ever sees it.
+  parentSimpleName: z.string().min(1).optional(),
   positionX: z.number().optional().default(0),
   positionY: z.number().optional().default(0),
 })
@@ -16,6 +21,10 @@ export const CreateFieldSchema = z.object({
   relationTargetId: z.string().uuid().optional(),
   positionX:        z.number().optional().default(0),
   positionY:        z.number().optional().default(0),
+  // v1 API only: type-specific config at creation time (shape depends on
+  // fieldType — validated and resolved by lib/api/card-config.ts, not here,
+  // same reasoning as UpdateFieldMetaSchema.config below).
+  config:           z.record(z.string(), z.unknown()).optional(),
 })
 
 export const UpdatePositionSchema = z.object({

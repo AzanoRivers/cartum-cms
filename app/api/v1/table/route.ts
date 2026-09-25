@@ -5,7 +5,7 @@ import { resolveNodeSchema } from '@/lib/services/node-schema-resolver'
 import { nodeService } from '@/lib/services/nodes.service'
 import { rolesService } from '@/lib/services/roles.service'
 import { CreateContainerSchema } from '@/lib/actions/nodes.schemas'
-import { nodeNameToSlug } from '@/nodes/api-generator'
+import { nodeNameToSlug, toSimpleName } from '@/nodes/api-generator'
 
 function apiError(error: string, message: string, status: number) {
   return Response.json({ error, message }, { status, headers: corsHeaders() })
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
   const schemaPerms = await rolesService.resolveSchemaPermissionsByRole(apiAuth.roleId, apiAuth.projectId)
   if (!schemaPerms.canCreate) return apiError('FORBIDDEN', 'Insufficient permissions.', 403)
 
-  let body: { name?: unknown; parentId?: unknown }
+  let body: { name?: unknown; parentId?: unknown; parentSimpleName?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -76,19 +76,42 @@ export async function POST(req: Request) {
   }
 
   const parsed = CreateContainerSchema.safeParse({
-    name:     body.name,
-    parentId: body.parentId ?? null,
+    name:             body.name,
+    parentId:         body.parentId,
+    parentSimpleName: body.parentSimpleName,
   })
   if (!parsed.success) {
     return apiError('VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.', 422)
   }
 
-  if (parsed.data.parentId && apiAuth.excludedNodeIds.includes(parsed.data.parentId)) {
+  // parentId (a real id) always wins if given. Otherwise, parentSimpleName
+  // (v1-API-only convenience) is resolved to a real container id. Neither
+  // given means "create at the root of the table" (parentId stays null).
+  let parentId = parsed.data.parentId
+  if (parentId === null && parsed.data.parentSimpleName) {
+    const wanted = toSimpleName(parsed.data.parentSimpleName)
+    const ctx = await buildResolverContext(apiAuth.projectId)
+    const matches = ctx.allNodes.filter((n) => n.type === 'container' && n.simpleName === wanted)
+
+    if (matches.length === 0) {
+      return apiError('NOT_FOUND', `No deck with simpleName '${parsed.data.parentSimpleName}' was found.`, 404)
+    }
+    if (matches.length > 1) {
+      return apiError(
+        'AMBIGUOUS_PARENT',
+        `${matches.length} decks share simpleName '${parsed.data.parentSimpleName}'. Use parentId instead.`,
+        409,
+      )
+    }
+    parentId = matches[0].id
+  }
+
+  if (parentId && apiAuth.excludedNodeIds.includes(parentId)) {
     return apiError('FORBIDDEN', 'Access to the parent deck is excluded by token policy.', 403)
   }
 
   try {
-    const node = await nodeService.createContainer(parsed.data, apiAuth.projectId)
+    const node = await nodeService.createContainer({ ...parsed.data, parentId }, apiAuth.projectId)
     const parentSimpleName = await getParentSimpleName(node.parentId, apiAuth.projectId)
     return Response.json(
       { data: { id: node.id, name: node.name, simpleName: node.simpleName, parentId: node.parentId, parentSimpleName, createdAt: node.createdAt, updatedAt: node.updatedAt } },

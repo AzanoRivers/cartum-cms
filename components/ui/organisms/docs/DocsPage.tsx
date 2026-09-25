@@ -626,13 +626,22 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
     { id: 'api-auth',            label: s.toc.auth },
     { id: 'api-baseurl',         label: s.toc.baseUrl },
     { id: 'api-deckslug',        label: s.toc.deckSlug },
-    { id: 'api-endpoints',       label: s.toc.endpoints },
+    { id: 'api-endpoints',        label: s.toc.endpoints },
+    { id: 'api-endpoints-get',    label: s.toc.endpointsGet },
+    { id: 'api-endpoints-post',   label: s.toc.endpointsPost },
+    { id: 'api-endpoints-put',    label: s.toc.endpointsPut },
+    { id: 'api-endpoints-patch',  label: s.toc.endpointsPatch },
+    { id: 'api-endpoints-delete', label: s.toc.endpointsDelete },
+    { id: 'api-schema-response', label: s.toc.schemaResponse },
+    { id: 'api-relations',       label: s.toc.relations },
     { id: 'api-simplename',      label: s.toc.simpleName },
+    { id: 'api-card-config',     label: s.toc.cardConfig },
     { id: 'api-search',          label: s.toc.search },
     { id: 'api-queryparams',     label: s.toc.queryParams },
     { id: 'api-response-list',   label: s.toc.responseList },
     { id: 'api-response-record', label: s.toc.responseRecord },
     { id: 'api-include',         label: s.toc.include },
+    { id: 'api-delete',          label: s.toc.delete },
     { id: 'api-errors',          label: s.toc.errors },
     { id: 'api-examples',        label: s.toc.examples },
   ]
@@ -666,40 +675,253 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
 
       <div id="api-endpoints">
         <SubHeading>{s.endpointsTitle}</SubHeading>
+        <Prose>{s.endpointsOverview}</Prose>
+        <div className="mt-2">
+          <Note>{s.canvasNote}</Note>
+        </div>
+      </div>
+
+      <div id="api-endpoints-get">
+        <SubHeading>{s.endpointsGetTitle}</SubHeading>
         <Table
-          headers={['Method', 'Route', 'Description', 'Permission']}
+          headers={['Route', 'Description', 'Permission']}
           rows={[
-            ['GET',    '/api/v1/table',                    s.endpoints.schema,         s.endpointPermissions.anyToken],
-            ['POST',   '/api/v1/table',                    s.endpoints.createDeck,     s.endpointPermissions.write],
-            ['GET',    '/api/v1/table/{deckId}',           s.endpoints.getSchemaDeck,  s.endpointPermissions.anyToken],
-            ['PUT',    '/api/v1/table/{deckId}',           s.endpoints.renameDeck,     s.endpointPermissions.update],
-            ['DELETE', '/api/v1/table/{deckId}',           s.endpoints.deleteDeck,     s.endpointPermissions.delete],
-            ['GET',    '/api/v1/deck',                     s.endpoints.searchDecks,    s.endpointPermissions.read],
-            ['GET',    '/api/v1/deck/{deckId}',            s.endpoints.getDeck,        s.endpointPermissions.read],
-            ['GET',    '/api/v1/card',                     s.endpoints.searchCards,    s.endpointPermissions.read],
-            ['GET',    '/api/v1/card/{cardId}',            s.endpoints.getCard,        s.endpointPermissions.anyToken],
-            ['POST',   '/api/v1/card',                     s.endpoints.createCard,     s.endpointPermissions.write],
-            ['PUT',    '/api/v1/card/{cardId}',             s.endpoints.updateCard,     s.endpointPermissions.update],
-            ['DELETE', '/api/v1/card/{cardId}',             s.endpoints.deleteCard,     s.endpointPermissions.delete],
-            ['POST',   '/api/v1/nodes/bulk-delete',        s.endpoints.bulkDelete,     s.endpointPermissions.delete],
-            ['GET',    '/api/v1/find/{simpleName}',        s.endpoints.findBySimpleName, s.endpointPermissions.anyToken],
-            ['GET',    '/api/v1/{deckSlug}',               s.endpoints.listRecords,    s.endpointPermissions.read],
-            ['GET',    '/api/v1/{deckSlug}/{id}',          s.endpoints.getRecord,      s.endpointPermissions.read],
-            ['POST',   '/api/v1/{deckSlug}',               s.endpoints.createRecord,   s.endpointPermissions.write],
-            ['PUT',    '/api/v1/{deckSlug}/{id}',          s.endpoints.putRecord,      s.endpointPermissions.update],
-            ['PATCH',  '/api/v1/{deckSlug}/{id}',          s.endpoints.patchRecord,    s.endpointPermissions.update],
-            ['DELETE', '/api/v1/{deckSlug}/{id}',          s.endpoints.deleteRecord,   s.endpointPermissions.delete],
+            ['/api/v1/table',             s.endpoints.schema,           s.endpointPermissions.anyToken],
+            ['/api/v1/table/{deckId}',    s.endpoints.getSchemaDeck,    s.endpointPermissions.anyToken],
+            ['/api/v1/deck',              s.endpoints.searchDecks,      s.endpointPermissions.read],
+            ['/api/v1/deck/{deckId}',     s.endpoints.getDeck,          s.endpointPermissions.read],
+            ['/api/v1/card',              s.endpoints.searchCards,      s.endpointPermissions.read],
+            ['/api/v1/card/{cardId}',     s.endpoints.getCard,          s.endpointPermissions.anyToken],
+            ['/api/v1/find/{simpleName}', s.endpoints.findBySimpleName, s.endpointPermissions.anyToken],
+            ['/api/v1/{deckSlug}',        s.endpoints.listRecords,      s.endpointPermissions.read],
+            ['/api/v1/{deckSlug}/{id}',   s.endpoints.getRecord,        s.endpointPermissions.read],
           ]}
         />
-        <div className="mt-2 space-y-1">
+      </div>
+
+      <div id="api-endpoints-post">
+        <SubHeading>{s.endpointsPostTitle}</SubHeading>
+        <Table
+          headers={['Route', 'Description', 'Permission']}
+          rows={[
+            ['/api/v1/table',            s.endpoints.createDeck,   s.endpointPermissions.write],
+            ['/api/v1/card',              s.endpoints.createCard,   s.endpointPermissions.write],
+            ['/api/v1/{deckSlug}',        s.endpoints.createRecord, s.endpointPermissions.write],
+            ['/api/v1/nodes/bulk-delete', s.endpoints.bulkDelete,   s.endpointPermissions.delete],
+          ]}
+        />
+      </div>
+
+      <div id="api-endpoints-put">
+        <SubHeading>{s.endpointsPutTitle}</SubHeading>
+        <Table
+          headers={['Route', 'Description', 'Permission']}
+          rows={[
+            ['/api/v1/table/{deckId}',  s.endpoints.renameDeck, s.endpointPermissions.update],
+            ['/api/v1/card/{cardId}',   s.endpoints.updateCard, s.endpointPermissions.update],
+            ['/api/v1/{deckSlug}/{id}', s.endpoints.putRecord,  s.endpointPermissions.update],
+          ]}
+        />
+      </div>
+
+      <div id="api-endpoints-patch">
+        <SubHeading>{s.endpointsPatchTitle}</SubHeading>
+        <Table
+          headers={['Route', 'Description', 'Permission']}
+          rows={[
+            ['/api/v1/{deckSlug}/{id}', s.endpoints.patchRecord, s.endpointPermissions.update],
+          ]}
+        />
+        <div className="mt-2">
           <Note>{s.putVsPatchNote}</Note>
-          <Note>{s.canvasNote}</Note>
+        </div>
+      </div>
+
+      <div id="api-endpoints-delete">
+        <SubHeading>{s.endpointsDeleteTitle}</SubHeading>
+        <Table
+          headers={['Route', 'Description', 'Permission']}
+          rows={[
+            ['/api/v1/table/{deckId}',  s.endpoints.deleteDeck,   s.endpointPermissions.delete],
+            ['/api/v1/card/{cardId}',   s.endpoints.deleteCard,   s.endpointPermissions.delete],
+            ['/api/v1/{deckSlug}/{id}', s.endpoints.deleteRecord, s.endpointPermissions.delete],
+          ]}
+        />
+      </div>
+
+      <div id="api-schema-response">
+        <SubHeading>{s.schemaResponseTitle}</SubHeading>
+        <Prose>{s.schemaResponseIntro}</Prose>
+        <div className="mt-2">
+          <Note>{s.schemaAnyTokenNote}</Note>
+        </div>
+        <div className="mt-2">
+          <DocsCodeBlock
+            language="json"
+            code={`{
+  "decks": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Products",
+      "simpleName": "products",
+      "slug": "products",
+      "updatedAt": "2026-04-15T10:00:00Z",
+      "cards": [
+        { "id": "f1e2d3c4-...", "name": "title",    "simpleName": "title",    "type": "text",     "required": true },
+        { "id": "f2e3d4c5-...", "name": "price",    "simpleName": "price",    "type": "number",   "required": true },
+        { "id": "f3e4d5c6-...", "name": "featured", "simpleName": "featured", "type": "boolean",  "required": false },
+        { "id": "f4e5d6c7-...", "name": "cover",    "simpleName": "cover",    "type": "image",    "required": false },
+        { "id": "f5e6d7c8-...", "name": "category", "simpleName": "category", "type": "relation", "required": false, "relatesTo": "categories" }
+      ],
+      "decks": []
+    },
+    {
+      "id": "b2c3d4e5-f6a7-8901-bcde-f01234567891",
+      "name": "Categories",
+      "simpleName": "categories",
+      "slug": "categories",
+      "updatedAt": "2026-04-15T09:00:00Z",
+      "cards": [
+        { "id": "f6e7d8c9-...", "name": "name",  "simpleName": "name",  "type": "text", "required": true },
+        { "id": "f7e8d9c0-...", "name": "color", "simpleName": "color", "type": "text", "required": false }
+      ],
+      "decks": []
+    }
+  ]
+}`}
+          />
+        </div>
+        <SubHeading>{s.schemaFieldsTitle}</SubHeading>
+        <Table
+          headers={['Field', 'Type', 'Description']}
+          rows={Object.values(s.schemaFields).map((f) => [f.name, f.type, f.desc])}
+        />
+        <div className="mt-2">
+          <Note>{s.schemaResponseNote}</Note>
+        </div>
+      </div>
+
+      <div id="api-relations">
+        <SubHeading>{s.relationsTitle}</SubHeading>
+        <Prose>{s.relationsIntro}</Prose>
+
+        <SubHeading>{s.relationsFlatTitle}</SubHeading>
+        <Prose>{s.relationsFlatDesc}</Prose>
+
+        <SubHeading>{s.relationsInheritanceTitle}</SubHeading>
+        <Prose>{s.relationsInheritanceDesc}</Prose>
+
+        <SubHeading>{s.relationsTypesTitle}</SubHeading>
+        <div className="space-y-2">
+          {(['oneToOne', 'oneToMany', 'manyToMany'] as const).map((key) => (
+            <div key={key} className="rounded-md border border-border bg-surface-2/40 p-3">
+              <p className="font-mono text-xs font-semibold text-primary mb-1">
+                {s.relationsTypes[key].label}
+              </p>
+              <p className="text-xs text-muted leading-5">{s.relationsTypes[key].desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <SubHeading>{s.relationsMultipleTitle}</SubHeading>
+        <Prose>{s.relationsMultipleDesc}</Prose>
+
+        <SubHeading>{s.relationsAntiCycleTitle}</SubHeading>
+        <Prose>{s.relationsAntiCycleDesc}</Prose>
+
+        <SubHeading>{s.relationsConsumingTitle}</SubHeading>
+        <UL items={Object.values(s.relationsConsumingSteps)} />
+
+        <SubHeading>{s.relationsExampleTitle}</SubHeading>
+        <Note>{s.relationsExampleNote}</Note>
+        <div className="mt-2">
+          <DocsCodeBlock
+            language="json"
+            code={`{
+  "decks": [
+    {
+      "id": "a1b2c3d4-...",
+      "name": "Blog Posts",
+      "slug": "blog-posts",
+      "updatedAt": "2026-04-15T10:00:00Z",
+      "cards": [
+        { "id": "f1...", "name": "title",          "type": "text", "required": true  },
+        { "id": "f2...", "name": "body",            "type": "text", "required": true  },
+        { "id": "f3...", "name": "metaTitle",       "type": "text", "required": false },
+        { "id": "f4...", "name": "metaDescription", "type": "text", "required": false }
+      ],
+      "decks": [
+        { "id": "seo-uuid-...", "name": "SEO", "slug": "seo", "updatedAt": "..." }
+      ]
+    }
+  ]
+}`}
+          />
         </div>
       </div>
 
       <div id="api-simplename">
         <SubHeading>{s.simpleNameTitle}</SubHeading>
         <Prose>{s.simpleNameDesc}</Prose>
+      </div>
+
+      <div id="api-card-config">
+        <SubHeading>{s.cardConfigTitle}</SubHeading>
+        <Prose>{s.cardConfigIntro}</Prose>
+        <div className="mt-2">
+          <Table
+            headers={['Type', 'Config keys', 'Notes']}
+            rows={Object.values(s.cardConfigTable).map((r) => [r.type, r.keys, r.desc])}
+          />
+        </div>
+
+        <SubHeading>{s.mediaRefTitle}</SubHeading>
+        <Prose>{s.mediaRefIntro}</Prose>
+        <div className="mt-2">
+          <Table
+            headers={['Key', 'Type', 'Applies to', 'Description']}
+            rows={Object.values(s.mediaRefTable).map((r) => [r.name, r.type, r.appliesTo, r.desc])}
+          />
+        </div>
+        <div className="mt-2">
+          <Note>{s.mediaLimitsNote}</Note>
+        </div>
+
+        <div className="mt-2">
+          <Note>{s.cardConfigExamplesNote}</Note>
+        </div>
+        <div className="mt-2">
+          <DocsCodeBlock
+            language="bash"
+            code={`# Create an image card, uploading a base64 file (write scope required)
+curl -X POST \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"cover","parentId":"<deckId>","fieldType":"image","config":{"base64":"data:image/png;base64,iVBORw0KGgo...","filename":"cover.png"}}' \\
+  https://your-domain.com/api/v1/card
+
+# Create a gallery card with mixed reference types: base64, url, and an existing mediaId (write scope required)
+curl -X POST \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"photos","parentId":"<deckId>","fieldType":"gallery","config":{"maxItems":10,"items":[{"base64":"...","mimeType":"image/png"},{"url":"https://example.com/pic.jpg"},{"mediaId":"<existingMediaId>"}]}}' \\
+  https://your-domain.com/api/v1/card
+
+# Create a relation card with an explicit relationType (write scope required)
+curl -X POST \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"author","parentId":"<deckId>","fieldType":"relation","relationTargetId":"<targetDeckId>","config":{"relationType":"n:m"}}' \\
+  https://your-domain.com/api/v1/card
+
+# Create a number card with a range value (write scope required)
+curl -X POST \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"rating","parentId":"<deckId>","fieldType":"number","config":{"subtype":"float","valueMode":"range","min":0,"max":5}}' \\
+  https://your-domain.com/api/v1/card`}
+          />
+        </div>
       </div>
 
       <div id="api-search">
@@ -787,6 +1009,45 @@ function ApiForDevsSection({ d }: { d: DocsDict }) {
         </div>
       </div>
 
+      <div id="api-delete">
+        <SubHeading>{s.deleteTitle}</SubHeading>
+        <Prose>{s.deleteIntro}</Prose>
+
+        <SubHeading>{s.deleteCardTitle}</SubHeading>
+        <Prose>{s.deleteCardDesc}</Prose>
+
+        <SubHeading>{s.deleteDeckTitle}</SubHeading>
+        <Prose>{s.deleteDeckDesc}</Prose>
+
+        <div className="mt-2">
+          <Note>{s.deleteConflictNote}</Note>
+        </div>
+
+        <div className="mt-2">
+          <Note>{s.deleteExamplesNote}</Note>
+        </div>
+        <div className="mt-2 space-y-2">
+          <DocsCodeBlock
+            language="json"
+            code={`{
+  "error": "NODE_HAS_CHILDREN",
+  "message": "This deck contains 3 nested card(s)/deck(s). Pass ?cascade=true to delete them along with it.",
+  "count": 3
+}`}
+          />
+          <DocsCodeBlock
+            language="json"
+            code={`{
+  "data": {
+    "deleted": true,
+    "mediaPurged": 2,
+    "mediaFailed": 0
+  }
+}`}
+          />
+        </div>
+      </div>
+
       <div id="api-errors">
         <SubHeading>{s.errorsTitle}</SubHeading>
         <Table
@@ -834,6 +1095,13 @@ curl -X POST \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
   -d '{"name":"Products","parentId":null}' \\
+  https://your-domain.com/api/v1/table
+
+# Create a nested deck by parentSimpleName, instead of looking up parentId first (write scope required)
+curl -X POST \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"SEO","parentSimpleName":"products"}' \\
   https://your-domain.com/api/v1/table
 
 # Rename a deck (update scope required)
@@ -915,167 +1183,6 @@ curl -X DELETE \\
           />
         </div>
       </div>
-    </div>
-  )
-}
-
-// ── Section: Node Relations ───────────────────────────────────────────────────
-
-function RelationsSection({ d }: { d: DocsDict }) {
-  const s = d.relations
-  return (
-    <div className="space-y-4">
-      <SectionHeading>{s.title}</SectionHeading>
-      <Prose>{s.intro}</Prose>
-
-      {/* Flat response principle */}
-      <div>
-        <SubHeading>{s.flatPrincipleTitle}</SubHeading>
-        <Prose>{s.flatPrincipleDesc}</Prose>
-      </div>
-
-      {/* Structural inheritance */}
-      <div>
-        <SubHeading>{s.inheritanceTitle}</SubHeading>
-        <Prose>{s.inheritanceDesc}</Prose>
-      </div>
-
-      {/* Relation types */}
-      <div>
-        <SubHeading>{s.relationTypesTitle}</SubHeading>
-        <div className="space-y-2">
-          {(['oneToOne', 'oneToMany', 'manyToMany'] as const).map((key) => (
-            <div key={key} className="rounded-md border border-border bg-surface-2/40 p-3">
-              <p className="font-mono text-xs font-semibold text-primary mb-1">
-                {s.types[key].label}
-              </p>
-              <p className="text-xs text-muted leading-5">{s.types[key].desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Multiple relations */}
-      <div>
-        <SubHeading>{s.multipleRelationsTitle}</SubHeading>
-        <Prose>{s.multipleRelationsDesc}</Prose>
-      </div>
-
-      {/* Anti-cycle */}
-      <div>
-        <SubHeading>{s.antiCycleTitle}</SubHeading>
-        <Prose>{s.antiCycleDesc}</Prose>
-      </div>
-
-      {/* How to consume */}
-      <div>
-        <SubHeading>{s.consumingTitle}</SubHeading>
-        <UL items={Object.values(s.consumingSteps)} />
-      </div>
-
-      {/* JSON example */}
-      <div>
-        <SubHeading>{s.exampleTitle}</SubHeading>
-        <Note>{s.exampleNote}</Note>
-        <div className="mt-2">
-          <DocsCodeBlock
-            language="json"
-            code={`{
-  "decks": [
-    {
-      "id": "a1b2c3d4-...",
-      "name": "Blog Posts",
-      "slug": "blog-posts",
-      "updatedAt": "2026-04-15T10:00:00Z",
-      "cards": [
-        { "id": "f1...", "name": "title",          "type": "text", "required": true  },
-        { "id": "f2...", "name": "body",            "type": "text", "required": true  },
-        { "id": "f3...", "name": "metaTitle",       "type": "text", "required": false },
-        { "id": "f4...", "name": "metaDescription", "type": "text", "required": false }
-      ],
-      "decks": [
-        { "id": "seo-uuid-...", "name": "SEO", "slug": "seo", "updatedAt": "..." }
-      ]
-    }
-  ]
-}`}
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Section: API Schema ───────────────────────────────────────────────────────
-
-function ApiSchemaSection({ d }: { d: DocsDict }) {
-  const s = d.apiSchema
-  return (
-    <div className="space-y-4">
-      <SectionHeading>{s.title}</SectionHeading>
-      <Prose>{s.intro}</Prose>
-
-      <div>
-        <SubHeading>{s.endpointLabel}</SubHeading>
-        <DocsCodeBlock language="http" code={`GET /api/v1/table\nAuthorization: Bearer <token>`} />
-        <p className="mt-1.5 text-xs text-muted">{s.anyTokenNote}</p>
-      </div>
-
-      <div>
-        <SubHeading>{s.responseTitle}</SubHeading>
-        <DocsCodeBlock
-          language="json"
-          code={`{
-  "decks": [
-    {
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "name": "Products",
-      "simpleName": "products",
-      "slug": "products",
-      "updatedAt": "2026-04-15T10:00:00Z",
-      "cards": [
-        { "id": "f1e2d3c4-...", "name": "title",    "simpleName": "title",    "type": "text",     "required": true },
-        { "id": "f2e3d4c5-...", "name": "price",    "simpleName": "price",    "type": "number",   "required": true },
-        { "id": "f3e4d5c6-...", "name": "featured", "simpleName": "featured", "type": "boolean",  "required": false },
-        { "id": "f4e5d6c7-...", "name": "cover",    "simpleName": "cover",    "type": "image",    "required": false },
-        { "id": "f5e6d7c8-...", "name": "category", "simpleName": "category", "type": "relation", "required": false, "relatesTo": "categories" }
-      ],
-      "decks": []
-    },
-    {
-      "id": "b2c3d4e5-f6a7-8901-bcde-f01234567891",
-      "name": "Categories",
-      "simpleName": "categories",
-      "slug": "categories",
-      "updatedAt": "2026-04-15T09:00:00Z",
-      "cards": [
-        { "id": "f6e7d8c9-...", "name": "name",  "simpleName": "name",  "type": "text", "required": true },
-        { "id": "f7e8d9c0-...", "name": "color", "simpleName": "color", "type": "text", "required": false }
-      ],
-      "decks": []
-    }
-  ]
-}`}
-        />
-      </div>
-
-      <div>
-        <SubHeading>{s.fieldsTableTitle}</SubHeading>
-        <Table
-          headers={['Field', 'Type', 'Description']}
-          rows={Object.values(s.fields).map((f) => [f.name, f.type, f.desc])}
-        />
-      </div>
-
-      <div>
-        <SubHeading>{s.exampleLabel}</SubHeading>
-        <DocsCodeBlock
-          language="bash"
-          code={`curl -H "Authorization: Bearer <token>" \\\n  https://your-domain.com/api/v1/table`}
-        />
-      </div>
-
-      <Note>{s.crossRefNote}</Note>
     </div>
   )
 }
@@ -1479,12 +1586,12 @@ const ORDERED_SECTIONS = [
   'gettingStarted','navigation','nodesAndFields','content','webMigration',
   'relationsGuide','rolesGuide','multiProject',
   'installation','usersGuide','nodesAndFieldsDev','importExport','emailSetup','webMigrationDev','multiProjectDev','media',
-  'storageSetup','apiForDevs','apiSchema','relations',
+  'storageSetup','apiForDevs',
 ] as const
 
 const DEV_SECTION_SET = new Set([
   'installation','usersGuide','nodesAndFieldsDev','emailSetup','webMigrationDev','multiProjectDev','media',
-  'storageSetup','apiForDevs','apiSchema','relations',
+  'storageSetup','apiForDevs',
 ])
 
 function SectionNav({
@@ -1562,8 +1669,6 @@ type SectionId =
   | 'media'
   | 'storageSetup'
   | 'apiForDevs'
-  | 'apiSchema'
-  | 'relations'
 
 // ── Valid section IDs (for hash validation) ───────────────────────────────────
 
@@ -1571,7 +1676,7 @@ const VALID_SECTION_IDS = new Set<string>([
   'gettingStarted', 'navigation', 'nodesAndFields', 'content', 'webMigration',
   'relationsGuide', 'rolesGuide', 'multiProject', 'nodesAndFieldsDev', 'importExport',
   'usersGuide', 'emailSetup', 'webMigrationDev',
-  'multiProjectDev', 'media', 'installation', 'storageSetup', 'apiForDevs', 'apiSchema', 'relations',
+  'multiProjectDev', 'media', 'installation', 'storageSetup', 'apiForDevs',
 ])
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -1636,8 +1741,6 @@ export function DocsPage({ d, locale, noPad = false }: DocsPageProps) {
       case 'installation':    return <InstallationSection d={d} />
       case 'storageSetup':    return <StorageSetupSection d={d} />
       case 'apiForDevs':      return <ApiForDevsSection d={d} />
-      case 'apiSchema':       return <ApiSchemaSection d={d} />
-      case 'relations':       return <RelationsSection d={d} />
     }
   }
 

@@ -1,0 +1,138 @@
+@baseUrl = http://localhost:3000
+@token = REPLACE_WITH_A_REAL_TOKEN
+@tokenNoDeleteScope = REPLACE_WITH_A_TOKEN_MISSING_DELETE_SCOPE
+@tokenExcludedDeck = REPLACE_WITH_A_TOKEN_THAT_EXCLUDES_deckId_BELOW
+@tokenNoSchemaDelete = REPLACE_WITH_A_TOKEN_ON_A_ROLE_WITH_canDelete_FALSE
+
+### =========================================================================
+### SETUP — root deck to hold the test cards (copy the returned id into @deckId)
+### =========================================================================
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "DeleteCardTestDeck"
+}
+
+###
+@deckId = 00000000-0000-0000-0000-000000000000
+
+### SETUP — plain text card to delete in the basic-success scenario (copy id into @cardId)
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "CardToDelete",
+  "parentId": "{{deckId}}",
+  "fieldType": "text"
+}
+
+###
+@cardId = 00000000-0000-0000-0000-000000000000
+
+### =========================================================================
+### 1) SUCCESS — delete an existing card → 204 No Content, empty body
+### =========================================================================
+DELETE {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{token}}
+
+### 2) Delete the SAME card again → 404 NOT_FOUND (already gone)
+DELETE {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{token}}
+
+### 3) Delete a non-UUID cardId → 404 NOT_FOUND (isUuid guard, never a raw DB error)
+DELETE {{baseUrl}}/api/v1/card/not-a-uuid
+Authorization: Bearer {{token}}
+
+### 4) Delete a well-formed UUID that never existed → 404 NOT_FOUND
+DELETE {{baseUrl}}/api/v1/card/11111111-1111-1111-1111-111111111111
+Authorization: Bearer {{token}}
+
+### 5) Delete a DECK id passed as if it were a cardId → 404 NOT_FOUND
+### (the lookup filters nodes.type = 'field', so a container id never matches)
+DELETE {{baseUrl}}/api/v1/card/{{deckId}}
+Authorization: Bearer {{token}}
+
+### =========================================================================
+### 6) AUTH — missing Authorization header → 401 UNAUTHORIZED
+### =========================================================================
+DELETE {{baseUrl}}/api/v1/card/{{cardId}}
+
+### 7) AUTH — malformed/unknown token → 401 UNAUTHORIZED
+DELETE {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer this-token-does-not-exist
+
+### =========================================================================
+### 8) SCOPE — token has no "delete" scope → 403 FORBIDDEN
+### Generate @tokenNoDeleteScope in Settings → API with scope = ["read","write","update"]
+### =========================================================================
+DELETE {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{tokenNoDeleteScope}}
+
+### =========================================================================
+### 9) TOKEN POLICY — deckId (the card's parent) is in the token's excluded list → 403 FORBIDDEN
+### Generate @tokenExcludedDeck in Settings → API excluding {{deckId}} explicitly
+### =========================================================================
+DELETE {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{tokenExcludedDeck}}
+
+### =========================================================================
+### 10) ROLE — token's role has schema canDelete = false → 403 FORBIDDEN
+### Generate @tokenNoSchemaDelete on a role whose Settings → Roles schema
+### permissions have "Delete card/deck" unchecked for this project
+### =========================================================================
+DELETE {{baseUrl}}/api/v1/card/{{cardId}}
+Authorization: Bearer {{tokenNoSchemaDelete}}
+
+### =========================================================================
+### 11) MEDIA CLEANUP — delete an image card that real records reference:
+### the media row gets purged (storage file + DB row) and the field is
+### stripped from every record that had it set. Full flow below.
+### =========================================================================
+
+### 11a) create the image card WITH a base64 default (uploads real media)
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "FotoConMedia",
+  "parentId": "{{deckId}}",
+  "fieldType": "image",
+  "config": {
+    "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+    "mimeType": "image/png",
+    "filename": "foto.png"
+  }
+}
+
+###
+@mediaCardId = 00000000-0000-0000-0000-000000000000
+@mediaId = 00000000-0000-0000-0000-000000000000
+### (copy fieldType card's "id" into @mediaCardId and its config.defaultMediaId into @mediaId from the 11a response)
+
+### 11b) create a record on the root deck referencing that media by id
+### (the deck's slug is its simpleName, from the DeleteCardTestDeck setup step: deletecardtestdeck)
+POST {{baseUrl}}/api/v1/deletecardtestdeck
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "FotoConMedia": "{{mediaId}}"
+}
+
+### 11c) delete the card — purges the referenced media and clears the field from the record above
+DELETE {{baseUrl}}/api/v1/card/{{mediaCardId}}
+Authorization: Bearer {{token}}
+
+### 11d) verify: GET the deck's records — FotoConMedia should now be absent/null on every row
+GET {{baseUrl}}/api/v1/deletecardtestdeck
+Authorization: Bearer {{token}}
+
+### =========================================================================
+### CLEANUP — remove the test deck itself (cascades the remaining test cards/records)
+### =========================================================================
+DELETE {{baseUrl}}/api/v1/table/{{deckId}}?cascade=true
+Authorization: Bearer {{token}}

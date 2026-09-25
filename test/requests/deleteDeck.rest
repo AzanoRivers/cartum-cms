@@ -1,0 +1,234 @@
+@baseUrl = http://localhost:3000
+@token = REPLACE_WITH_A_REAL_TOKEN
+@tokenNoDeleteScope = REPLACE_WITH_A_TOKEN_MISSING_DELETE_SCOPE
+@tokenExcludedDeck = REPLACE_WITH_A_TOKEN_THAT_EXCLUDES_deckId_BELOW
+@tokenNoSchemaDelete = REPLACE_WITH_A_TOKEN_ON_A_ROLE_WITH_canDelete_FALSE
+
+### =========================================================================
+### 1) SUCCESS — empty deck (no cards, no nested decks, no connections)
+### =========================================================================
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "DeleteDeckEmpty"
+}
+
+###
+@emptyDeckId = 00000000-0000-0000-0000-000000000000
+
+### → 200, { data: { deleted: true, mediaPurged: 0, mediaFailed: 0 } }
+DELETE {{baseUrl}}/api/v1/table/{{emptyDeckId}}
+Authorization: Bearer {{token}}
+
+### 2) same deck again → 404 NOT_FOUND (already gone)
+DELETE {{baseUrl}}/api/v1/table/{{emptyDeckId}}
+Authorization: Bearer {{token}}
+
+### =========================================================================
+### 3) NODE_HAS_CHILDREN — deck with a nested card, no ?cascade
+### =========================================================================
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "DeleteDeckWithCard"
+}
+
+###
+@deckWithCardId = 00000000-0000-0000-0000-000000000000
+
+### setup: one card inside it
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "SomeCard",
+  "parentId": "{{deckWithCardId}}",
+  "fieldType": "text"
+}
+
+### 3a) delete without cascade → 409 { error: "NODE_HAS_CHILDREN", count: 1, message: "...Pass ?cascade=true..." }
+DELETE {{baseUrl}}/api/v1/table/{{deckWithCardId}}
+Authorization: Bearer {{token}}
+
+### 3b) delete with ?cascade=true → 200, deletes the deck and its card together
+DELETE {{baseUrl}}/api/v1/table/{{deckWithCardId}}?cascade=true
+Authorization: Bearer {{token}}
+
+### =========================================================================
+### 4) NODE_HAS_CHILDREN — deck with a NESTED SUB-DECK (not just a card)
+### =========================================================================
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "DeleteDeckWithSubdeck"
+}
+
+###
+@deckWithSubdeckId = 00000000-0000-0000-0000-000000000000
+
+### setup: nested sub-deck
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "NestedSubdeck",
+  "parentId": "{{deckWithSubdeckId}}"
+}
+
+### 4a) delete without cascade → 409 NODE_HAS_CHILDREN, count: 1 (the sub-deck)
+DELETE {{baseUrl}}/api/v1/table/{{deckWithSubdeckId}}
+Authorization: Bearer {{token}}
+
+### 4b) delete with ?cascade=true → 200, deletes the whole subtree
+DELETE {{baseUrl}}/api/v1/table/{{deckWithSubdeckId}}?cascade=true
+Authorization: Bearer {{token}}
+
+### =========================================================================
+### 5) MEDIA CLEANUP — cascade-deleting a deck purges every media file its
+### cards uploaded (mediaPurged reflects the real count, mediaFailed stays 0
+### unless a storage delete actually errored)
+### =========================================================================
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "DeleteDeckWithMedia"
+}
+
+###
+@deckWithMediaId = 00000000-0000-0000-0000-000000000000
+
+### setup: image card with a real base64 upload
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "FotoConMedia",
+  "parentId": "{{deckWithMediaId}}",
+  "fieldType": "image",
+  "config": {
+    "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+    "mimeType": "image/png",
+    "filename": "foto.png"
+  }
+}
+
+### → 200, { data: { deleted: true, mediaPurged: 1, mediaFailed: 0 } }
+DELETE {{baseUrl}}/api/v1/table/{{deckWithMediaId}}?cascade=true
+Authorization: Bearer {{token}}
+
+### =========================================================================
+### 6) NODE_HAS_CONNECTIONS — NOT RUNNABLE from this file.
+### A "connection" (vínculo) between two decks is only created from the CMS
+### board UI (drag a relation between two mazos), the public v1 API has no
+### endpoint that creates one. Documented for completeness:
+###
+### DELETE {{baseUrl}}/api/v1/table/{deckId}   (deck has ≥1 active connection, no ?cascade)
+### → 409 { error: "NODE_HAS_CONNECTIONS", count: <n>,
+###         message: "...has <n> active relation(s)...Pass ?cascade=true..." }
+###
+### DELETE {{baseUrl}}/api/v1/table/{deckId}?cascade=true
+### → 200, deletes the deck (and its connections) anyway.
+### =========================================================================
+
+### =========================================================================
+### 7) BAD REQUEST / NOT FOUND — malformed or wrong-type ids
+### =========================================================================
+
+### 7a) non-UUID deckId → 404 NOT_FOUND (isUuid guard)
+DELETE {{baseUrl}}/api/v1/table/not-a-uuid
+Authorization: Bearer {{token}}
+
+### 7b) well-formed UUID that never existed → 404 NOT_FOUND
+DELETE {{baseUrl}}/api/v1/table/11111111-1111-1111-1111-111111111111
+Authorization: Bearer {{token}}
+
+### 7c) setup: a plain card, to pass its id where a deckId is expected
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "DeleteDeckTypeCheck"
+}
+
+###
+@typeCheckDeckId = 00000000-0000-0000-0000-000000000000
+
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "NotADeck",
+  "parentId": "{{typeCheckDeckId}}",
+  "fieldType": "text"
+}
+
+###
+@notADeckCardId = 00000000-0000-0000-0000-000000000000
+
+### 7d) a card id passed to the deck-delete endpoint → 400 BAD_REQUEST "Node is not a deck."
+DELETE {{baseUrl}}/api/v1/table/{{notADeckCardId}}
+Authorization: Bearer {{token}}
+
+### cleanup for this section
+DELETE {{baseUrl}}/api/v1/table/{{typeCheckDeckId}}?cascade=true
+Authorization: Bearer {{token}}
+
+### =========================================================================
+### 8) AUTH — missing/invalid Authorization → 401 UNAUTHORIZED
+### =========================================================================
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "DeleteDeckAuthCheck"
+}
+
+###
+@authCheckDeckId = 00000000-0000-0000-0000-000000000000
+
+### 8a) no Authorization header at all
+DELETE {{baseUrl}}/api/v1/table/{{authCheckDeckId}}
+
+### 8b) unknown/garbage token
+DELETE {{baseUrl}}/api/v1/table/{{authCheckDeckId}}
+Authorization: Bearer this-token-does-not-exist
+
+### =========================================================================
+### 9) SCOPE — token has no "delete" scope → 403 FORBIDDEN
+### Generate @tokenNoDeleteScope in Settings → API with scope = ["read","write","update"]
+### =========================================================================
+DELETE {{baseUrl}}/api/v1/table/{{authCheckDeckId}}
+Authorization: Bearer {{tokenNoDeleteScope}}
+
+### =========================================================================
+### 10) TOKEN POLICY — this deckId is in the token's excluded list → 403 FORBIDDEN
+### Generate @tokenExcludedDeck in Settings → API excluding {{authCheckDeckId}} explicitly
+### =========================================================================
+DELETE {{baseUrl}}/api/v1/table/{{authCheckDeckId}}
+Authorization: Bearer {{tokenExcludedDeck}}
+
+### =========================================================================
+### 11) ROLE — token's role has schema canDelete = false → 403 FORBIDDEN
+### Generate @tokenNoSchemaDelete on a role whose Settings → Roles schema
+### permissions have "Delete card/deck" unchecked for this project
+### =========================================================================
+DELETE {{baseUrl}}/api/v1/table/{{authCheckDeckId}}
+Authorization: Bearer {{tokenNoSchemaDelete}}
+
+### cleanup for section 8/9/10/11 (only succeeds once a valid full-scope token is used)
+DELETE {{baseUrl}}/api/v1/table/{{authCheckDeckId}}?cascade=true
+Authorization: Bearer {{token}}

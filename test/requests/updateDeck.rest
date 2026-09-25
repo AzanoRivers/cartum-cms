@@ -1,0 +1,206 @@
+@baseUrl = http://localhost:3000
+@token = REPLACE_WITH_A_REAL_TOKEN
+@tokenNoUpdateScope = REPLACE_WITH_A_TOKEN_MISSING_UPDATE_SCOPE
+@tokenExcludedDeck = REPLACE_WITH_A_TOKEN_THAT_EXCLUDES_deckAId_BELOW
+@tokenNoSchemaUpdate = REPLACE_WITH_A_TOKEN_ON_A_ROLE_WITH_canUpdate_FALSE
+
+### PUT /api/v1/table/{deckId} only renames a deck (name is the one field it
+### accepts). There is no forceChangeFieldType-style endpoint for decks, and
+### no way to move a deck to a different parent through this endpoint.
+
+### =========================================================================
+### SETUP — two root decks: one to rename, one to collide names against
+### =========================================================================
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "RenameDeckA"
+}
+
+###
+@deckAId = 00000000-0000-0000-0000-000000000000
+
+POST {{baseUrl}}/api/v1/table
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "RenameDeckB"
+}
+
+###
+@deckBId = 00000000-0000-0000-0000-000000000000
+
+### =========================================================================
+### 1) SUCCESS — rename a deck
+### =========================================================================
+PUT {{baseUrl}}/api/v1/table/{{deckBId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "RenameDeckB2"
+}
+
+### 2) renaming a deck to the name it ALREADY has is fine (not a collision with itself)
+PUT {{baseUrl}}/api/v1/table/{{deckAId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "RenameDeckA"
+}
+
+### =========================================================================
+### 3) NAME COLLISION — rename to a name a sibling root deck already has
+### → 422 { "error": "VALIDATION_ERROR", "message": "NODE_NAME_TAKEN" }
+### =========================================================================
+PUT {{baseUrl}}/api/v1/table/{{deckBId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "RenameDeckA"
+}
+
+### =========================================================================
+### 4) VALIDATION — missing name, or a name with characters outside [a-zA-Z0-9 _-]
+### =========================================================================
+
+### 4a) missing name → 422 VALIDATION_ERROR
+PUT {{baseUrl}}/api/v1/table/{{deckAId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
+
+### 4b) invalid characters in name → 422 VALIDATION_ERROR
+PUT {{baseUrl}}/api/v1/table/{{deckAId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Bad@Name!"
+}
+
+### =========================================================================
+### 5) NOT FOUND / BAD REQUEST — malformed or wrong-type ids, invalid JSON
+### =========================================================================
+
+### 5a) non-UUID deckId → 404 NOT_FOUND
+PUT {{baseUrl}}/api/v1/table/not-a-uuid
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "X"
+}
+
+### 5b) well-formed UUID that never existed → 404 NOT_FOUND
+PUT {{baseUrl}}/api/v1/table/11111111-1111-1111-1111-111111111111
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "X"
+}
+
+### 5c) setup: a card, to pass its id where a deckId is expected
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "NotADeck",
+  "parentId": "{{deckAId}}",
+  "fieldType": "text"
+}
+
+###
+@notADeckCardId = 00000000-0000-0000-0000-000000000000
+
+### 5d) a card id passed to the deck-rename endpoint → 400 BAD_REQUEST "Node is not a deck."
+PUT {{baseUrl}}/api/v1/table/{{notADeckCardId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "X"
+}
+
+### 5e) invalid JSON body → 400 BAD_REQUEST
+PUT {{baseUrl}}/api/v1/table/{{deckAId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+not json
+
+### =========================================================================
+### 6) AUTH — missing/invalid Authorization → 401 UNAUTHORIZED
+### =========================================================================
+
+### 6a) no Authorization header at all
+PUT {{baseUrl}}/api/v1/table/{{deckAId}}
+Content-Type: application/json
+
+{
+  "name": "RenameDeckA"
+}
+
+### 6b) unknown/garbage token
+PUT {{baseUrl}}/api/v1/table/{{deckAId}}
+Authorization: Bearer this-token-does-not-exist
+Content-Type: application/json
+
+{
+  "name": "RenameDeckA"
+}
+
+### =========================================================================
+### 7) SCOPE — token has no "update" scope → 403 FORBIDDEN
+### Generate @tokenNoUpdateScope in Settings → API with scope = ["read","write","delete"]
+### =========================================================================
+PUT {{baseUrl}}/api/v1/table/{{deckAId}}
+Authorization: Bearer {{tokenNoUpdateScope}}
+Content-Type: application/json
+
+{
+  "name": "RenameDeckA"
+}
+
+### =========================================================================
+### 8) TOKEN POLICY — deckAId is in the token's excluded list → 403 FORBIDDEN
+### Generate @tokenExcludedDeck in Settings → API excluding {{deckAId}} explicitly
+### =========================================================================
+PUT {{baseUrl}}/api/v1/table/{{deckAId}}
+Authorization: Bearer {{tokenExcludedDeck}}
+Content-Type: application/json
+
+{
+  "name": "RenameDeckA"
+}
+
+### =========================================================================
+### 9) ROLE — token's role has schema canUpdate = false → 403 FORBIDDEN
+### Generate @tokenNoSchemaUpdate on a role whose Settings → Roles schema
+### permissions have "Update card/deck" unchecked for this project
+### =========================================================================
+PUT {{baseUrl}}/api/v1/table/{{deckAId}}
+Authorization: Bearer {{tokenNoSchemaUpdate}}
+Content-Type: application/json
+
+{
+  "name": "RenameDeckA"
+}
+
+### =========================================================================
+### CLEANUP — remove both test decks (cascades the leftover card too)
+### =========================================================================
+DELETE {{baseUrl}}/api/v1/table/{{deckAId}}?cascade=true
+Authorization: Bearer {{token}}
+
+###
+DELETE {{baseUrl}}/api/v1/table/{{deckBId}}?cascade=true
+Authorization: Bearer {{token}}

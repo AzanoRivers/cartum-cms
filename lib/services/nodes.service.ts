@@ -96,6 +96,7 @@ export const nodeService = {
       isRequired:       input.isRequired ?? false,
       defaultValue:     input.defaultValue ?? null,
       relationTargetId: input.relationTargetId ?? null,
+      config:           input.config ?? null,
     })
   },
 
@@ -140,12 +141,17 @@ export const nodeService = {
     }
 
     return nodesRepository.updateFieldMeta(nodeId, projectId, {
-      name:             input.name,
-      fieldType:        input.fieldType,
-      isRequired:       input.isRequired,
-      defaultValue:     input.defaultValue,
-      config:           input.config ?? null,
-      relationTargetId: input.relationTargetId,
+      name:       input.name,
+      fieldType:  input.fieldType,
+      isRequired: input.isRequired,
+      // Only touch these when the caller actually sent them - an object
+      // literal with `defaultValue: input.defaultValue` always carries the
+      // key (even as undefined), which nodesRepository.updateFieldMeta reads
+      // via `'defaultValue' in patch` and would silently null out a value
+      // the caller never meant to change on a partial update.
+      ...('defaultValue' in input ? { defaultValue: input.defaultValue } : {}),
+      ...('config' in input ? { config: input.config } : {}),
+      ...('relationTargetId' in input ? { relationTargetId: input.relationTargetId } : {}),
     })
   },
 

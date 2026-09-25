@@ -187,6 +187,7 @@ async function createField(input: {
   isRequired: boolean
   defaultValue: string | null
   relationTargetId: string | null
+  config?: FieldConfig | null
 }): Promise<FieldNode> {
   const [nodeRow] = await db
     .insert(nodes)
@@ -209,6 +210,7 @@ async function createField(input: {
       isRequired:       input.isRequired,
       defaultValue:     input.defaultValue ?? undefined,
       relationTargetId: input.relationTargetId ?? undefined,
+      config:           input.config ?? undefined,
     })
     .returning()
 
@@ -226,7 +228,7 @@ async function createField(input: {
     isRequired:       metaRow.isRequired,
     defaultValue:     metaRow.defaultValue ?? null,
     relationTargetId: metaRow.relationTargetId ?? null,
-    config:           null,
+    config:           (metaRow.config as FieldConfig) ?? null,
   }
 }
 

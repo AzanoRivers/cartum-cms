@@ -1,0 +1,357 @@
+@baseUrl = http://localhost:3000
+@token = REPLACE_WITH_A_REAL_TOKEN
+@parentDeckId = 00000000-0000-0000-0000-000000000000
+@relationTargetId = 00000000-0000-0000-0000-000000000000
+@existingMediaId = 00000000-0000-0000-0000-000000000000
+@existingVideoMediaId = 00000000-0000-0000-0000-000000000000
+
+### =========================================================================
+### TEXT — con multiline + maxLength + defaultValue
+### =========================================================================
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Titulo",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "text",
+  "defaultValue": "Hola mundo",
+  "config": {
+    "multiline": true,
+    "maxLength": 500
+  }
+}
+
+### TEXT — mínimo (sin config, todo con defaults)
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "TituloSimple",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "text"
+}
+
+### =========================================================================
+### NUMBER — subtype integer, valor fijo
+### =========================================================================
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Precio",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "number",
+  "config": {
+    "subtype": "integer",
+    "valueMode": "fixed",
+    "fixedValue": 42
+  }
+}
+
+### NUMBER — subtype float, rango min/max
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Puntuacion",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "number",
+  "config": {
+    "subtype": "float",
+    "valueMode": "range",
+    "min": 0,
+    "max": 100
+  }
+}
+
+### NUMBER — rango inválido (min > max): debe devolver 422 VALIDATION_ERROR
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "PuntuacionInvalida",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "number",
+  "config": {
+    "valueMode": "range",
+    "min": 100,
+    "max": 1
+  }
+}
+
+### =========================================================================
+### BOOLEAN — con defaultValue + labels
+### =========================================================================
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "EstaActivo",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "boolean",
+  "config": {
+    "defaultValue": true,
+    "trueLabel": "Activo",
+    "falseLabel": "Inactivo"
+  }
+}
+
+### =========================================================================
+### RELATION — relationTargetId (top-level, requerido) + relationType (en config)
+### =========================================================================
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Autor",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "relation",
+  "relationTargetId": "{{relationTargetId}}",
+  "config": {
+    "relationType": "n:m"
+  }
+}
+
+### RELATION — sin relationTargetId: debe devolver 422 (RELATION_REQUIRES_TARGET)
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "AutorSinTarget",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "relation"
+}
+
+### =========================================================================
+### IMAGE — base64 plano + mimeType explícito (server sube a R2/Blob y crea el media)
+### =========================================================================
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Portada",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "image",
+  "config": {
+    "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+    "mimeType": "image/png",
+    "filename": "portada.png"
+  }
+}
+
+### IMAGE — base64 como data URI (mimeType incluido en el string, no hace falta repetirlo)
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "PortadaDataUri",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "image",
+  "config": {
+    "base64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+  }
+}
+
+### IMAGE — referenciando un media ya existente en el proyecto (por mediaId)
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "PortadaPorMediaId",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "image",
+  "config": {
+    "mediaId": "{{existingMediaId}}"
+  }
+}
+
+### IMAGE — url externa directa (sin subir nada, no crea media row)
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "PortadaPorUrl",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "image",
+  "config": {
+    "url": "https://example.com/pic.jpg"
+  }
+}
+
+### IMAGE — sin config (queda sin imagen por defecto, config vacío válido)
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "PortadaVacia",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "image"
+}
+
+### IMAGE — mimeType no permitido: debe devolver 422 FILE_TYPE_NOT_ALLOWED
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "PortadaMimeInvalido",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "image",
+  "config": {
+    "base64": "aGVsbG8=",
+    "mimeType": "application/pdf"
+  }
+}
+
+### IMAGE — mediaId inexistente: debe devolver 404 MEDIA_NOT_FOUND
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "PortadaMediaInexistente",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "image",
+  "config": {
+    "mediaId": "00000000-0000-0000-0000-000000000000"
+  }
+}
+
+### IMAGE — mediaId de un video usado en un campo image: debe devolver 422 MEDIA_TYPE_MISMATCH
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "PortadaTipoIncorrecto",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "image",
+  "config": {
+    "mediaId": "{{existingVideoMediaId}}"
+  }
+}
+
+### =========================================================================
+### VIDEO — base64 (mismas variantes que image: base64, mediaId, url, vacío)
+### =========================================================================
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Trailer",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "video",
+  "config": {
+    "base64": "data:video/mp4;base64,AAAAHGZ0eXBpc29tAAACAGlzb21pc28y",
+    "filename": "trailer.mp4"
+  }
+}
+
+### VIDEO — referenciando un media ya existente
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "TrailerPorMediaId",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "video",
+  "config": {
+    "mediaId": "{{existingVideoMediaId}}"
+  }
+}
+
+### VIDEO — sin config
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "TrailerVacio",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "video"
+}
+
+### =========================================================================
+### GALLERY — items mixtos: base64 + url externa + mediaId ya existente
+### =========================================================================
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Galeria",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "gallery",
+  "config": {
+    "maxItems": 10,
+    "items": [
+      {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "mimeType": "image/png",
+        "filename": "g1.png"
+      },
+      { "url": "https://example.com/external.jpg" },
+      { "mediaId": "{{existingMediaId}}" }
+    ]
+  }
+}
+
+### GALLERY — vacía (sin items, válido)
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "GaleriaVacia",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "gallery",
+  "config": { "maxItems": 5 }
+}
+
+### GALLERY — más items que maxItems: debe devolver 422 VALIDATION_ERROR
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "GaleriaExcedida",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "gallery",
+  "config": {
+    "maxItems": 1,
+    "items": [
+      { "url": "https://example.com/a.jpg" },
+      { "url": "https://example.com/b.jpg" }
+    ]
+  }
+}
+
+### GALLERY — item sin base64/url/mediaId: debe devolver 422 VALIDATION_ERROR
+POST {{baseUrl}}/api/v1/card
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "GaleriaItemInvalido",
+  "parentId": "{{parentDeckId}}",
+  "fieldType": "gallery",
+  "config": {
+    "items": [ {} ]
+  }
+}
